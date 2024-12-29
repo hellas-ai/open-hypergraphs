@@ -80,22 +80,17 @@ where
     fn scatter(&mut self, idx: K::Slice<'_, K::I>, x: &Self);
 }
 
-/// Arrays which also support numeric operations.
-pub trait SemiringArray<K: ArrayKind, T>: Array<K, T> + Sized + Sub<Self, Output = Self>
+/// Arrays of natural numbers, convertible from a usize.
+/// This is used for computing with *indexes* and *sizes*.
+pub trait NaturalArray<K: ArrayKind>: Array<K, K::I> + Sized + Sub<Self, Output = Self>
 where
+    // Required because we need to convert a sum of indices into a usize to pass to arange...
     K::I: From<usize>,
 {
     /// An inclusive-and-exclusive cumulative sum
     /// For an input of size `N`, returns an array `x` of size `N+1` where `x[0] = 0` and `x[-1] = sum(x)`
     fn cumulative_sum(&self) -> Self;
-}
 
-/// Arrays of indices, thought of as natural numbers.
-pub trait NaturalArray<K: ArrayKind>: SemiringArray<K, K::I>
-where
-    // Required because we need to convert a sum of indices into a usize to pass to arange...
-    K::I: From<usize>,
-{
     /// Indices from start to stop
     fn arange(start: &K::I, stop: &K::I) -> Self;
 
@@ -106,7 +101,7 @@ where
     /// Segmented sum of input.
     /// For example, for `self = [1 2 0]`,
     /// `self.segmented_sum([1 | 2 3]) = [1 5 0]`.
-    fn segmented_sum<T, A: SemiringArray<K, T>>(&self, x: &A) -> A {
+    fn segmented_sum(&self, x: &Self) -> Self {
         let segment_sizes = self;
         let ptr = segment_sizes.cumulative_sum();
         let sum = x.cumulative_sum();

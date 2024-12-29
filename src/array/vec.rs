@@ -1,8 +1,7 @@
 //! [`Vec<T>`]-backed arrays
 use crate::array::*;
 use core::ops::{Index, RangeBounds};
-use num_traits::Zero;
-use std::ops::{AddAssign, Deref, DerefMut, Sub};
+use std::ops::{Deref, DerefMut, Sub};
 
 /// Arrays backed by a [`Vec<T>`].
 #[derive(PartialEq, Eq, Debug)]
@@ -93,20 +92,18 @@ impl<T: Clone + Sub<Output = T>> Sub<VecArray<T>> for VecArray<T> {
     }
 }
 
-impl<T: Zero + Clone + AddAssign + Sub<Output = T>> SemiringArray<VecKind, T> for VecArray<T> {
+impl NaturalArray<VecKind> for VecArray<usize> {
     fn cumulative_sum(&self) -> Self {
         VecArray(
             self.iter()
-                .scan(T::zero(), |acc, x| {
-                    *acc += x.clone();
-                    Some(acc.clone())
+                .scan(0, |acc, x| {
+                    *acc += *x;
+                    Some(*acc)
                 })
                 .collect(),
         )
     }
-}
 
-impl NaturalArray<VecKind> for VecArray<usize> {
     fn arange(start: &usize, stop: &usize) -> Self {
         assert!(stop >= start);
         let n = stop - start;
