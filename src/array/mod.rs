@@ -2,4 +2,4 @@
 pub mod traits;
 pub mod vec;
 
-use traits::*;
+pub use traits::*;

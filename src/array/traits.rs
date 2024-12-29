@@ -4,9 +4,13 @@ use std::ops::Sub;
 
 /// Array *kinds*.
 /// For example, [`super::vec::VecKind`] is the set of types [`Vec<T>`] for all `T`.
-pub trait ArrayKind {
+pub trait ArrayKind: Sized
+where
+    Self::I: Clone + PartialEq + From<usize> + Sub<Output = Self::I>,
+{
     /// The type of arrays containing elements type T
     type Type<T>;
+
     /// The type of *index* elements. For [`super::vec::VecKind`], this is [`usize`].
     type I;
 

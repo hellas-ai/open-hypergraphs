@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut, Sub};
 pub struct VecKind {}
 
 impl ArrayKind for VecKind {
-    type Type<T> = Vec<T>;
+    type Type<T> = VecArray<T>;
     type I = usize;
     // A Slice for Vec is just a rust slice
     type Slice<'a, T: 'a> = &'a [T];
