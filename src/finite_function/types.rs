@@ -43,6 +43,19 @@ where
     }
 }
 
+impl<K: ArrayKind> Coproduct for FiniteFunction<K>
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    fn initial(a: &Self::Object) -> Self {
+        todo!()
+    }
+
+    fn coproduct(&self, other: &Self) -> Self {
+        todo!()
+    }
+}
+
 // Syntactic sugar for finite function composition
 impl<K: ArrayKind> Shr<&FiniteFunction<K>> for &FiniteFunction<K>
 where
