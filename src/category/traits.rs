@@ -19,8 +19,14 @@ pub trait Coproduct: Arrow {
     /// Construct the initial arrow `initial_a : 0 → a` from some object `a`
     fn initial(a: &Self::Object) -> Self;
 
-    /// Construct the coproduct of two arrows
-    fn coproduct(&self, other: &Self) -> Self;
+    /// Construct the coproduct of two arrows, or None if they didn't share a codomain.
+    fn coproduct(&self, other: &Self) -> Option<Self>;
+
+    // Construct the left injection map from two objects
+    fn inj0(a: &Self::Object, b: &Self::Object) -> Self;
+
+    // Construct the left injection map from two objects
+    fn inj1(a: &Self::Object, b: &Self::Object) -> Self;
 }
 
 pub trait Monoidal: Arrow {

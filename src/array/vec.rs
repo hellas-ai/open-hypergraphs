@@ -1,7 +1,6 @@
 //! [`Vec<T>`]-backed arrays
 use crate::array::*;
-use core::ops::{Index, RangeBounds};
-use std::ops::{Deref, DerefMut, Sub};
+use core::ops::{Add, Deref, DerefMut, Index, RangeBounds, Sub};
 
 /// Arrays backed by a [`Vec<T>`].
 #[derive(PartialEq, Eq, Debug)]
@@ -10,6 +9,8 @@ pub struct VecKind {}
 impl ArrayKind for VecKind {
     type Type<T> = VecArray<T>;
     type I = usize;
+    type Index = VecArray<usize>;
+
     // A Slice for Vec is just a rust slice
     type Slice<'a, T: 'a> = &'a [T];
 }
@@ -31,10 +32,7 @@ impl<T> DerefMut for VecArray<T> {
     }
 }
 
-impl<T> Array<VecKind, T> for VecArray<T>
-where
-    T: Clone,
-{
+impl<T: Clone> Array<VecKind, T> for VecArray<T> {
     fn empty() -> Self {
         VecArray(Vec::default())
     }
@@ -54,8 +52,8 @@ where
         VecArray(vec![x; n])
     }
 
-    fn get(&self, i: &usize) -> T {
-        self[*i].clone()
+    fn get(&self, i: usize) -> T {
+        self[i].clone()
     }
 
     fn get_range<R: RangeBounds<usize>>(&self, rb: R) -> &[T] {
@@ -75,6 +73,14 @@ where
         for i in idx {
             self[*i] = v[*i].clone();
         }
+    }
+}
+
+impl Add<&VecArray<usize>> for usize {
+    type Output = VecArray<usize>;
+
+    fn add(self, rhs: &VecArray<usize>) -> Self::Output {
+        VecArray(rhs.iter().map(|x| x + self).collect())
     }
 }
 

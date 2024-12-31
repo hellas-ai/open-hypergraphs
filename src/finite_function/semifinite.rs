@@ -1,5 +1,5 @@
 use super::types::FiniteFunction;
-use crate::array::{Array, ArrayKind, NaturalArray};
+use crate::array::{Array, ArrayKind};
 use std::ops::Shr;
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
@@ -10,7 +10,6 @@ pub struct SemifiniteFunction<K: ArrayKind, T>(pub K::Type<T>);
 impl<K: ArrayKind, T> Shr<&SemifiniteFunction<K, T>> for &FiniteFunction<K>
 where
     K::Type<T>: Array<K, T>,
-    K::Type<K::I>: NaturalArray<K>,
 {
     type Output = Option<SemifiniteFunction<K, T>>;
 
