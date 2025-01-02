@@ -18,6 +18,12 @@ impl ArrayKind for VecKind {
 /// A newtype wrapper for [`Vec<T>`] allowing pointwise arithmetic operations.
 pub struct VecArray<T>(Vec<T>);
 
+impl<T: PartialEq> PartialEq for VecArray<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
 // VecArray is a newtype wrapper, so we can just treat it like a regular old Vec.
 impl<T> Deref for VecArray<T> {
     type Target = Vec<T>;
@@ -32,7 +38,7 @@ impl<T> DerefMut for VecArray<T> {
     }
 }
 
-impl<T: Clone> Array<VecKind, T> for VecArray<T> {
+impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     fn empty() -> Self {
         VecArray(Vec::default())
     }

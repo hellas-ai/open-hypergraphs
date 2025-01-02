@@ -7,8 +7,17 @@ use std::ops::Shr;
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
 /// This is really just an array!
-#[derive(PartialEq, Eq)]
 pub struct SemifiniteFunction<K: ArrayKind, T>(pub K::Type<T>);
+
+// NOTE: we can't derive PartialEq because it will introduce an unnecessary `T: PartialEq` bound
+impl<K: ArrayKind, T> PartialEq<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
+where
+    K::Type<T>: PartialEq,
+{
+    fn eq(&self, other: &SemifiniteFunction<K, T>) -> bool {
+        self.0 == other.0
+    }
+}
 
 /// Arrows in the category of semifinite functions
 pub enum SemifiniteArrow<K: ArrayKind, T> {
@@ -85,7 +94,7 @@ where
         }
     }
 
-    fn identity(a: &Self::Object) -> Self {
+    fn identity(a: Self::Object) -> Self {
         match a {
             SemifiniteObject::Finite(a) => FiniteFunction::identity(a).into(),
             SemifiniteObject::Type(_) => SemifiniteArrow::Identity,
