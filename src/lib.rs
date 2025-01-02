@@ -5,4 +5,4 @@ pub mod indexed_coproduct;
 pub mod semifinite;
 
 pub mod hypergraph;
-//pub mod open_hypergraph;
+pub mod open_hypergraph;
