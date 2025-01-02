@@ -19,6 +19,8 @@ pub trait Arrow: Sized {
 }
 
 pub trait Coproduct: Arrow {
+    fn initial_object() -> Self::Object;
+
     /// Construct the initial arrow `initial_a : 0 → a` from some object `a`
     fn initial(a: Self::Object) -> Self;
 

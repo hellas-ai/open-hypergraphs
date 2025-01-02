@@ -58,6 +58,10 @@ impl<K: ArrayKind> Arrow for FiniteFunction<K> {
 }
 
 impl<K: ArrayKind> Coproduct for FiniteFunction<K> {
+    fn initial_object() -> Self::Object {
+        K::I::zero()
+    }
+
     fn initial(a: Self::Object) -> Self {
         Self {
             table: K::Index::empty(),

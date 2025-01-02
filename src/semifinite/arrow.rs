@@ -1,23 +1,10 @@
+use super::types::*;
 use crate::array::*;
 use crate::category::*;
-use crate::finite_function::FiniteFunction;
+use crate::finite_function::*;
 
-use std::marker::PhantomData;
-use std::ops::Shr;
-
-/// A function whose *source* is finite, but whose *target* may be non-finite.
-/// This is really just an array!
-pub struct SemifiniteFunction<K: ArrayKind, T>(pub K::Type<T>);
-
-// NOTE: we can't derive PartialEq because it will introduce an unnecessary `T: PartialEq` bound
-impl<K: ArrayKind, T> PartialEq<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
-where
-    K::Type<T>: PartialEq,
-{
-    fn eq(&self, other: &SemifiniteFunction<K, T>) -> bool {
-        self.0 == other.0
-    }
-}
+use core::marker::PhantomData;
+use num_traits::Zero;
 
 /// Arrows in the category of semifinite functions
 pub enum SemifiniteArrow<K: ArrayKind, T> {
@@ -26,51 +13,11 @@ pub enum SemifiniteArrow<K: ArrayKind, T> {
     Semifinite(SemifiniteFunction<K, T>),
 }
 
-impl<K: ArrayKind, T> From<FiniteFunction<K>> for SemifiniteArrow<K, T> {
-    fn from(val: FiniteFunction<K>) -> Self {
-        SemifiniteArrow::Finite(val)
-    }
-}
-
-impl<K: ArrayKind, T> From<SemifiniteFunction<K, T>> for SemifiniteArrow<K, T> {
-    fn from(val: SemifiniteFunction<K, T>) -> Self {
-        SemifiniteArrow::Semifinite(val)
-    }
-}
-
 /// Objects of arrows
 #[derive(PartialEq, Eq)]
 pub enum SemifiniteObject<K: ArrayKind, T> {
-    Finite(K::I),         // all sources are natural numbers
-    Type(PhantomData<T>), // Targets are arbitrary types
-}
-
-fn compose_semifinite<K: ArrayKind, T>(
-    lhs: &FiniteFunction<K>,
-    rhs: &SemifiniteFunction<K, T>,
-) -> Option<SemifiniteFunction<K, T>>
-where
-    K::Type<T>: Array<K, T>,
-{
-    if lhs.target != rhs.0.len() {
-        return None;
-    }
-
-    // TODO: had to reimplement composition of finite functions again.
-    let table = rhs.0.gather(lhs.table.get_range(..));
-    Some(SemifiniteFunction(table))
-}
-
-/// A [`FiniteFunction`] can be precomposed with a [`SemifiniteFunction`] to re-index it.
-impl<K: ArrayKind, T> Shr<&SemifiniteFunction<K, T>> for &FiniteFunction<K>
-where
-    K::Type<T>: Array<K, T>,
-{
-    type Output = Option<SemifiniteFunction<K, T>>;
-
-    fn shr(self, other: &SemifiniteFunction<K, T>) -> Option<SemifiniteFunction<K, T>> {
-        compose_semifinite(self, other)
-    }
+    Finite(K::I),        // all sources are natural numbers
+    Set(PhantomData<T>), // Targets are arbitrary types
 }
 
 impl<K: ArrayKind, T> Arrow for SemifiniteArrow<K, T>
@@ -83,21 +30,22 @@ where
         //SemifiniteObject::Finite(self.0.len())
         match self {
             SemifiniteArrow::Finite(f) => SemifiniteObject::Finite(f.source()),
-            _ => SemifiniteObject::Type(PhantomData),
+            SemifiniteArrow::Semifinite(f) => SemifiniteObject::Finite(f.0.len()),
+            _ => SemifiniteObject::Set(PhantomData),
         }
     }
 
     fn target(&self) -> Self::Object {
         match self {
             SemifiniteArrow::Finite(f) => SemifiniteObject::Finite(f.target()),
-            _ => SemifiniteObject::Type(PhantomData),
+            _ => SemifiniteObject::Set(PhantomData),
         }
     }
 
     fn identity(a: Self::Object) -> Self {
         match a {
             SemifiniteObject::Finite(a) => FiniteFunction::identity(a).into(),
-            SemifiniteObject::Type(_) => SemifiniteArrow::Identity,
+            SemifiniteObject::Set(_) => SemifiniteArrow::Identity,
         }
     }
 
@@ -115,6 +63,54 @@ where
             }
         } else {
             None
+        }
+    }
+}
+
+impl<K: ArrayKind, T> Coproduct for SemifiniteArrow<K, T>
+where
+    K::Type<T>: Array<K, T>,
+{
+    fn initial_object() -> Self::Object {
+        SemifiniteObject::Finite(K::I::zero())
+    }
+
+    fn initial(a: Self::Object) -> Self {
+        todo!()
+    }
+
+    fn inj0(a: Self::Object, b: Self::Object) -> Self {
+        todo!()
+    }
+
+    fn inj1(a: Self::Object, b: Self::Object) -> Self {
+        todo!()
+    }
+
+    fn coproduct(&self, other: &Self) -> Option<Self> {
+        todo!()
+    }
+}
+
+impl<K: ArrayKind, T> From<FiniteFunction<K>> for SemifiniteArrow<K, T> {
+    fn from(val: FiniteFunction<K>) -> Self {
+        SemifiniteArrow::Finite(val)
+    }
+}
+
+impl<K: ArrayKind, T> From<SemifiniteFunction<K, T>> for SemifiniteArrow<K, T> {
+    fn from(val: SemifiniteFunction<K, T>) -> Self {
+        SemifiniteArrow::Semifinite(val)
+    }
+}
+
+impl<K: ArrayKind, T> TryFrom<SemifiniteArrow<K, T>> for SemifiniteFunction<K, T> {
+    type Error = ();
+
+    fn try_from(value: SemifiniteArrow<K, T>) -> Result<Self, Self::Error> {
+        match value {
+            SemifiniteArrow::Semifinite(f) => Ok(f),
+            _ => Err(()),
         }
     }
 }
