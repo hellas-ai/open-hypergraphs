@@ -11,6 +11,7 @@ pub struct FiniteFunction<K: ArrayKind> {
     pub target: K::I,
 }
 
+// Ad-hoc methods for finite functions
 impl<K: ArrayKind> FiniteFunction<K> {
     pub fn inject0(&self, b: K::I) -> FiniteFunction<K> {
         todo!();
@@ -142,5 +143,14 @@ impl<K: ArrayKind> BitOr<&FiniteFunction<K>> for &FiniteFunction<K> {
     type Output = FiniteFunction<K>;
     fn bitor(self, rhs: &FiniteFunction<K>) -> FiniteFunction<K> {
         self.tensor(rhs)
+    }
+}
+
+impl<K: ArrayKind> Clone for FiniteFunction<K> {
+    fn clone(&self) -> Self {
+        Self {
+            table: self.table.clone(),
+            target: self.target.clone(),
+        }
     }
 }

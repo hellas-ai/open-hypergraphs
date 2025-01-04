@@ -168,3 +168,18 @@ where
         self.tensor(rhs)
     }
 }
+
+impl<K: ArrayKind, O, A> Clone for OpenHypergraph<K, O, A>
+where
+    K::Type<O>: Clone,
+    K::Type<A>: Clone,
+    K::Type<K::I>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            s: self.s.clone(),
+            t: self.t.clone(),
+            h: self.h.clone(),
+        }
+    }
+}

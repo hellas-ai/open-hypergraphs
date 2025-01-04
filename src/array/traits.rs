@@ -43,7 +43,7 @@ fn clamp_bound<I: Sub<Output = I> + One + Ord>(b: Bound<I>, start: I, end: I) ->
 /// # Panics
 ///
 /// Any operation using an index out of range for the given array will panic.
-pub trait Array<K: ArrayKind, T>: PartialEq<Self> {
+pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     /// The empty array
     fn empty() -> Self;
 

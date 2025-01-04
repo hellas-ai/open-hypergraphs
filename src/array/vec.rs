@@ -3,7 +3,7 @@ use crate::array::*;
 use core::ops::{Add, Deref, DerefMut, Index, RangeBounds, Sub};
 
 /// Arrays backed by a [`Vec<T>`].
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct VecKind {}
 
 impl ArrayKind for VecKind {
@@ -16,13 +16,8 @@ impl ArrayKind for VecKind {
 }
 
 /// A newtype wrapper for [`Vec<T>`] allowing pointwise arithmetic operations.
+#[derive(PartialEq, Clone)]
 pub struct VecArray<T>(Vec<T>);
-
-impl<T: PartialEq> PartialEq for VecArray<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
 
 // VecArray is a newtype wrapper, so we can just treat it like a regular old Vec.
 impl<T> Deref for VecArray<T> {

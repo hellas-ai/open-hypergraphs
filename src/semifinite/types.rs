@@ -8,6 +8,15 @@ use num_traits::Zero;
 /// This is really just an array!
 pub struct SemifiniteFunction<K: ArrayKind, T>(pub K::Type<T>);
 
+impl<K: ArrayKind, T> Clone for SemifiniteFunction<K, T>
+where
+    K::Type<T>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<K: ArrayKind, T> SemifiniteFunction<K, T>
 where
     K::Type<T>: Array<K, T>,
