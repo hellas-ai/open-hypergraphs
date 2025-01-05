@@ -1,4 +1,5 @@
 use crate::array::*;
+use crate::category::*;
 use crate::finite_function::FiniteFunction;
 
 use core::ops::{Add, Shr};
@@ -40,7 +41,7 @@ pub fn compose_semifinite<K: ArrayKind, T>(
 where
     K::Type<T>: Array<K, T>,
 {
-    if lhs.target != rhs.0.len() {
+    if lhs.target() != rhs.0.len() {
         return None;
     }
 

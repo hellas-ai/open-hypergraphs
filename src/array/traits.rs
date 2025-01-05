@@ -29,21 +29,6 @@ pub trait ArrayKind: Sized {
     type Slice<'a, T: 'a>; // part of an array
 }
 
-// Clamp a single bound `b` into the range `start <= b < end`, where Unbounded means min
-fn clamp_bound<I: Sub<Output = I> + One + Ord>(b: Bound<I>, start: I, end: I, at_end: bool) -> I {
-    match b {
-        Bound::Unbounded => {
-            if at_end {
-                end
-            } else {
-                start
-            }
-        }
-        Bound::Included(x) => x.clamp(start, end),
-        Bound::Excluded(x) => (x - I::one()).clamp(start, end),
-    }
-}
-
 /// Arrays of elements T for some [`ArrayKind`] `K`.
 ///
 /// # Panics
@@ -63,10 +48,20 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
 
     /// Clamp any `R: RangeBounds<K::I>` into the range of valid indices for this array.
     fn to_range<R: RangeBounds<K::I>>(&self, r: R) -> Range<K::I> {
-        let z = K::I::zero();
         let n = self.len();
-        let start = clamp_bound(r.start_bound().cloned(), z.clone(), n.clone(), false);
-        let end = clamp_bound(r.end_bound().cloned(), z.clone(), n.clone(), true);
+        let start = match r.start_bound().cloned() {
+            Bound::Included(i) => i,
+            Bound::Excluded(i) => i + K::I::one(),
+            Bound::Unbounded => K::I::zero(),
+        };
+
+        // NOTE: Range is *exclusive* of end, so for Included(i) we need to increment!.
+        let end = match r.end_bound().cloned() {
+            Bound::Included(i) => i + K::I::one(),
+            Bound::Excluded(i) => i,
+            Bound::Unbounded => n,
+        };
+
         Range { start, end }
     }
 
@@ -102,7 +97,7 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
 /// Arrays of natural numbers.
 /// This is used for computing with *indexes* and *sizes*.
 pub trait NaturalArray<K: ArrayKind>:
-    Array<K, K::I> + Sized + Sub<Self, Output = Self> + AsRef<K::Index>
+    Array<K, K::I> + Sized + Sub<Self, Output = Self> + Add<Self, Output = Self> + AsRef<K::Index>
 {
     fn max(&self) -> Option<K::I>;
 
@@ -134,9 +129,18 @@ pub trait NaturalArray<K: ArrayKind>:
     }
 
     /// Given an array of *sizes* compute the concatenation of `arange` arrays of each size.
-    /// For example,
-    /// `[2 3 0 5] ⇒ [ 0 1 | 0 1 2 | | 0 1 2 3 4 ]`
-    /// where `|` illustrates a "segment boundary"
+    ///
+    /// ```rust
+    /// use open_hypergraphs::array::{*, vec::*};
+    /// let x = VecArray::<usize>(vec![2, 3, 0, 5]);
+    /// let y = VecArray::<usize>(vec![0, 1, 0, 1, 2, 0, 1, 2, 3, 4]);
+    /// assert_eq!(x.segmented_arange(), y)
+    /// ```
+    ///
+    /// Default implementation has time complexity:
+    ///
+    /// - Sequential: `O(n)`
+    /// - PRAM CREW: `O(log n)`
     fn segmented_arange(&self) -> Self {
         // How this works, by example:
         //   input   = [ 2 3 0 5 ]
@@ -151,9 +155,12 @@ pub trait NaturalArray<K: ArrayKind>:
         // Complexity
         //   O(n)     sequential
         //   O(log n) PRAM CREW (cumsum is log n)
-        let ptr = self.cumulative_sum();
-        let sum = &ptr.get(ptr.len() - K::I::one());
-        let r = self.repeat(ptr.get_range(..ptr.len() - K::I::one()));
-        Self::arange(&K::I::zero(), sum) - r
+        let p = self.cumulative_sum();
+        let last_idx = p.len() - K::I::one();
+        let sum = p.get(last_idx.clone());
+
+        let r = self.repeat(p.get_range(..last_idx));
+        let i = Self::arange(&K::I::zero(), &sum);
+        i - r
     }
 }

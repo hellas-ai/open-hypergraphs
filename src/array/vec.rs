@@ -63,6 +63,13 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
         self[i].clone()
     }
 
+    /// Get a contiguous subrange of the array
+    ///
+    /// ```rust
+    /// use open_hypergraphs::array::{*, vec::*};
+    /// let v = VecArray(vec![0, 1, 2, 3, 4]);
+    /// assert_eq!(v.get_range(..), &[0, 1, 2, 3, 4]);
+    /// assert_eq!(v.get_range(..v.len()), &[0, 1, 2, 3, 4]);
     fn get_range<R: RangeBounds<usize>>(&self, rb: R) -> &[T] {
         self.index(self.to_range(rb))
     }
@@ -91,6 +98,20 @@ impl Add<&VecArray<usize>> for usize {
     }
 }
 
+impl<T: Clone + Add<Output = T>> Add<VecArray<T>> for VecArray<T> {
+    type Output = VecArray<T>;
+
+    fn add(self, rhs: VecArray<T>) -> VecArray<T> {
+        assert_eq!(self.len(), rhs.len());
+        VecArray(
+            self.iter()
+                .zip(rhs.iter())
+                .map(|(x, y)| x.clone() + y.clone())
+                .collect(),
+        )
+    }
+}
+
 impl<T: Clone + Sub<Output = T>> Sub<VecArray<T>> for VecArray<T> {
     type Output = VecArray<T>;
 
@@ -106,19 +127,26 @@ impl<T: Clone + Sub<Output = T>> Sub<VecArray<T>> for VecArray<T> {
 }
 
 impl NaturalArray<VecKind> for VecArray<usize> {
+    /// ```rust
+    /// # use open_hypergraphs::array::{*, vec::*};
+    /// let input = VecArray(vec![1, 2, 3, 4]);
+    /// let expected = VecArray(vec![0, 1, 3, 6, 10]);
+    ///
+    /// assert_eq!(input.cumulative_sum(), expected);
+    /// ```
     fn cumulative_sum(&self) -> Self {
-        VecArray(
-            self.iter()
-                .scan(0, |acc, x| {
-                    *acc += *x;
-                    Some(*acc)
-                })
-                .collect(),
-        )
+        let mut v = Vec::with_capacity(self.len() + 1);
+        let mut a = 0;
+        for x in self.iter() {
+            v.push(a);
+            a += x;
+        }
+        v.push(a); // don't forget the total sum!
+        VecArray(v)
     }
 
     fn arange(start: &usize, stop: &usize) -> Self {
-        assert!(stop >= start);
+        assert!(stop >= start, "invalid range [{:?}, {:?})", start, stop);
         let n = stop - start;
         let mut v = Vec::with_capacity(n);
         for i in 0..n {
@@ -127,7 +155,17 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         VecArray(v)
     }
 
+    /// ```rust
+    /// # use open_hypergraphs::array::*;
+    /// # use open_hypergraphs::array::vec::*;
+    /// let repeats: VecArray<usize> = VecArray(vec![1, 2, 0, 3]);
+    /// let values: &[usize] = &[5, 6, 7, 8];
+    /// let actual = repeats.repeat(values);
+    /// let expected = VecArray::<usize>(vec![5, 6, 6, 8, 8, 8]);
+    /// assert_eq!(actual, expected);
+    /// ```
     fn repeat(&self, x: &[usize]) -> VecArray<usize> {
+        assert_eq!(self.len(), x.len());
         let mut v: Vec<usize> = Vec::new();
         for (k, xi) in self.iter().zip(x) {
             v.extend(std::iter::repeat(xi).take(*k))
