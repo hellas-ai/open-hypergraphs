@@ -5,7 +5,7 @@ use core::ops::{BitOr, Shr};
 use num_traits::Zero;
 
 /// A finite function is an array of indices in a range `{0..N}` for some `N ∈ Nat`
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct FiniteFunction<K: ArrayKind> {
     pub table: K::Index,
     pub target: K::I,
@@ -13,6 +13,14 @@ pub struct FiniteFunction<K: ArrayKind> {
 
 // Ad-hoc methods for finite functions
 impl<K: ArrayKind> FiniteFunction<K> {
+    pub fn new(table: K::Index, target: K::I) -> Option<FiniteFunction<K>> {
+        // If table was nonempty and had a value larger or equal to codomain, this is invalid.
+        if let Some(true) = table.max().map(|m| m >= target) {
+            return None;
+        }
+        Some(FiniteFunction { table, target })
+    }
+
     pub fn inject0(&self, b: K::I) -> FiniteFunction<K> {
         todo!();
     }

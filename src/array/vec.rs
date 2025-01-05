@@ -16,8 +16,8 @@ impl ArrayKind for VecKind {
 }
 
 /// A newtype wrapper for [`Vec<T>`] allowing pointwise arithmetic operations.
-#[derive(PartialEq, Clone)]
-pub struct VecArray<T>(Vec<T>);
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct VecArray<T>(pub Vec<T>);
 
 impl AsRef<<VecKind as ArrayKind>::Index> for VecArray<usize> {
     fn as_ref(&self) -> &<VecKind as ArrayKind>::Index {
