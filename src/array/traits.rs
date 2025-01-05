@@ -29,12 +29,18 @@ pub trait ArrayKind: Sized {
     type Slice<'a, T: 'a>; // part of an array
 }
 
-// Clamp a single bound `b` into the range `start <= b <= end`.
-fn clamp_bound<I: Sub<Output = I> + One + Ord>(b: Bound<I>, start: I, end: I) -> I {
+// Clamp a single bound `b` into the range `start <= b < end`, where Unbounded means min
+fn clamp_bound<I: Sub<Output = I> + One + Ord>(b: Bound<I>, start: I, end: I, at_end: bool) -> I {
     match b {
+        Bound::Unbounded => {
+            if at_end {
+                end
+            } else {
+                start
+            }
+        }
         Bound::Included(x) => x.clamp(start, end),
         Bound::Excluded(x) => (x - I::one()).clamp(start, end),
-        Bound::Unbounded => end,
     }
 }
 
@@ -58,9 +64,9 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     /// Clamp any `R: RangeBounds<K::I>` into the range of valid indices for this array.
     fn to_range<R: RangeBounds<K::I>>(&self, r: R) -> Range<K::I> {
         let z = K::I::zero();
-        let n = self.len() - K::I::one();
-        let start = clamp_bound(r.start_bound().cloned(), z.clone(), n.clone());
-        let end = clamp_bound(r.end_bound().cloned(), z.clone(), n.clone());
+        let n = self.len();
+        let start = clamp_bound(r.start_bound().cloned(), z.clone(), n.clone(), false);
+        let end = clamp_bound(r.end_bound().cloned(), z.clone(), n.clone(), true);
         Range { start, end }
     }
 
@@ -81,14 +87,14 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
 
     /// Gather elements of this array according to the indices.
     /// <https://en.wikipedia.org/wiki/Gather/scatter_(vector_addressing)#Gather>
-    /// ```ignore
-    /// x = y.gather(idx)  // x[i] = y[idx[i]]
+    /// ```text
+    /// x = self.gather(idx) // equivalent to x[i] = self[idx[i]]
     /// ```
     fn gather(&self, idx: K::Slice<'_, K::I>) -> Self;
 
     /// Scatter elements of array `x` into this array at indices `idx`
-    /// ```ignore
-    /// self.scatter(idx, x)  // self[idx[i]] = x[i]
+    /// ```text
+    /// self.scatter(idx, x) // equivalent to self[idx[i]] = x[i]
     /// ```
     fn scatter(&mut self, idx: K::Slice<'_, K::I>, x: &Self);
 }
