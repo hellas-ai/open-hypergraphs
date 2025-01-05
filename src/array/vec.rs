@@ -19,6 +19,12 @@ impl ArrayKind for VecKind {
 #[derive(PartialEq, Clone)]
 pub struct VecArray<T>(Vec<T>);
 
+impl AsRef<<VecKind as ArrayKind>::Index> for VecArray<usize> {
+    fn as_ref(&self) -> &<VecKind as ArrayKind>::Index {
+        self
+    }
+}
+
 // VecArray is a newtype wrapper, so we can just treat it like a regular old Vec.
 impl<T> Deref for VecArray<T> {
     type Target = Vec<T>;

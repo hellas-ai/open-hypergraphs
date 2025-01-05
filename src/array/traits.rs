@@ -95,7 +95,9 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
 
 /// Arrays of natural numbers.
 /// This is used for computing with *indexes* and *sizes*.
-pub trait NaturalArray<K: ArrayKind>: Array<K, K::I> + Sized + Sub<Self, Output = Self> {
+pub trait NaturalArray<K: ArrayKind>:
+    Array<K, K::I> + Sized + Sub<Self, Output = Self> + AsRef<K::Index>
+{
     /// An inclusive-and-exclusive cumulative sum
     /// For an input of size `N`, returns an array `x` of size `N+1` where `x[0] = 0` and `x[-1] = sum(x)`
     fn cumulative_sum(&self) -> Self;
