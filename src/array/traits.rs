@@ -81,13 +81,13 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
 
     /// Gather elements of this array according to the indices.
     /// <https://en.wikipedia.org/wiki/Gather/scatter_(vector_addressing)#Gather>
-    /// ```rust
+    /// ```ignore
     /// x = y.gather(idx)  // x[i] = y[idx[i]]
     /// ```
     fn gather(&self, idx: K::Slice<'_, K::I>) -> Self;
 
     /// Scatter elements of array `x` into this array at indices `idx`
-    /// ```rust
+    /// ```ignore
     /// self.scatter(idx, x)  // self[idx[i]] = x[i]
     /// ```
     fn scatter(&mut self, idx: K::Slice<'_, K::I>, x: &Self);
@@ -98,6 +98,8 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
 pub trait NaturalArray<K: ArrayKind>:
     Array<K, K::I> + Sized + Sub<Self, Output = Self> + AsRef<K::Index>
 {
+    fn max(&self) -> Option<K::I>;
+
     /// An inclusive-and-exclusive cumulative sum
     /// For an input of size `N`, returns an array `x` of size `N+1` where `x[0] = 0` and `x[-1] = sum(x)`
     fn cumulative_sum(&self) -> Self;

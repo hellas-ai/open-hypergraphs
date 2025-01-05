@@ -134,4 +134,8 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         }
         VecArray(v)
     }
+
+    fn max(&self) -> Option<usize> {
+        self.iter().max().copied()
+    }
 }
