@@ -2,10 +2,11 @@ use open_hypergraphs::category::*;
 use open_hypergraphs::{array::vec::*, array::*, finite_function::*};
 
 use super::strategy::{
-    arrow_strategy, composible_arrows_strategy, three_composible_arrows_strategy,
+    arrow_strategy, composible_arrows_strategy, parallel_arrows_strategy,
+    three_composible_arrows_strategy,
 };
 
-use proptest::{prop_assert, prop_assert_eq, proptest};
+use proptest::{prop_assert, prop_assert_eq, prop_assert_ne, proptest};
 
 proptest! {
     #[test]
@@ -53,4 +54,42 @@ proptest! {
         prop_assert_eq!(f.to_initial(), FiniteFunction::<VecKind>::initial(codomain));
     }
 
+}
+
+proptest! {
+    #[test]
+    fn reflexivity(f in arrow_strategy(None,None,true)) {
+        /*
+        equality is derived from equality of table and target
+        rather than writing a fresh __eq__ method
+        so not the same impact
+        */
+        prop_assert_eq!(f.clone(),f);
+    }
+
+    #[test]
+    fn inequal_parallel([f,g] in parallel_arrows_strategy(None,None,true)) {
+        /*
+        equality is derived from equality of table and target
+        rather than writing a fresh __eq__ method
+        so not the same impact
+        */
+        if f.table.iter().zip(g.table.iter()).any(|(x,y)| x!=y) {
+            prop_assert_ne!(f,g);
+        } else {
+            prop_assert_eq!(f,g);
+        }
+    }
+
+    #[test]
+    fn inequal_different_type(f in arrow_strategy(None,None,true),g in arrow_strategy(None, None, true)) {
+        /*
+        equality is derived from equality of table and target
+        rather than writing a fresh __eq__ method
+        so not the same impact
+        */
+        if f.source() != g.source() || f.target != g.target {
+            prop_assert_ne!(f,g);
+        }
+    }
 }

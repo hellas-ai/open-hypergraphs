@@ -157,11 +157,11 @@ pub(crate) fn three_composible_arrows_strategy(
 pub(crate) fn finite_function_strategy(
     max_value: Option<usize>,
     size: impl Into<proptest::sample::SizeRange>,
-) -> impl Strategy<Value = (Vec<usize>, usize)> {
+) -> impl Strategy<Value = (VecArray<usize>, usize)> {
     let max_value = max_value.unwrap_or(MAX_OBJECT);
     let z = proptest::collection::vec(0usize..max_value, size);
     (z, proptest::prelude::any::<usize>()).prop_map(|(x, y)| {
         let max_seen = *x.iter().max().expect("Has a maximum");
-        (x, max_seen + y)
+        (VecArray(x), max_seen + y)
     })
 }
