@@ -2,6 +2,7 @@ use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
 use crate::hypergraph::Hypergraph;
+use crate::operations::*;
 use crate::semifinite::*;
 
 use core::ops::{BitOr, Shr};
@@ -59,6 +60,23 @@ where
             Err(ValidationError::CospanTargetType(t_target, w_source))
         } else {
             Ok(self)
+        }
+    }
+
+    pub fn singleton(
+        x: A,
+        a: SemifiniteFunction<K, O>,
+        b: SemifiniteFunction<K, O>,
+    ) -> OpenHypergraph<K, O, A> {
+        Self::tensor_operations(Operations::singleton(x, a, b))
+    }
+
+    pub fn tensor_operations(operations: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
+        let n = operations.len();
+        OpenHypergraph {
+            s: FiniteFunction::identity(n.clone()),
+            t: FiniteFunction::identity(n),
+            h: Hypergraph::tensor_operations(operations),
         }
     }
 }

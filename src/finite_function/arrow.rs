@@ -95,20 +95,14 @@ impl<K: ArrayKind> Coproduct for FiniteFunction<K> {
 }
 
 impl<K: ArrayKind> Monoidal for FiniteFunction<K> {
-    // the 0 → 0 map: the empty array going to 0-ary indices
+    // the unit object
     fn unit() -> Self::Object {
         K::I::zero()
     }
 
-    // Problem: need to compute other + offset
-    // Solutions:
-    //  - change other to mut or not borrowing (CHANGES TENSOR)
-    //  - clone other (EXPENSIVE; add Clone to trait; perf improves if we wrap vecs in e.g., Arc/Cow)
-    //  - custom add_constant method taking a ref, returning new array (AD-HOC)
-    //  - mutable add_constant_to_range?
-    //  - require constant + &K::I
     fn tensor(&self, other: &Self) -> Self {
-        // Write in the obvious way, clones others.
+        // NOTE: this uses the `Add<&K::Index>` bound on `K::I` to compute offset piece without
+        // unnecessary cloning.
         let table = self
             .table
             .concatenate(&(self.target.clone() + &other.table));

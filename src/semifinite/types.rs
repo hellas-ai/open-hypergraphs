@@ -2,7 +2,7 @@ use crate::array::*;
 use crate::finite_function::FiniteFunction;
 
 use core::ops::{Add, Shr};
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
 /// This is really just an array!
@@ -23,6 +23,11 @@ where
 {
     pub fn len(&self) -> K::I {
         self.0.len()
+    }
+
+    // An array of length 1, containing the element x.
+    pub fn singleton(x: T) -> SemifiniteFunction<K, T> {
+        SemifiniteFunction(K::Type::<T>::fill(x, K::I::one()))
     }
 }
 

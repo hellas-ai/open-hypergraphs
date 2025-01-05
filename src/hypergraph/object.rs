@@ -1,8 +1,8 @@
 use crate::array::ArrayKind;
 use crate::finite_function::FiniteFunction;
 use crate::indexed_coproduct::*;
+use crate::operations::Operations;
 use crate::semifinite::*;
-
 use core::ops::Add;
 
 pub struct Hypergraph<K: ArrayKind, O, A> {
@@ -24,6 +24,10 @@ impl<K: ArrayKind, O, A> Hypergraph<K, O, A> {
 
     pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
         todo!();
+    }
+
+    pub fn tensor_operations(operations: Operations<K, O, A>) -> Hypergraph<K, O, A> {
+        todo!()
     }
 }
 
