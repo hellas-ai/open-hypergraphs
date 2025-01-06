@@ -71,6 +71,29 @@ impl<K: ArrayKind> FiniteFunction<K> {
         todo!();
     }
 
+    /// `transpose(a, b)` is the "transposition permutation" for an `a → b` matrix stored in
+    /// row-major order.
+    ///
+    /// Let M be an `a*b`-dimensional input thought of as a matrix in row-major order -- having `b`
+    /// rows and `a` columns.
+    /// Then `transpose(a, b)` computes the "target indices" of the transpose.
+    /// So for matrices `M : a → b` and `N : b → a`, setting the indices `N[transpose(a, b)] = M`
+    /// is the same as writing `N = M.T`.
+    pub fn transpose(a: K::I, b: K::I) -> FiniteFunction<K> {
+        if a.is_zero() {
+            return Self::initial(a);
+        }
+
+        let n = b.clone() * a.clone();
+        let i = K::Index::arange(&K::I::zero(), &n);
+        let (q, r) = i.quot_rem(a);
+        FiniteFunction {
+            target: n,
+            // r * b + q
+            table: r.mul_constant_add(b, &q),
+        }
+    }
+
     /// Given a finite function `s : N → K`
     /// representing the objects of the finite coproduct
     /// `Σ_{n ∈ N} s(n)`
@@ -211,7 +234,7 @@ impl<K: ArrayKind> SymmetricMonoidal for FiniteFunction<K> {
         // but this would require adding an operation add_mod(a, b, n) to the array trait.
         let target = a.clone() + b.clone();
         let lhs = K::Index::arange(&b, &target);
-        let rhs = K::Index::arange(&a, &b);
+        let rhs = K::Index::arange(&K::I::zero(), &b);
         let table = lhs.concatenate(&rhs);
         Self { table, target }
     }

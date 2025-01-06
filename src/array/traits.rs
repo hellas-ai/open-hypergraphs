@@ -106,11 +106,33 @@ pub trait NaturalArray<K: ArrayKind>:
     fn cumulative_sum(&self) -> Self;
 
     /// Indices from start to stop
+    ///
+    /// ```rust
+    /// use open_hypergraphs::array::{*, vec::*};
+    /// let x0 = VecArray::arange(&0, &3);
+    /// assert_eq!(x0, VecArray(vec![0, 1, 2]));
+    ///
+    /// let x1 = VecArray::arange(&0, &0);
+    /// assert_eq!(x1, VecArray(vec![]));
     fn arange(start: &K::I, stop: &K::I) -> Self;
 
     /// Repeat each element of the given slice.
     /// self and x must be equal lengths.
     fn repeat(&self, x: K::Slice<'_, K::I>) -> Self;
+
+    /// Compute the arrays (self%denominator, self/denominator)
+    ///
+    /// # Panics
+    ///
+    /// When d == 0.
+    fn quot_rem(&self, d: K::I) -> (Self, Self);
+
+    /// Compute `self * c + x`, where `c` is a constant (scalar) and `x` is an array.
+    ///
+    /// # Panics
+    ///
+    /// When self.len() != x.len().
+    fn mul_constant_add(&self, c: K::I, x: &Self) -> Self;
 
     /// Segmented sum of input.
     /// For example, for `self = [1 2 0]`,

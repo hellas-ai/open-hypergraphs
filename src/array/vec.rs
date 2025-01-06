@@ -127,6 +127,40 @@ impl<T: Clone + Sub<Output = T>> Sub<VecArray<T>> for VecArray<T> {
 }
 
 impl NaturalArray<VecKind> for VecArray<usize> {
+    fn max(&self) -> Option<usize> {
+        self.iter().max().copied()
+    }
+
+    /// ```rust
+    /// # use open_hypergraphs::array::{*, vec::*};
+    /// let x = VecArray(vec![0, 1, 2, 3, 4, 5]);
+    /// let d = 3;
+    /// let expected_q = VecArray(vec![0, 0, 0, 1, 1, 1]);
+    /// let expected_r = VecArray(vec![0, 1, 2, 0, 1, 2]);
+    /// let (q, r) = x.quot_rem(d);
+    /// assert_eq!(expected_q, q);
+    /// assert_eq!(expected_r, r);
+    /// ```
+    fn quot_rem(&self, d: usize) -> (Self, Self) {
+        assert!(d != 0);
+        let mut q = Vec::with_capacity(self.len());
+        let mut r = Vec::with_capacity(self.len());
+        for x in self.iter() {
+            q.push(x / d);
+            r.push(x % d);
+        }
+        (VecArray(q), VecArray(r))
+    }
+
+    fn mul_constant_add(&self, c: usize, x: &Self) -> Self {
+        assert_eq!(self.len(), x.len());
+        let mut r = Vec::with_capacity(self.len());
+        for (s, x) in self.iter().zip(x.iter()) {
+            r.push(s * c + x)
+        }
+        VecArray(r)
+    }
+
     /// ```rust
     /// # use open_hypergraphs::array::{*, vec::*};
     /// let input = VecArray(vec![1, 2, 3, 4]);
@@ -171,9 +205,5 @@ impl NaturalArray<VecKind> for VecArray<usize> {
             v.extend(std::iter::repeat(xi).take(*k))
         }
         VecArray(v)
-    }
-
-    fn max(&self) -> Option<usize> {
-        self.iter().max().copied()
     }
 }
