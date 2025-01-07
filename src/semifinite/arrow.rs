@@ -75,19 +75,19 @@ where
         SemifiniteObject::Finite(K::I::zero())
     }
 
-    fn initial(a: Self::Object) -> Self {
+    fn initial(_a: Self::Object) -> Self {
         todo!()
     }
 
-    fn inj0(a: Self::Object, b: Self::Object) -> Self {
+    fn inj0(_a: Self::Object, _b: Self::Object) -> Self {
         todo!()
     }
 
-    fn inj1(a: Self::Object, b: Self::Object) -> Self {
+    fn inj1(_a: Self::Object, _b: Self::Object) -> Self {
         todo!()
     }
 
-    fn coproduct(&self, other: &Self) -> Option<Self> {
+    fn coproduct(&self, _other: &Self) -> Option<Self> {
         todo!()
     }
 }

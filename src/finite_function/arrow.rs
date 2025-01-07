@@ -63,11 +63,11 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Self::initial(self.target.clone())
     }
 
-    pub fn coequalizer(&self, other: &Self) -> FiniteFunction<K> {
+    pub fn coequalizer(&self, _other: &Self) -> FiniteFunction<K> {
         todo!();
     }
 
-    pub fn coequalizer_universal(&self, other: &Self) -> FiniteFunction<K> {
+    pub fn coequalizer_universal(&self, _other: &Self) -> FiniteFunction<K> {
         todo!();
     }
 

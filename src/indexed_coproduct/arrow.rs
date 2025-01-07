@@ -72,9 +72,10 @@ where
         self.sources.0.as_ref().len()
     }
 
-    pub fn singleton(values: F) -> Self {
-        let sources: SemifiniteFunction<K, K::I> = todo!();
-        IndexedCoproduct { sources, values }
+    pub fn singleton(_values: F) -> Self {
+        todo!()
+        //let sources: SemifiniteFunction<K, K::I> = todo!();
+        //IndexedCoproduct { sources, values }
     }
 
     // TODO: check for correctness! Implement me.
@@ -95,20 +96,20 @@ where
     // This could generalise to any Tensor type, but we only need it for finite functions
     pub fn tensor(
         &self,
-        other: &IndexedCoproduct<K, FiniteFunction<K>>,
+        _other: &IndexedCoproduct<K, FiniteFunction<K>>,
     ) -> IndexedCoproduct<K, FiniteFunction<K>> {
         todo!()
     }
 
-    fn indexed_values(&self, x: &FiniteFunction<K>) -> FiniteFunction<K> {
+    pub fn indexed_values(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
         todo!()
     }
 
-    fn map_values(&self, x: &FiniteFunction<K>) -> FiniteFunction<K> {
+    pub fn map_values(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
         todo!()
     }
 
-    fn map_indexes(&self, x: &FiniteFunction<K>) -> FiniteFunction<K> {
+    pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
         todo!()
     }
 }

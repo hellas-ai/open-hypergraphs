@@ -4,9 +4,9 @@ use crate::semifinite::*;
 
 /// Column-oriented storage of operations and their types.
 pub struct Operations<K: ArrayKind, O, A> {
-    x: SemifiniteFunction<K, A>,
-    s: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
-    t: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+    pub x: SemifiniteFunction<K, A>,
+    pub s: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+    pub t: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
 }
 
 impl<K: ArrayKind, O, A> Operations<K, O, A>
@@ -16,9 +16,9 @@ where
     K::Type<K::I>: NaturalArray<K>, // TODO: remove this bound; required only for singleton.
 {
     pub fn new(
-        x: SemifiniteFunction<K, A>,
-        s: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
-        t: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+        _x: SemifiniteFunction<K, A>,
+        _s: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+        _t: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
     ) -> Option<Self> {
         todo!()
     }

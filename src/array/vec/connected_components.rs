@@ -6,5 +6,9 @@
 /// * `sources.len() != targets.len()`
 /// * When any `sources[i] >= n` or `targets[i] >= n`
 pub fn connected_components(sources: &[usize], targets: &[usize], n: usize) -> (Vec<usize>, usize) {
+    // Must have equal sized arrays
+    assert_eq!(sources.len(), targets.len());
+    // Arrays must be empty if graph has no nodes.
+    assert!(n > 0 || sources.is_empty());
     todo!();
 }

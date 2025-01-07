@@ -22,11 +22,11 @@ impl<K: ArrayKind, O, A> Hypergraph<K, O, A> {
         todo!();
     }
 
-    pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
+    pub fn coequalize_vertices(&self, _q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
         todo!();
     }
 
-    pub fn tensor_operations(operations: Operations<K, O, A>) -> Hypergraph<K, O, A> {
+    pub fn tensor_operations(_operations: Operations<K, O, A>) -> Hypergraph<K, O, A> {
         todo!()
     }
 }
@@ -34,7 +34,7 @@ impl<K: ArrayKind, O, A> Hypergraph<K, O, A> {
 impl<K: ArrayKind, O, A> Add<&Hypergraph<K, O, A>> for &Hypergraph<K, O, A> {
     type Output = Hypergraph<K, O, A>;
 
-    fn add(self, rhs: &Hypergraph<K, O, A>) -> Self::Output {
+    fn add(self, _rhs: &Hypergraph<K, O, A>) -> Self::Output {
         todo!()
     }
 }
