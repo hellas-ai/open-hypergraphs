@@ -7,6 +7,7 @@ use num_traits::{One, Zero};
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
 /// This is really just an array!
+#[derive(Debug)]
 pub struct SemifiniteFunction<K: ArrayKind, T>(pub K::Type<T>);
 
 impl<K: ArrayKind, T> Clone for SemifiniteFunction<K, T>

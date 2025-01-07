@@ -68,7 +68,7 @@ impl<K: ArrayKind, F: Clone> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: AsRef<K::Index>,
 {
-    fn len(&self) -> K::I {
+    pub fn len(&self) -> K::I {
         self.sources.0.as_ref().len()
     }
 
@@ -78,7 +78,7 @@ where
     }
 
     // TODO: check for correctness! Implement me.
-    fn flatmap(&self, other: &IndexedCoproduct<K, F>) -> IndexedCoproduct<K, F> {
+    pub fn flatmap(&self, other: &IndexedCoproduct<K, F>) -> IndexedCoproduct<K, F> {
         let x: &K::Index = self.sources.0.as_ref();
         let y: &K::Index = other.sources.0.as_ref();
         let sources: SemifiniteFunction<K, K::I> = SemifiniteFunction(x.segmented_sum(y).into());
