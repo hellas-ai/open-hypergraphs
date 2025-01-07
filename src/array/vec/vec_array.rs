@@ -1,4 +1,5 @@
 //! [`Vec<T>`]-backed arrays
+use super::connected_components::connected_components;
 use crate::array::*;
 use core::ops::{Add, Deref, DerefMut, Index, RangeBounds, Sub};
 
@@ -205,5 +206,14 @@ impl NaturalArray<VecKind> for VecArray<usize> {
             v.extend(std::iter::repeat(xi).take(*k))
         }
         VecArray(v)
+    }
+
+    fn connected_components(
+        sources: &Self,
+        targets: &Self,
+        n: usize,
+    ) -> (Self, <VecKind as ArrayKind>::I) {
+        let (cc_ix, c) = connected_components(sources, targets, n);
+        (VecArray(cc_ix), c)
     }
 }

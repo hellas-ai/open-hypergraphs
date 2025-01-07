@@ -134,6 +134,24 @@ pub trait NaturalArray<K: ArrayKind>:
     /// When self.len() != x.len().
     fn mul_constant_add(&self, c: K::I, x: &Self) -> Self;
 
+    /// Compute the connected components of a graph with `n` nodes.
+    /// Edges are stored as a pair of arrays of nodes `(sources, targets)`
+    /// meaning that for each `i` there is an edge `sources[i] → targets[i]`.
+    ///
+    /// Since `n` is the number of nodes in the graph, the values in `sources` and `targets` must
+    /// be less than `n`.
+    ///
+    /// # Returns
+    ///
+    /// Returns a pair `(cc_ix, k)`, where `cc_ix[i]` is the connected component for the `i`th
+    /// node, and `k` is the total number of components.
+    ///
+    /// # Panics
+    ///
+    /// * Inequal lengths: `sources.len() != targets.len()`
+    /// * Indexes are out of bounds: `sources[i] >= n` or `targets[i] >= n`.
+    fn connected_components(sources: &Self, targets: &Self, n: usize) -> (Self, K::I);
+
     /// Segmented sum of input.
     /// For example, for `self = [1 2 0]`,
     /// `self.segmented_sum([1 | 2 3]) = [1 5 0]`.
