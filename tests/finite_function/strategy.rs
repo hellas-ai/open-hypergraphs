@@ -1,5 +1,5 @@
-use open_hypergraphs::{array::vec::*, array::*, finite_function::*};
-use proptest::prelude::{Arbitrary, Just, Strategy};
+use open_hypergraphs::{array::vec::*, finite_function::*};
+use proptest::prelude::{Just, Strategy};
 
 const MAX_OBJECT: usize = 8;
 

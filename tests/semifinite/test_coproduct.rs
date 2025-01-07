@@ -1,4 +1,4 @@
-use open_hypergraphs::array::{vec::*, *};
+use open_hypergraphs::array::vec::*;
 use open_hypergraphs::semifinite::*;
 
 use super::strategy::*;
