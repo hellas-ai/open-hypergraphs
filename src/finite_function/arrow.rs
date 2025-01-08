@@ -5,10 +5,17 @@ use core::ops::{BitOr, Shr};
 use num_traits::{One, Zero};
 
 /// A finite function is an array of indices in a range `{0..N}` for some `N ∈ Nat`
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Eq, Debug)]
 pub struct FiniteFunction<K: ArrayKind> {
     pub table: K::Index,
     pub target: K::I,
+}
+
+// Can't use derived PartialEq because it introduces unwanted bound `K: PartialEq`.
+impl<K: ArrayKind> PartialEq for FiniteFunction<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.table == other.table && self.target == other.target
+    }
 }
 
 // Ad-hoc methods for finite functions
@@ -114,8 +121,20 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Some(FiniteFunction { table, target })
     }
 
-    pub fn coequalizer_universal(&self, _other: &Self) -> Option<FiniteFunction<K>> {
-        todo!();
+    pub fn coequalizer_universal(&self, f: &Self) -> Option<FiniteFunction<K>> {
+        let target = f.target();
+        let mut table = K::Index::fill(K::I::zero(), self.target());
+        table.scatter(self.table.get_range(..), &f.table);
+        let u = FiniteFunction { table, target };
+
+        // NOTE: we expect() here because composition is *defined* for self and u by construction;
+        // if it panics, there is a library bug.
+        let f_prime = self.compose(&u).expect("by construction");
+        if f_prime == *f {
+            Some(u)
+        } else {
+            None
+        }
     }
 
     /// `transpose(a, b)` is the "transposition permutation" for an `a → b` matrix stored in

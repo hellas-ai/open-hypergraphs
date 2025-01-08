@@ -165,3 +165,31 @@ pub(crate) fn finite_function_strategy(
         (VecArray(x), max_seen + y)
     })
 }
+
+// TODO: Permutation module?
+pub(crate) fn permutation_strategy(n: usize) -> impl Strategy<Value = Vec<usize>> {
+    let v: Vec<usize> = (0..n).collect();
+    Just(v).prop_shuffle()
+}
+
+/// A custom strategy to generate a coequalizer
+///   q : A → Q
+/// and a compatible permutation
+///   p : Q → Q
+pub(crate) fn coequalizer_and_permutation_strategy(
+    zero_to_zero_allowed: bool,
+) -> impl Strategy<Value = [FiniteFunction<VecKind>; 4]> {
+    let fg = parallel_arrows_strategy(None, None, zero_to_zero_allowed);
+    fg.prop_flat_map(move |[f, g]| {
+        let q = f.coequalizer(&g).expect("By construction same domain");
+        let p = permutation_strategy(q.target);
+        p.prop_map(move |p_ff| {
+            [
+                f.clone(),
+                g.clone(),
+                q.clone(),
+                FiniteFunction::new(VecArray(p_ff), q.target).unwrap(),
+            ]
+        })
+    })
+}

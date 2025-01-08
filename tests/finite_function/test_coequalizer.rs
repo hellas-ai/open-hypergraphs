@@ -1,7 +1,9 @@
 use open_hypergraphs::category::*;
 use open_hypergraphs::{array::vec::*, finite_function::*};
 
-use super::strategy::{arrow_strategy, parallel_arrows_strategy};
+use super::strategy::{
+    arrow_strategy, coequalizer_and_permutation_strategy, parallel_arrows_strategy,
+};
 
 use proptest::{prelude::Strategy, prop_assert_eq, proptest};
 
@@ -55,4 +57,44 @@ proptest! {
         }
     }
 
+    #[test]
+    fn test_coequalizer_universal_identity([f,g] in parallel_arrows_strategy(None,None,true)) {
+        let q = f.coequalizer(&g).expect("By construction same domain");
+        println!("f: {:?}", f);
+        println!("g: {:?}", g);
+        println!("q: {:?}", q);
+        let u = q.coequalizer_universal(&q).expect("coequalizer universal succeeds");
+        prop_assert_eq!(u, FiniteFunction::identity(q.target()));
+    }
+
+    /// Coequalizers are unique only up to permutation. This checks that a
+    /// coequalizer postcomposed with a permutation commutes with the universal
+    /// morphism
+    #[test]
+    fn test_coequalizer_and_permutation([f,g,q,p] in coequalizer_and_permutation_strategy(true)) {
+        prop_assert_eq!(f.target,g.target);
+        prop_assert_eq!(f.target,q.source());
+        prop_assert_eq!(p.source(),q.target);
+        let q1 = q.compose(&p).expect("By construction composible");
+        let u = q.coequalizer_universal(&q1).expect("Coequalizer universal succeeds");
+        let lhs = q.compose(&u).expect("By construction composible");
+        prop_assert_eq!(lhs, q1);
+    }
+}
+
+#[test]
+fn hardcoded_test_coequalizer_universal_identity() {
+    let common_source = 10;
+    let f: FiniteFunction<VecKind> =
+        FiniteFunction::new(VecArray(vec![0; common_source]), 7).unwrap();
+    let mut g_vec = VecArray(vec![0; common_source - 1]);
+    g_vec.push(1);
+    let g = FiniteFunction::new(g_vec, 7).unwrap();
+    let q = f.coequalizer(&g).expect("By construction same domain");
+    assert_eq!(q.table, VecArray(vec![0, 0, 1, 2, 3, 4, 5]));
+    assert_eq!(q.target, 6);
+    let u = q
+        .coequalizer_universal(&q)
+        .expect("coequalizer universal succeeds");
+    assert_eq!(u, FiniteFunction::identity(q.target));
 }
