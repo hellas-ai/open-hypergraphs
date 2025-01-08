@@ -32,15 +32,11 @@ proptest! {
         // Construct the zero map parallel to f, and coequalizer(f, zero)
         let zero_map : FiniteFunction<VecKind> = FiniteFunction::constant(f.source(),0,f.target()-1);
         let coeq = f.coequalizer(&zero_map).expect("correct arguments");
-        println!("zero: {:?}", zero_map);
-        println!("f: {:?}", f);
-        println!("coeq: {:?}", coeq);
 
         // Let Q be the finite set of connected components, so that `coeq : B → Q`
         // Check that coeq(0) = 0, and for all elements `q ∈ Q`, we have
         // if q ∈ im(f), then coeq(q) = 0
         // else coeq(q) > 0 and there is no q' != q with coeq(q') = coeq(q).
-
         // Collect which elements map to each component
         let mut components_seen = HashSet::new();
 
@@ -60,9 +56,6 @@ proptest! {
     #[test]
     fn test_coequalizer_universal_identity([f,g] in parallel_arrows_strategy(None,None,true)) {
         let q = f.coequalizer(&g).expect("By construction same domain");
-        println!("f: {:?}", f);
-        println!("g: {:?}", g);
-        println!("q: {:?}", q);
         let u = q.coequalizer_universal(&q).expect("coequalizer universal succeeds");
         prop_assert_eq!(u, FiniteFunction::identity(q.target()));
     }
