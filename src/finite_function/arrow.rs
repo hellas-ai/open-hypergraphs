@@ -22,7 +22,47 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Some(FiniteFunction { table, target })
     }
 
-    /// Directly compute `f ; ι₀` instead of by composition.
+    /// The length-`a` array of zeroes `!_a : a → 1`.
+    /// TODO: doctest
+    pub fn terminal(a: K::I) -> Self {
+        let table = K::Index::fill(K::I::zero(), a);
+        let target = K::I::one();
+        FiniteFunction { table, target }
+    }
+
+    /// Construct the constant finite function `f : a → x + 1 + b`,
+    /// an array of length `a` mapping all elements to `x`.
+    ///
+    /// Note that the *target* of the finite function must be at least `x+1` to be valid.
+    /// This is equivalent to `!_a ; ι₁ ; ι₀`, where
+    ///
+    /// - `!_a : a → 1` is the terminal map
+    /// - `ι₁ : 1 → x+1` and `ι₀ : x+1 → x+1+b` are injections.
+    ///
+    /// ```rust
+    /// # use open_hypergraphs::category::*;
+    /// # use open_hypergraphs::array::vec::*;
+    /// # use open_hypergraphs::finite_function::*;
+    /// let (x, a, b) = (2, 3, 2);
+    ///
+    /// let actual = FiniteFunction::<VecKind>::constant(a, x, b);
+    /// let expected = FiniteFunction::new(VecArray(vec![2, 2, 2]), x + b + 1).unwrap();
+    /// assert_eq!(actual, expected);
+    ///
+    /// // Check equal to `!_a ; ι₁ ; ι₀`
+    /// let i1 = FiniteFunction::<VecKind>::inj1(x, 1);
+    /// let i0 = FiniteFunction::inj0(x + 1, b);
+    /// let f  = FiniteFunction::terminal(a);
+    /// let h  = f.compose(&i1).expect("b").compose(&i0).expect("c");
+    /// assert_eq!(actual, h);
+    /// ```
+    pub fn constant(a: K::I, x: K::I, b: K::I) -> Self {
+        let table = K::Index::fill(x.clone(), a);
+        let target = x + b + K::I::one(); // We need the +1 to ensure entries in range.
+        FiniteFunction { table, target }
+    }
+
+    /// Directly construct `f ; ι₀` instead of computing by composition.
     ///
     /// ```rust
     /// # use open_hypergraphs::array::vec::*;
@@ -40,7 +80,7 @@ impl<K: ArrayKind> FiniteFunction<K> {
         }
     }
 
-    /// Directly compute `f ; ι₁` instead of by composition.
+    /// Directly construct `f ; ι₁` instead of computing by composition.
     ///
     /// ```rust
     /// # use open_hypergraphs::array::vec::*;
@@ -63,11 +103,18 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Self::initial(self.target.clone())
     }
 
-    pub fn coequalizer(&self, _other: &Self) -> FiniteFunction<K> {
-        todo!();
+    pub fn coequalizer(&self, other: &Self) -> Option<FiniteFunction<K>> {
+        // if self is parallel to other
+        if self.source() != other.source() || self.target() != other.target() {
+            return None;
+        }
+
+        let (table, target) =
+            K::Index::connected_components(&self.table, &other.table, self.target());
+        Some(FiniteFunction { table, target })
     }
 
-    pub fn coequalizer_universal(&self, _other: &Self) -> FiniteFunction<K> {
+    pub fn coequalizer_universal(&self, _other: &Self) -> Option<FiniteFunction<K>> {
         todo!();
     }
 
