@@ -84,9 +84,22 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
         VecArray(idx.iter().map(|i| self.0[*i].clone()).collect())
     }
 
+    /// Scatter values over the specified indices `self[idx[i]] = v[i]`.
+    ///
+    /// ```rust
+    /// use open_hypergraphs::array::{*, vec::*};
+    /// let mut table = <VecKind as ArrayKind>::Index::fill(0, 3);
+    /// let idx = VecArray(vec![2, 1, 0]);
+    /// let v = VecArray(vec![0, 2, 1]);
+    ///
+    /// let expected = VecArray(vec![1, 2, 0]);
+    ///
+    /// let actual = table.scatter(idx.get_range(..), &v);
+    /// assert_eq!(table, expected);
+    /// ```
     fn scatter(&mut self, idx: &[usize], v: &Self) {
-        for i in idx {
-            self[*i] = v[*i].clone();
+        for (i, x) in v.iter().enumerate() {
+            self[idx[i]] = x.clone();
         }
     }
 }

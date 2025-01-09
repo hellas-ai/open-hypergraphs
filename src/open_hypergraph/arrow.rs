@@ -113,7 +113,7 @@ where
         // compute coequalizer q
         let q_lhs = self.t.inject0(other.h.w.0.len());
         let q_rhs = other.s.inject1(self.h.w.0.len());
-        let q = q_lhs.coequalizer(&q_rhs);
+        let q = q_lhs.coequalizer(&q_rhs).expect("Invalid OpenHypergraph");
 
         // Compute cospan legs
         // NOTE: we don't return None here because composition should only fail on a type mismatch.

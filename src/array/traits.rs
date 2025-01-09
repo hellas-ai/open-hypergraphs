@@ -150,7 +150,7 @@ pub trait NaturalArray<K: ArrayKind>:
     ///
     /// * Inequal lengths: `sources.len() != targets.len()`
     /// * Indexes are out of bounds: `sources[i] >= n` or `targets[i] >= n`.
-    fn connected_components(sources: &Self, targets: &Self, n: usize) -> (Self, K::I);
+    fn connected_components(sources: &Self, targets: &Self, n: K::I) -> (Self, K::I);
 
     /// Segmented sum of input.
     /// For example, for `self = [1 2 0]`,
