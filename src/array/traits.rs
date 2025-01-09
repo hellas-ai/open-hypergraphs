@@ -22,7 +22,10 @@ pub trait ArrayKind: Sized {
         + for<'a> Add<&'a Self::Index, Output = Self::Index>;
 
     /// Arrays of indices (isomorphic to `Type<I>`) must implement NaturalArray
-    type Index: NaturalArray<Self> + Into<Self::Type<Self::I>> + From<Self::Type<Self::I>>;
+    type Index: NaturalArray<Self>
+        + Into<Self::Type<Self::I>>
+        + From<Self::Type<Self::I>>
+        + AsRef<Self::Type<Self::I>>;
 
     /// a `Slice` is a read-only view into another array's data.
     /// For `VecKind` this is `&[T]`.
@@ -87,11 +90,15 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     /// ```
     fn gather(&self, idx: K::Slice<'_, K::I>) -> Self;
 
-    /// Scatter elements of array `x` into this array at indices `idx`
+    /// Scatter elements of `self` into a new array at indices `idx`.
     /// ```text
-    /// self.scatter(idx, x) // equivalent to self[idx[i]] = x[i]
+    /// x = self.scatter(idx) // equivalent to x[idx[i]] = self[i]
     /// ```
-    fn scatter(&mut self, idx: K::Slice<'_, K::I>, x: &Self);
+    ///
+    /// # Panics
+    ///
+    /// If there is any `i ≥ n` in `idx`
+    fn scatter(&self, idx: K::Slice<'_, K::I>, n: K::I) -> Self;
 }
 
 /// Arrays of natural numbers.

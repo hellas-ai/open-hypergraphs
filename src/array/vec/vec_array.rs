@@ -88,19 +88,29 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     ///
     /// ```rust
     /// use open_hypergraphs::array::{*, vec::*};
-    /// let mut table = <VecKind as ArrayKind>::Index::fill(0, 3);
-    /// let idx = VecArray(vec![2, 1, 0]);
-    /// let v = VecArray(vec![0, 2, 1]);
+    /// let idx = VecArray(vec![2, 1, 0, 2]);
+    /// let v = VecArray(vec![0, 2, 1, 2]);
     ///
-    /// let expected = VecArray(vec![1, 2, 0]);
+    /// let expected = VecArray(vec![1, 2, 2]);
     ///
-    /// let actual = table.scatter(idx.get_range(..), &v);
-    /// assert_eq!(table, expected);
+    /// let actual = v.scatter(idx.get_range(..), 3);
+    /// assert_eq!(actual, expected);
     /// ```
-    fn scatter(&mut self, idx: &[usize], v: &Self) {
-        for (i, x) in v.iter().enumerate() {
-            self[idx[i]] = x.clone();
+    fn scatter(&self, idx: &[usize], n: usize) -> VecArray<T> {
+        // If self is empty, we return the empty array because there can be no valid indices
+        if self.is_empty() {
+            assert!(idx.is_empty());
+            return VecArray(vec![]);
         }
+
+        // Otherwise, we fill the result with an arbitrary value ...
+        let mut y = vec![self[0].clone(); n];
+
+        // ... then scatter values of self into result at indexes idx..
+        for (i, x) in self.iter().enumerate() {
+            y[idx[i]] = x.clone();
+        }
+        VecArray(y)
     }
 }
 

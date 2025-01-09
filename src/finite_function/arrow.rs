@@ -121,20 +121,13 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Some(FiniteFunction { table, target })
     }
 
-    pub fn coequalizer_universal(&self, f: &Self) -> Option<FiniteFunction<K>> {
+    pub fn coequalizer_universal(&self, f: &Self) -> Option<Self>
+    where
+        K::Type<K::I>: Array<K, K::I>,
+    {
+        let table = coequalizer_universal(self, f.table.as_ref())?.into();
         let target = f.target();
-        let mut table = K::Index::fill(K::I::zero(), self.target());
-        table.scatter(self.table.get_range(..), &f.table);
-        let u = FiniteFunction { table, target };
-
-        // NOTE: we expect() here because composition is *defined* for self and u by construction;
-        // if it panics, there is a library bug.
-        let f_prime = self.compose(&u).expect("by construction");
-        if f_prime == *f {
-            Some(u)
-        } else {
-            None
-        }
+        Some(FiniteFunction { table, target })
     }
 
     /// `transpose(a, b)` is the "transposition permutation" for an `a → b` matrix stored in
@@ -194,6 +187,37 @@ impl<K: ArrayKind> FiniteFunction<K> {
             table: r + z,
             target: p.get(p.len() - K::I::one()),
         })
+    }
+}
+
+/// Compute the universal map for a coequalizer `q : B → Q` and arrow `f : B → T`, generalised to
+/// the case where `T` is an arbitrary set (i.e., `f` is an array of `T`)
+pub fn coequalizer_universal<K: ArrayKind, T>(
+    q: &FiniteFunction<K>,
+    f: &K::Type<T>,
+) -> Option<K::Type<T>>
+where
+    K::Type<T>: Array<K, T>,
+{
+    if q.source() != f.len() {
+        return None;
+    }
+
+    // Compute table by scattering
+    let table = f.scatter(q.table.get_range(..), q.target());
+
+    // TODO: FIXME: we only need SemifiniteFunction to check this is a coequalizer;
+    // we use the >> implementation to check, which is implemented for SemifiniteFunction
+    use crate::semifinite::SemifiniteFunction;
+    let u = SemifiniteFunction(table);
+
+    // NOTE: we expect() here because composition is *defined* for self and u by construction;
+    // if it panics, there is a library bug.
+    let f_prime = (q >> &u).expect("by construction");
+    if f_prime.0 == *f {
+        Some(u.0)
+    } else {
+        None
     }
 }
 

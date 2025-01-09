@@ -11,8 +11,8 @@ proptest! {
     #[test]
     fn test_coequalizer_commutes([f,g] in parallel_arrows_strategy(None,None,true)) {
         let c = f.coequalizer(&g).expect("By construction same domain");
-        let lhs = f.compose(&c).expect("By construction composible");
-        let rhs = g.compose(&c).expect("By construction composible");
+        let lhs = f.compose(&c).expect("By construction composable");
+        let rhs = g.compose(&c).expect("By construction composable");
 
         // Check that c really coequalizes f and g, i.e., `f >> c == g >> c`
         prop_assert_eq!(lhs, rhs);
@@ -68,9 +68,9 @@ proptest! {
         prop_assert_eq!(f.target,g.target);
         prop_assert_eq!(f.target,q.source());
         prop_assert_eq!(p.source(),q.target);
-        let q1 = q.compose(&p).expect("By construction composible");
+        let q1 = q.compose(&p).expect("By construction composable");
         let u = q.coequalizer_universal(&q1).expect("Coequalizer universal succeeds");
-        let lhs = q.compose(&u).expect("By construction composible");
+        let lhs = q.compose(&u).expect("By construction composable");
         prop_assert_eq!(lhs, q1);
     }
 }
