@@ -90,9 +90,10 @@ pub fn to_dense(sparse: &[usize]) -> (Vec<usize>, usize) {
 
 #[cfg(test)]
 mod test {
-    use crate::array::vec::connected_components;
+    use proptest::prelude::{Just, Strategy};
+    use proptest::{prop_assert_eq, proptest};
 
-    use super::to_dense;
+    use super::{connected_components, to_dense};
 
     #[test]
     fn to_dense_example() {
@@ -105,5 +106,36 @@ mod test {
         let expected = (vec![0, 0, 0, 1, 1], 2);
 
         assert_eq!(components, expected);
+    }
+
+    fn edges_strategy() -> impl Strategy<Value = (Vec<usize>, Vec<usize>, usize)> {
+        (1_usize..100).prop_flat_map(|n| {
+            (Just(n), (0..(n + 2) / 2)).prop_flat_map(|(n, e)| {
+                (
+                    proptest::collection::vec(0..n, e),
+                    proptest::collection::vec(0..n, e),
+                    Just(n),
+                )
+            })
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn general_components((sources,targets,num_nodes) in edges_strategy()) {
+            let (mut z, component_count) = connected_components(&sources, &targets, num_nodes);
+            prop_assert_eq!(z.len(),num_nodes);
+            // if there is an edge between two nodes they must be in the same component
+            for (a,b) in sources.into_iter().zip(targets) {
+                prop_assert_eq!(z[a],z[b]);
+            }
+            // there should be the expected number of components
+            let num_components = z.iter().max().copied().expect("At least 1 node") + 1;
+            prop_assert_eq!(num_components,component_count);
+            // the component labels seen should be surjective onto `[0, num_components)`
+            z.sort_unstable();
+            z.dedup();
+            prop_assert_eq!(z, (0..num_components).collect::<Vec<_>>());
+        }
     }
 }
