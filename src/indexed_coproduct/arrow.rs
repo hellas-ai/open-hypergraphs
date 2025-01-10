@@ -3,8 +3,6 @@ use crate::category::*;
 use crate::finite_function::*;
 use crate::semifinite::*;
 
-use core::ops::Add;
-
 // TODO: replace sources with a FiniteFunction<K> of *pointers* whose codomain is total size?
 // This lets us remove a lot of trait bounds.
 /// A finite coproduct of arrows of type `A`.
@@ -26,46 +24,13 @@ where
     }
 }
 
-impl<K: ArrayKind, T> Add<IndexedCoproduct<K, SemifiniteFunction<K, T>>>
-    for IndexedCoproduct<K, SemifiniteFunction<K, T>>
-where
-    K::Type<K::I>: Array<K, K::I>,
-    K::Type<T>: Array<K, T>,
-{
-    type Output = IndexedCoproduct<K, SemifiniteFunction<K, T>>;
-
-    fn add(
-        self,
-        rhs: IndexedCoproduct<K, SemifiniteFunction<K, T>>,
-    ) -> IndexedCoproduct<K, SemifiniteFunction<K, T>> {
-        IndexedCoproduct {
-            sources: self.sources + rhs.sources,
-            values: self.values + rhs.values,
-        }
-    }
-}
-
-impl<K: ArrayKind> Add<&IndexedCoproduct<K, FiniteFunction<K>>>
-    for &IndexedCoproduct<K, FiniteFunction<K>>
-where
-    K::Type<K::I>: Array<K, K::I>,
-{
-    type Output = Option<IndexedCoproduct<K, FiniteFunction<K>>>;
-
-    fn add(self, rhs: &IndexedCoproduct<K, FiniteFunction<K>>) -> Self::Output {
-        Some(IndexedCoproduct {
-            sources: &self.sources + &rhs.sources,
-            values: (self.values.coproduct(&rhs.values))?,
-        })
-    }
-}
-
 impl<K: ArrayKind, F: Clone> IndexedCoproduct<K, F>
-// TODO: delete this trait bound; use sources: FiniteFunction<K> instead?
 where
-    K::Type<K::I>: AsRef<K::Index>,
+    K::Type<K::I>: NaturalArray<K>,
 {
     pub fn len(&self) -> K::I {
+        // NOTE: this forces the NaturalArray bound on `K::Type<K::I>` since we can't witness these
+        // types as equal.
         self.sources.0.as_ref().len()
     }
 
@@ -77,13 +42,24 @@ where
         todo!()
     }
 
-    pub fn singleton(_values: F) -> Self {
-        todo!()
-        //let sources: SemifiniteFunction<K, K::I> = todo!();
-        //IndexedCoproduct { sources, values }
+    pub fn values(self) -> F {
+        self.values
     }
 
-    // TODO: check for correctness! Implement me.
+    /// Compose two `IndexedCoproduct` thought of as lists-of-lists.
+    ///
+    /// An indexed (finite) coproduct `c` consists of a mapping
+    /// `s : A → K`
+    /// and
+    /// of arrows `f : s(a) is a map `x : Σ_{a ∈ A} s(a) → B`,
+    /// where `s(a)
+    ///
+    ///
+    /// ```text
+    /// x : Σ_{a ∈ A} s(a) → B      aka A → B*
+    /// y : Σ_{b ∈ B} s(b) → C      aka B → C*
+    /// z : Σ_{a ∈ A} s'(a) → C     aka A → C*
+    /// ```
     pub fn flatmap(&self, other: &IndexedCoproduct<K, F>) -> IndexedCoproduct<K, F> {
         let x: &K::Index = self.sources.0.as_ref();
         let y: &K::Index = other.sources.0.as_ref();
@@ -98,12 +74,21 @@ impl<K: ArrayKind> IndexedCoproduct<K, FiniteFunction<K>>
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    // This could generalise to any Tensor type, but we only need it for finite functions
+    pub fn singleton(values: FiniteFunction<K>) -> Self {
+        let n = values.source();
+        let sources = SemifiniteFunction::singleton(n);
+        IndexedCoproduct { sources, values }
+    }
+
+    // This could generalise to any type with a tensor product, but we only need it for finite functions
     pub fn tensor(
         &self,
-        _other: &IndexedCoproduct<K, FiniteFunction<K>>,
+        other: &IndexedCoproduct<K, FiniteFunction<K>>,
     ) -> IndexedCoproduct<K, FiniteFunction<K>> {
-        todo!()
+        IndexedCoproduct {
+            sources: self.sources.coproduct(&other.sources),
+            values: &self.values | &other.values,
+        }
     }
 
     pub fn indexed_values(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
@@ -116,5 +101,18 @@ where
 
     pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> Self {
         todo!()
+    }
+}
+
+// NOTE: this (unfortunately) reproduces the code in the FiniteFunction case
+impl<K: ArrayKind, T> IndexedCoproduct<K, SemifiniteFunction<K, T>>
+where
+    K::Type<T>: Array<K, T>,
+    K::Type<K::I>: NaturalArray<K>,
+{
+    pub fn singleton(values: SemifiniteFunction<K, T>) -> Self {
+        let n = values.len();
+        let sources = SemifiniteFunction::singleton(n);
+        IndexedCoproduct { sources, values }
     }
 }

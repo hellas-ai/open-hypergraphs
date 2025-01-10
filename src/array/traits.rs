@@ -164,6 +164,10 @@ pub trait NaturalArray<K: ArrayKind>:
     /// Segmented sum of input.
     /// For example, for `self = [1 2 0]`,
     /// `self.segmented_sum([1 | 2 3]) = [1 5 0]`.
+    ///
+    /// # Panics
+    ///
+    /// When `self.sum() != x.len()`
     fn segmented_sum(&self, x: &Self) -> Self {
         let segment_sizes = self;
         let ptr = segment_sizes.cumulative_sum();

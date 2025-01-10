@@ -33,7 +33,7 @@ where
     }
 
     pub fn coproduct(&self, other: &Self) -> Self {
-        SemifiniteFunction(K::Type::<T>::concatenate(&self.0, &other.0))
+        SemifiniteFunction(self.0.concatenate(&other.0))
     }
 }
 
