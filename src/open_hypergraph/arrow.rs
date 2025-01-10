@@ -1,16 +1,23 @@
 use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
-use crate::hypergraph::Hypergraph;
+use crate::hypergraph::{Hypergraph, InvalidHypergraph};
 use crate::operations::*;
 use crate::semifinite::*;
 
 use core::ops::{BitOr, Shr};
 use num_traits::Zero;
 
-pub enum ValidationError<K: ArrayKind> {
+impl<K: ArrayKind> From<InvalidHypergraph> for InvalidOpenHypergraph<K> {
+    fn from(value: InvalidHypergraph) -> Self {
+        InvalidOpenHypergraph::InvalidHypergraph(value)
+    }
+}
+
+pub enum InvalidOpenHypergraph<K: ArrayKind> {
     CospanSourceType(K::I, K::I),
     CospanTargetType(K::I, K::I),
+    InvalidHypergraph(InvalidHypergraph),
 }
 
 /// Open Hypergraphs
@@ -32,7 +39,6 @@ pub struct OpenHypergraph<K: ArrayKind, O, A> {
 
 impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
 where
-    K::I: Into<usize>, // TODO: remove this!
     K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
@@ -41,25 +47,28 @@ where
         s: FiniteFunction<K>,
         t: FiniteFunction<K>,
         h: Hypergraph<K, O, A>,
-    ) -> Result<Self, ValidationError<K>> {
+    ) -> Result<Self, InvalidOpenHypergraph<K>> {
         let f = OpenHypergraph { s, t, h };
         f.validate()
     }
 
-    pub fn validate(self) -> Result<Self, ValidationError<K>> {
-        // TODO: used isomorphism of K::I <> usize
-        let w_source = self.h.w.0.len();
+    pub fn validate(self) -> Result<Self, InvalidOpenHypergraph<K>> {
+        let h = self.h.validate()?;
+        let w_source = h.w.0.len();
         let s_target = self.s.target();
         let t_target = self.t.target();
 
         // TODO: validate hypergraph as well
-
         if s_target != w_source {
-            Err(ValidationError::CospanSourceType(s_target, w_source))
+            Err(InvalidOpenHypergraph::CospanSourceType(s_target, w_source))
         } else if t_target != w_source {
-            Err(ValidationError::CospanTargetType(t_target, w_source))
+            Err(InvalidOpenHypergraph::CospanTargetType(t_target, w_source))
         } else {
-            Ok(self)
+            Ok(OpenHypergraph {
+                s: self.s,
+                t: self.t,
+                h,
+            })
         }
     }
 
@@ -83,6 +92,7 @@ where
 
 impl<K: ArrayKind, O, A> Arrow for OpenHypergraph<K, O, A>
 where
+    K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
@@ -131,6 +141,7 @@ where
 
 impl<K: ArrayKind, O, A> Monoidal for OpenHypergraph<K, O, A>
 where
+    K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
@@ -149,6 +160,7 @@ where
 
 impl<K: ArrayKind, O, A> SymmetricMonoidal for OpenHypergraph<K, O, A>
 where
+    K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
@@ -166,6 +178,7 @@ where
 // Syntactic sugar for composition and tensor
 impl<K: ArrayKind, O, A> Shr<&OpenHypergraph<K, O, A>> for &OpenHypergraph<K, O, A>
 where
+    K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
@@ -178,6 +191,7 @@ where
 // Parallel composition
 impl<K: ArrayKind, O, A> BitOr<&OpenHypergraph<K, O, A>> for &OpenHypergraph<K, O, A>
 where
+    K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {

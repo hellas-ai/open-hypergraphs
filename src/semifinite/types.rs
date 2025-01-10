@@ -31,6 +31,10 @@ where
     pub fn singleton(x: T) -> SemifiniteFunction<K, T> {
         SemifiniteFunction(K::Type::<T>::fill(x, K::I::one()))
     }
+
+    pub fn coproduct(&self, other: &Self) -> Self {
+        SemifiniteFunction(K::Type::<T>::concatenate(&self.0, &other.0))
+    }
 }
 
 /// As a special case, a we can precompose a [`FiniteFunction`] with a [`SemifiniteFunction`].
@@ -61,14 +65,25 @@ where
     }
 }
 
-impl<K: ArrayKind, T> Add for SemifiniteFunction<K, T>
+impl<K: ArrayKind, T> Add<&SemifiniteFunction<K, T>> for &SemifiniteFunction<K, T>
+where
+    K::Type<T>: Array<K, T>,
+{
+    type Output = SemifiniteFunction<K, T>;
+
+    fn add(self, rhs: &SemifiniteFunction<K, T>) -> Self::Output {
+        self.coproduct(rhs)
+    }
+}
+
+impl<K: ArrayKind, T> Add<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
 where
     K::Type<T>: Array<K, T>,
 {
     type Output = SemifiniteFunction<K, T>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        SemifiniteFunction(K::Type::<T>::concatenate(&self.0, &rhs.0))
+        self.coproduct(&rhs)
     }
 }
 

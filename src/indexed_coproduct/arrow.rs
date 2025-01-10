@@ -45,19 +45,16 @@ where
     }
 }
 
-impl<K: ArrayKind> Add<IndexedCoproduct<K, FiniteFunction<K>>>
-    for IndexedCoproduct<K, FiniteFunction<K>>
+impl<K: ArrayKind> Add<&IndexedCoproduct<K, FiniteFunction<K>>>
+    for &IndexedCoproduct<K, FiniteFunction<K>>
 where
     K::Type<K::I>: Array<K, K::I>,
 {
     type Output = Option<IndexedCoproduct<K, FiniteFunction<K>>>;
 
-    fn add(
-        self,
-        rhs: IndexedCoproduct<K, FiniteFunction<K>>,
-    ) -> Option<IndexedCoproduct<K, FiniteFunction<K>>> {
+    fn add(self, rhs: &IndexedCoproduct<K, FiniteFunction<K>>) -> Self::Output {
         Some(IndexedCoproduct {
-            sources: self.sources + rhs.sources,
+            sources: &self.sources + &rhs.sources,
             values: (self.values.coproduct(&rhs.values))?,
         })
     }
@@ -70,6 +67,14 @@ where
 {
     pub fn len(&self) -> K::I {
         self.sources.0.as_ref().len()
+    }
+
+    pub fn initial(_target: K::I) -> Self {
+        todo!()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        todo!()
     }
 
     pub fn singleton(_values: F) -> Self {
@@ -91,7 +96,7 @@ where
 // Special case methods where the values are a "segmented finite function".
 impl<K: ArrayKind> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: Array<K, K::I>,
+    K::Type<K::I>: NaturalArray<K>,
 {
     // This could generalise to any Tensor type, but we only need it for finite functions
     pub fn tensor(
@@ -105,11 +110,11 @@ where
         todo!()
     }
 
-    pub fn map_values(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
+    pub fn map_values(&self, _x: &FiniteFunction<K>) -> Self {
         todo!()
     }
 
-    pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
+    pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> Self {
         todo!()
     }
 }
