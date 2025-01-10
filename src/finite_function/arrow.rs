@@ -188,6 +188,30 @@ impl<K: ArrayKind> FiniteFunction<K> {
             target: p.get(p.len() - K::I::one()),
         })
     }
+
+    /// Given a finite function `f : A → B`, compute the cumulative sum of `f`, a finite function
+    /// `cumulative_sum(f) : A → sum_i(f())`
+    ///
+    /// ```rust
+    /// # use open_hypergraphs::category::*;
+    /// # use open_hypergraphs::array::vec::*;
+    /// # use open_hypergraphs::finite_function::*;
+    /// let f = FiniteFunction::<VecKind>::new(VecArray(vec![3, 0, 1, 4]), 5).unwrap();
+    /// let c = f.cumulative_sum();
+    /// assert_eq!(c.table, VecArray(vec![0, 3, 3, 4]));
+    /// assert_eq!(c.target(), 8);
+    ///
+    /// let f = FiniteFunction::<VecKind>::new(VecArray(vec![]), 5).unwrap();
+    /// let c = f.cumulative_sum();
+    /// assert_eq!(c.table, VecArray(vec![]));
+    /// assert_eq!(c.target(), 0);
+    /// ```
+    pub fn cumulative_sum(&self) -> Self {
+        let extended_table = self.table.cumulative_sum();
+        let target = extended_table.get(self.source());
+        let table = Array::from_slice(extended_table.get_range(..self.source()));
+        FiniteFunction { table, target }
+    }
 }
 
 /// Compute the universal map for a coequalizer `q : B → Q` and arrow `f : B → T`, generalised to

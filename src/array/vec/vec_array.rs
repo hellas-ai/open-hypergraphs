@@ -112,6 +112,10 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
         }
         VecArray(y)
     }
+
+    fn from_slice(slice: &[T]) -> Self {
+        VecArray(slice.into())
+    }
 }
 
 impl Add<&VecArray<usize>> for usize {
