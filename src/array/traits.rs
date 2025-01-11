@@ -114,6 +114,17 @@ pub trait NaturalArray<K: ArrayKind>:
     /// For an input of size `N`, returns an array `x` of size `N+1` where `x[0] = 0` and `x[-1] = sum(x)`
     fn cumulative_sum(&self) -> Self;
 
+    // NOTE: we can potentially remove this if IndexedCoproduct moves to using pointers instead of
+    // segment sizes.
+    #[must_use]
+    fn sum(&self) -> K::I {
+        if self.len() == K::I::zero() {
+            K::I::zero()
+        } else {
+            self.cumulative_sum().get(self.len() - K::I::one())
+        }
+    }
+
     /// Indices from start to stop
     ///
     /// ```rust

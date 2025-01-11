@@ -81,12 +81,10 @@ where
     }
 
     pub fn tensor_operations(operations: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
-        let n = operations.len();
-        OpenHypergraph {
-            s: FiniteFunction::identity(n.clone()),
-            t: FiniteFunction::identity(n),
-            h: Hypergraph::tensor_operations(operations),
-        }
+        let h = Hypergraph::tensor_operations(operations);
+        let t = h.t.values.clone();
+        let s = h.s.values.clone();
+        OpenHypergraph { s, t, h }
     }
 }
 

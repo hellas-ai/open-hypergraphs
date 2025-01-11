@@ -3,13 +3,40 @@ use crate::category::*;
 use crate::finite_function::*;
 use crate::semifinite::*;
 
+use num_traits::Zero;
+
+// The minimum set of operations some arrows must have in order to define an [`IndexedCoproduct`]
+// over them.
+pub trait HasLen<K: ArrayKind> {
+    fn len(&self) -> K::I;
+    fn is_empty(&self) -> bool {
+        self.len() == K::I::zero()
+    }
+}
+
+impl<K: ArrayKind> HasLen<K> for FiniteFunction<K> {
+    fn len(&self) -> K::I {
+        self.source()
+    }
+}
+
+impl<K: ArrayKind, T> HasLen<K> for SemifiniteFunction<K, T>
+where
+    K::Type<T>: Array<K, T>,
+{
+    fn len(&self) -> K::I {
+        self.0.len()
+    }
+}
+
 // TODO: replace sources with a FiniteFunction<K> of *pointers* whose codomain is total size?
 // This lets us remove a lot of trait bounds.
 /// A finite coproduct of arrows of type `A`.
 /// Pragmatically, it's a segmented array
+#[non_exhaustive] // force construction via new.
 pub struct IndexedCoproduct<K: ArrayKind, F> {
-    sources: SemifiniteFunction<K, K::I>,
-    values: F,
+    pub sources: SemifiniteFunction<K, K::I>,
+    pub values: F,
 }
 
 impl<K: ArrayKind, F: Clone> Clone for IndexedCoproduct<K, F>
@@ -24,26 +51,30 @@ where
     }
 }
 
-impl<K: ArrayKind, F: Clone> IndexedCoproduct<K, F>
+impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: NaturalArray<K>,
 {
+    // TODO: need to know a length of values!
+    pub fn new(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
+        if sources.0.as_ref().sum() > values.len() {
+            return None;
+        }
+
+        // TODO: check "length" of values!
+        Some(IndexedCoproduct { sources, values })
+    }
+
+    pub fn singleton(values: F) -> Self {
+        let n = values.len();
+        let sources = SemifiniteFunction::singleton(n);
+        IndexedCoproduct { sources, values }
+    }
+
     pub fn len(&self) -> K::I {
         // NOTE: this forces the NaturalArray bound on `K::Type<K::I>` since we can't witness these
         // types as equal.
         self.sources.0.as_ref().len()
-    }
-
-    pub fn initial(_target: K::I) -> Self {
-        todo!()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        todo!()
-    }
-
-    pub fn values(self) -> F {
-        self.values
     }
 
     /// Compose two `IndexedCoproduct` thought of as lists-of-lists.
@@ -69,14 +100,24 @@ where
     }
 }
 
-// Special case methods where the values are a "segmented finite function".
+impl<K: ArrayKind, F> HasLen<K> for IndexedCoproduct<K, F>
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    fn len(&self) -> K::I {
+        self.sources.len()
+    }
+}
+
+// Special case methods where the values are finite functions.
 impl<K: ArrayKind> IndexedCoproduct<K, FiniteFunction<K>>
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    pub fn singleton(values: FiniteFunction<K>) -> Self {
-        let n = values.source();
-        let sources = SemifiniteFunction::singleton(n);
+    /// The initial object, i.e., the finite coproduct indexed by the empty set
+    pub fn initial(target: K::I) -> Self {
+        let sources = SemifiniteFunction::zero();
+        let values = FiniteFunction::initial(target);
         IndexedCoproduct { sources, values }
     }
 
@@ -101,18 +142,5 @@ where
 
     pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> Self {
         todo!()
-    }
-}
-
-// NOTE: this (unfortunately) reproduces the code in the FiniteFunction case
-impl<K: ArrayKind, T> IndexedCoproduct<K, SemifiniteFunction<K, T>>
-where
-    K::Type<T>: Array<K, T>,
-    K::Type<K::I>: NaturalArray<K>,
-{
-    pub fn singleton(values: SemifiniteFunction<K, T>) -> Self {
-        let n = values.len();
-        let sources = SemifiniteFunction::singleton(n);
-        IndexedCoproduct { sources, values }
     }
 }

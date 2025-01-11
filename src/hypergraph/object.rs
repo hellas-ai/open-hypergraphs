@@ -1,4 +1,5 @@
 use crate::array::{Array, ArrayKind, NaturalArray};
+use crate::category::*;
 use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
 use crate::operations::Operations;
@@ -36,7 +37,7 @@ where
     }
 
     pub fn validate(self) -> Result<Self, InvalidHypergraph> {
-        Ok(self)
+        todo!()
     }
 
     // TODO: This is the unit object - put inside category interface?
@@ -76,13 +77,20 @@ where
         Hypergraph {
             s: self.s.tensor(&other.s),
             t: self.t.tensor(&other.t),
-            w: &self.w + &other.w,
-            x: &self.x + &other.x,
+            w: self.w.coproduct(&other.w),
+            x: self.x.coproduct(&other.x),
         }
     }
 
-    pub fn tensor_operations(_operations: Operations<K, O, A>) -> Hypergraph<K, O, A> {
-        todo!()
+    pub fn tensor_operations(operations: Operations<K, O, A>) -> Hypergraph<K, O, A> {
+        let Operations { x, a, b } = operations;
+        // NOTE: the validity of the result assumes validity of `operations`.
+        let inj0 = FiniteFunction::inj0(a.values.len(), b.values.len());
+        let inj1 = FiniteFunction::inj0(a.values.len(), b.values.len());
+        let s = IndexedCoproduct::new(a.sources, inj0).expect("By construction");
+        let t = IndexedCoproduct::new(b.sources, inj1).expect("By construction");
+        let w = a.values.coproduct(&b.values);
+        Hypergraph { s, t, w, x }
     }
 }
 

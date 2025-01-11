@@ -3,40 +3,50 @@ use crate::indexed_coproduct::*;
 use crate::semifinite::*;
 
 /// Column-oriented storage of operations and their types.
+#[non_exhaustive] // force construction via new
 pub struct Operations<K: ArrayKind, O, A> {
     pub x: SemifiniteFunction<K, A>,
-    pub s: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
-    pub t: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+    pub a: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+    pub b: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
 }
 
 impl<K: ArrayKind, O, A> Operations<K, O, A>
 where
     K::Type<A>: Array<K, A>,
     K::Type<O>: Array<K, O>,
-    K::Type<K::I>: NaturalArray<K>, // TODO: remove this bound; required only for singleton.
+    K::Type<K::I>: NaturalArray<K>, // TODO: can we remove this bound? required only for singleton.
 {
+    /// Safely create a list of operations which is guaranteed to have the right number of source
+    /// and target types for each operation.
     pub fn new(
-        _x: SemifiniteFunction<K, A>,
-        _s: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
-        _t: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+        x: SemifiniteFunction<K, A>,
+        a: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+        b: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
     ) -> Option<Self> {
-        todo!()
+        (Operations { x, a, b }).validate()
+    }
+
+    /// Ensure this list of operations has a source and target type for each operation label.
+    pub fn validate(self) -> Option<Self> {
+        let n = self.x.len();
+        if n != self.a.len() || n != self.b.len() {
+            None
+        } else {
+            Some(self)
+        }
     }
 
     /// A single operation (or a tensoring of length 1)
     pub fn singleton(x: A, a: SemifiniteFunction<K, O>, b: SemifiniteFunction<K, O>) -> Self {
         Self {
             x: SemifiniteFunction::singleton(x),
-            s: IndexedCoproduct::<K, SemifiniteFunction<K, O>>::singleton(a),
-            t: IndexedCoproduct::<K, SemifiniteFunction<K, O>>::singleton(b),
+            a: IndexedCoproduct::<K, SemifiniteFunction<K, O>>::singleton(a),
+            b: IndexedCoproduct::<K, SemifiniteFunction<K, O>>::singleton(b),
         }
     }
 
+    // TODO: use `indexed_coproduct::HasLen`?
     pub fn len(&self) -> K::I {
         self.x.len()
-    }
-
-    pub fn validate(&self) -> Option<Self> {
-        todo!()
     }
 }
