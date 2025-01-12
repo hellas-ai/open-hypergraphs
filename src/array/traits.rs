@@ -1,6 +1,8 @@
 //! The operations which an array type must support to implement open hypergraphs
+use core::fmt::Debug;
 use core::ops::{Add, Sub};
 use core::ops::{Bound, Range, RangeBounds};
+
 use num_traits::{One, Zero};
 
 /// Array *kinds*.
@@ -13,6 +15,7 @@ pub trait ArrayKind: Sized {
     type I: Clone
         + PartialEq
         + Ord
+        + Debug
         + One
         + Zero
         + Add<Output = Self::I>

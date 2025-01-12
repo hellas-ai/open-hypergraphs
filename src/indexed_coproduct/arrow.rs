@@ -3,6 +3,7 @@ use crate::category::*;
 use crate::finite_function::*;
 use crate::semifinite::*;
 
+use core::fmt::Debug;
 use num_traits::Zero;
 
 // The minimum set of operations some arrows must have in order to define an [`IndexedCoproduct`]
@@ -142,5 +143,17 @@ where
 
     pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> Self {
         todo!()
+    }
+}
+
+impl<K: ArrayKind, F: Debug> Debug for IndexedCoproduct<K, F>
+where
+    K::Type<K::I>: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexedCoproduct")
+            .field("sources", &self.sources)
+            .field("values", &self.values)
+            .finish()
     }
 }

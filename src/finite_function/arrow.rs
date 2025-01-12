@@ -1,11 +1,12 @@
 use crate::array::*;
 use crate::category::*;
 
+use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
 use num_traits::{One, Zero};
 
 /// A finite function is an array of indices in a range `{0..N}` for some `N ∈ Nat`
-#[derive(Eq, Debug)]
+#[derive(Eq)]
 pub struct FiniteFunction<K: ArrayKind> {
     pub table: K::Index,
     pub target: K::I,
@@ -377,5 +378,17 @@ impl<K: ArrayKind> Clone for FiniteFunction<K> {
             table: self.table.clone(),
             target: self.target.clone(),
         }
+    }
+}
+
+impl<K: ArrayKind> Debug for FiniteFunction<K>
+where
+    K::Index: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FiniteFunction")
+            .field("table", &self.table)
+            .field("target", &self.target)
+            .finish()
     }
 }

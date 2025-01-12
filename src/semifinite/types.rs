@@ -2,12 +2,12 @@ use crate::array::*;
 use crate::category::*;
 use crate::finite_function::FiniteFunction;
 
+use core::fmt::Debug;
 use core::ops::{Add, Shr};
 use num_traits::{One, Zero};
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
 /// This is really just an array!
-#[derive(Debug)]
 pub struct SemifiniteFunction<K: ArrayKind, T>(pub K::Type<T>);
 
 impl<K: ArrayKind, T> Clone for SemifiniteFunction<K, T>
@@ -62,6 +62,15 @@ where
 {
     fn eq(&self, other: &SemifiniteFunction<K, T>) -> bool {
         self.0 == other.0
+    }
+}
+
+impl<K: ArrayKind, T> Debug for SemifiniteFunction<K, T>
+where
+    K::Type<T>: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SemifiniteFunction").field(&self.0).finish()
     }
 }
 

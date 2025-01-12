@@ -5,6 +5,7 @@ use crate::hypergraph::{Hypergraph, InvalidHypergraph};
 use crate::operations::*;
 use crate::semifinite::*;
 
+use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
 use num_traits::Zero;
 
@@ -211,5 +212,21 @@ where
             t: self.t.clone(),
             h: self.h.clone(),
         }
+    }
+}
+
+impl<K: ArrayKind, O: Debug, A: Debug> Debug for OpenHypergraph<K, O, A>
+where
+    K::Index: Debug,
+    K::Type<K::I>: Debug,
+    K::Type<O>: Debug,
+    K::Type<A>: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenHypergraph")
+            .field("s", &self.s)
+            .field("t", &self.t)
+            .field("h", &self.h)
+            .finish()
     }
 }

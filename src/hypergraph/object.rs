@@ -5,6 +5,7 @@ use crate::indexed_coproduct::*;
 use crate::operations::Operations;
 use crate::semifinite::*;
 
+use core::fmt::Debug;
 use core::ops::Add;
 use num_traits::Zero;
 
@@ -96,7 +97,6 @@ where
 
 impl<K: ArrayKind, O, A> Add<&Hypergraph<K, O, A>> for &Hypergraph<K, O, A>
 where
-    K::Type<K::I>: AsRef<K::Index>,
     K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
@@ -121,5 +121,23 @@ where
             w: self.w.clone(),
             x: self.x.clone(),
         }
+    }
+}
+
+// NOTE: manual Debug required because we need to specify array bounds.
+impl<K: ArrayKind, O: Debug, A: Debug> Debug for Hypergraph<K, O, A>
+where
+    K::Index: Debug,
+    K::Type<K::I>: Debug,
+    K::Type<O>: Debug,
+    K::Type<A>: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Hypergraph")
+            .field("s", &self.s)
+            .field("t", &self.t)
+            .field("w", &self.w)
+            .field("x", &self.x)
+            .finish()
     }
 }
