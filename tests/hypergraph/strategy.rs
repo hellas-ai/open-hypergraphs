@@ -152,3 +152,48 @@ pub fn arb_inclusion<
         })
         .boxed()
 }
+
+#[derive(Clone, Debug)]
+pub struct DiscreteSpan<O: Debug, A: Debug> {
+    pub l: HypergraphArrow<VecKind, O, A>,
+    #[allow(dead_code)]
+    pub h: Hypergraph<VecKind, O, A>,
+    pub r: HypergraphArrow<VecKind, O, A>,
+}
+
+impl<O: PartialEq + Clone + Debug, A: PartialEq + Clone + Debug> DiscreteSpan<O, A> {
+    pub fn validate(self) -> Self {
+        let DiscreteSpan { ref l, ref r, .. } = self;
+
+        // 0: Check that targets of l and r have the correct number of wires, operations
+        assert_eq!(l.w.target(), l.target.w.len());
+        assert_eq!(r.w.target(), r.target.w.len());
+        assert_eq!(l.x.target(), l.target.x.len());
+        assert_eq!(r.x.target(), r.target.x.len());
+
+        self
+    }
+}
+
+pub fn arb_discrete_span<
+    O: PartialEq + Clone + Debug + 'static,
+    A: PartialEq + Clone + Debug + 'static,
+>(
+    labels: Labels<O, A>,
+) -> BoxedStrategy<DiscreteSpan<O, A>> {
+    // discrete hypergraph k
+    let h = Hypergraph::<VecKind, O, A>::discrete(labels.w.clone());
+
+    // Create two inclusions of h into arbitrary destinations.
+    arb_inclusion(labels.clone(), h.clone())
+        .prop_flat_map(move |l| {
+            let l = l.clone();
+            let h = h.clone();
+            arb_inclusion(labels.clone(), h.clone()).prop_flat_map(move |r| {
+                let l = l.clone();
+                let h = h.clone();
+                Just(DiscreteSpan { l, h, r }.validate())
+            })
+        })
+        .boxed()
+}

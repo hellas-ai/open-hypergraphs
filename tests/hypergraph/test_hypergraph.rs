@@ -1,7 +1,7 @@
 use open_hypergraphs::array::vec::*;
 use open_hypergraphs::hypergraph::{arrow::*, *};
 
-use super::strategy::Labels;
+use super::strategy::{DiscreteSpan, Labels};
 
 use proptest::proptest;
 
@@ -44,6 +44,12 @@ fn arb_inclusion() -> BoxedStrategy<HypergraphArrow<VecKind, Obj, Arr>> {
         .boxed()
 }
 
+fn arb_discrete_span() -> BoxedStrategy<DiscreteSpan<Obj, Arr>> {
+    arb_labels()
+        .prop_flat_map(super::strategy::arb_discrete_span)
+        .boxed()
+}
+
 proptest! {
     #[test]
     fn test_new(h in arb_hypergraph()) {
@@ -82,6 +88,9 @@ proptest! {
     // Ensure arb_inclusion runs without error.
     #[test]
     fn test_inclusion(_ in arb_inclusion()) {}
+
+    #[test]
+    fn test_discrete_span(_ in arb_discrete_span()) {}
 
     /*
     #[test]
