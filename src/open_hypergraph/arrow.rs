@@ -9,8 +9,8 @@ use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
 use num_traits::Zero;
 
-impl<K: ArrayKind> From<InvalidHypergraph> for InvalidOpenHypergraph<K> {
-    fn from(value: InvalidHypergraph) -> Self {
+impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
+    fn from(value: InvalidHypergraph<K>) -> Self {
         InvalidOpenHypergraph::InvalidHypergraph(value)
     }
 }
@@ -18,7 +18,7 @@ impl<K: ArrayKind> From<InvalidHypergraph> for InvalidOpenHypergraph<K> {
 pub enum InvalidOpenHypergraph<K: ArrayKind> {
     CospanSourceType(K::I, K::I),
     CospanTargetType(K::I, K::I),
-    InvalidHypergraph(InvalidHypergraph),
+    InvalidHypergraph(InvalidHypergraph<K>),
 }
 
 /// Open Hypergraphs

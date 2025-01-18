@@ -9,8 +9,11 @@ use core::fmt::Debug;
 use core::ops::Add;
 use num_traits::Zero;
 
-pub enum InvalidHypergraph {
-    Todo,
+pub enum InvalidHypergraph<K: ArrayKind> {
+    SourcesCount(K::I, K::I),
+    TargetsCount(K::I, K::I),
+    SourcesSet(K::I, K::I),
+    TargetsSet(K::I, K::I),
 }
 
 pub struct Hypergraph<K: ArrayKind, O, A> {
@@ -32,13 +35,44 @@ where
         t: IndexedCoproduct<K, FiniteFunction<K>>,
         w: SemifiniteFunction<K, O>,
         x: SemifiniteFunction<K, A>,
-    ) -> Result<Hypergraph<K, O, A>, InvalidHypergraph> {
+    ) -> Result<Hypergraph<K, O, A>, InvalidHypergraph<K>> {
         let h = Hypergraph { s, t, w, x };
         h.validate()
     }
 
-    pub fn validate(self) -> Result<Self, InvalidHypergraph> {
-        todo!()
+    /// A hypergraph is valid when for both sources and targets segmented arrays:
+    ///
+    /// 1. Number of segments is equal to number of operations (`x.len()`)
+    /// 2. Values of segmented array are indices in set `w.source()`
+    ///
+    pub fn validate(self) -> Result<Self, InvalidHypergraph<K>> {
+        // num ops, wires
+        let n_x = self.x.len();
+        let n_w = self.w.len();
+
+        // Sources segmented array has as many segments as operations
+        if self.s.len() != self.x.len() {
+            return Err(InvalidHypergraph::SourcesCount(self.s.len(), n_x));
+        }
+
+        // Targets segmented array has as many segments as operations
+        if self.t.len() != self.x.len() {
+            return Err(InvalidHypergraph::TargetsCount(self.t.len(), n_x));
+        }
+
+        // *values* of sources segmented array should index into operations
+        let n_s = self.s.values.target();
+        if n_s != n_w {
+            return Err(InvalidHypergraph::SourcesSet(n_s, n_w));
+        }
+
+        // *values* of targets segmented array should index into operations
+        let n_t = self.t.values.target();
+        if n_t != n_w {
+            return Err(InvalidHypergraph::TargetsSet(n_t, n_w));
+        }
+
+        Ok(self)
     }
 
     // TODO: This is the unit object - put inside category interface?
