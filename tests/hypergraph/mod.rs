@@ -1,3 +1,3 @@
 mod strategy;
 
-mod test_constructor;
+mod test_hypergraph;

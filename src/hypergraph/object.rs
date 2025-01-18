@@ -9,6 +9,7 @@ use core::fmt::Debug;
 use core::ops::Add;
 use num_traits::Zero;
 
+#[derive(Debug)]
 pub enum InvalidHypergraph<K: ArrayKind> {
     SourcesCount(K::I, K::I),
     TargetsCount(K::I, K::I),
@@ -30,6 +31,7 @@ where
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
+    /// Safely create a Hypergraph, ensuring its data is valid.
     pub fn new(
         s: IndexedCoproduct<K, FiniteFunction<K>>,
         t: IndexedCoproduct<K, FiniteFunction<K>>,

@@ -12,6 +12,8 @@ use proptest::strategy::{BoxedStrategy, Strategy};
 
 const MAX_HYPERNODES: usize = 32;
 
+// NOTE: this definition is not safe, because we could generate a finite function of type
+// `n → 1` for `n > 0`. However, it's only ever called safely: see arb_num_hypernodes
 pub fn arb_finite_function(
     source: BoxedStrategy<usize>,
     target: BoxedStrategy<usize>,
