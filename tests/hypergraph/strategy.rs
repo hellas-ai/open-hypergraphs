@@ -1,8 +1,9 @@
 use core::fmt::Debug;
 
 use open_hypergraphs::array::vec::*;
+use open_hypergraphs::category::*;
 use open_hypergraphs::finite_function::*;
-use open_hypergraphs::hypergraph::*;
+use open_hypergraphs::hypergraph::{arrow::*, *};
 use open_hypergraphs::indexed_coproduct::*;
 use open_hypergraphs::semifinite::*;
 
@@ -75,6 +76,14 @@ pub fn arb_num_hypernodes(num_hyperedges: usize) -> BoxedStrategy<usize> {
     (min_value..=MAX_HYPERNODES).boxed()
 }
 
+/// The *label arrays* for a hypergraph.
+/// Arbitrary arrays of elements from the sets O and A respectively.
+#[derive(Clone, Debug)]
+pub struct Labels<O, A> {
+    pub w: SemifiniteFunction<VecKind, O>,
+    pub x: SemifiniteFunction<VecKind, A>,
+}
+
 /// Generate random label functions (w, x) for a hypergraph
 pub fn arb_labels<
     O: PartialEq + Clone + Debug + 'static,
@@ -82,42 +91,64 @@ pub fn arb_labels<
 >(
     arb_object: BoxedStrategy<O>,
     arb_arrow: BoxedStrategy<A>,
-) -> BoxedStrategy<(
-    SemifiniteFunction<VecKind, O>,
-    SemifiniteFunction<VecKind, A>,
-)> {
+) -> BoxedStrategy<Labels<O, A>> {
     let operations = arb_semifinite::<A>(arb_arrow, None);
     operations
-        .prop_flat_map(move |ops| {
-            let num_hyperedges = ops.len();
+        .prop_flat_map(move |x| {
+            let num_hyperedges = x.len();
             let num_wires = arb_num_hypernodes(num_hyperedges);
             let wires = arb_semifinite::<O>(arb_object.clone(), Some(num_wires));
-            (wires, Just(ops))
+            wires.prop_flat_map(move |w| Just(Labels { w, x: x.clone() }))
         })
         .boxed()
 }
 
+/// Generate an arbitrary hypergraph from the two arrays of labels w and x.
+/// Note that this hypergraph need not be monogamous acyclic.
 pub fn arb_hypergraph<
     O: PartialEq + Clone + Debug + 'static,
     A: PartialEq + Clone + Debug + 'static,
 >(
-    arb_object: BoxedStrategy<O>,
-    arb_arrow: BoxedStrategy<A>,
+    Labels { w, x }: Labels<O, A>,
 ) -> BoxedStrategy<Hypergraph<VecKind, O, A>> {
-    arb_labels(arb_object, arb_arrow)
-        .prop_flat_map(move |(w, x)| {
-            let num_arr = Just(x.len()).boxed();
-            let num_obj = Just(w.len()).boxed();
-            let s = arb_indexed_coproduct_finite(num_arr.clone(), num_obj.clone());
-            let t = arb_indexed_coproduct_finite(num_arr, num_obj);
-            (s, t).prop_flat_map(move |(s, t)| {
-                Just(Hypergraph {
-                    s,
-                    t,
-                    w: w.clone(),
-                    x: x.clone(),
-                })
+    let num_arr = Just(x.len()).boxed();
+    let num_obj = Just(w.len()).boxed();
+    let s = arb_indexed_coproduct_finite(num_arr.clone(), num_obj.clone());
+    let t = arb_indexed_coproduct_finite(num_arr, num_obj);
+    (s, t)
+        .prop_flat_map(move |(s, t)| {
+            Just(Hypergraph {
+                s,
+                t,
+                w: w.clone(),
+                x: x.clone(),
             })
+        })
+        .boxed()
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Discrete spans
+
+/// Given a hypergraph `G`, generate an inclusion `i : G → G + H` by generating a random `H`.
+pub fn arb_inclusion<
+    O: PartialEq + Clone + Debug + 'static,
+    A: PartialEq + Clone + Debug + 'static,
+>(
+    labels: Labels<O, A>,
+    g: Hypergraph<VecKind, O, A>,
+) -> BoxedStrategy<HypergraphArrow<VecKind, O, A>> {
+    // We have an arbitrary hypergraph g, and some arbitrary label arrays.
+    let h_labels = Labels {
+        w: g.w.clone() + labels.w,
+        x: g.x.clone() + labels.x,
+    };
+    arb_hypergraph(h_labels)
+        .prop_flat_map(move |h| {
+            let w = FiniteFunction::inj0(g.w.len(), h.w.len() - g.w.len());
+            let x = FiniteFunction::inj0(g.x.len(), h.x.len() - g.x.len());
+
+            Just(HypergraphArrow::new(g.clone(), h, w, x).expect("valid HypergraphArrow"))
         })
         .boxed()
 }

@@ -1,6 +1,7 @@
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::hypergraph::*;
-use open_hypergraphs::semifinite::SemifiniteFunction;
+use open_hypergraphs::hypergraph::{arrow::*, *};
+
+use super::strategy::Labels;
 
 use proptest::proptest;
 
@@ -23,15 +24,24 @@ fn arb_arrow() -> BoxedStrategy<Arr> {
     (0..5u8).boxed()
 }
 
-fn arb_labels() -> BoxedStrategy<(
-    SemifiniteFunction<VecKind, Obj>,
-    SemifiniteFunction<VecKind, Arr>,
-)> {
+fn arb_labels() -> BoxedStrategy<Labels<Obj, Arr>> {
     super::strategy::arb_labels(arb_object(), arb_arrow())
 }
 
 fn arb_hypergraph() -> BoxedStrategy<Hypergraph<VecKind, Obj, Arr>> {
-    super::strategy::arb_hypergraph(arb_object(), arb_arrow())
+    arb_labels()
+        .prop_flat_map(super::strategy::arb_hypergraph)
+        .boxed()
+}
+
+fn arb_inclusion() -> BoxedStrategy<HypergraphArrow<VecKind, Obj, Arr>> {
+    // NOTE: this is just `liftM2 arb_inclusion arb_labels arb_hypergraph`
+    arb_hypergraph()
+        .prop_flat_map(move |g| {
+            arb_labels()
+                .prop_flat_map(move |labels| super::strategy::arb_inclusion(labels, g.clone()))
+        })
+        .boxed()
 }
 
 proptest! {
@@ -42,9 +52,9 @@ proptest! {
     }
 
     #[test]
-    fn test_discrete((obj, _arr) in arb_labels()) {
-        let num_obj = obj.len();
-        let h: Hypergraph<VecKind, Obj, Arr> = Hypergraph::discrete(obj);
+    fn test_discrete(Labels { w, .. } in arb_labels()) {
+        let num_obj = w.len();
+        let h: Hypergraph<VecKind, Obj, Arr> = Hypergraph::discrete(w);
 
         assert_eq!(h.x.len(), 0);
         assert_eq!(h.w.len(), num_obj);
@@ -68,6 +78,17 @@ proptest! {
         assert_eq!(h.w, h0.w + h1.w);
         assert_eq!(h.x, h0.x + h1.x);
     }
+
+    // Ensure arb_inclusion runs without error.
+    #[test]
+    fn test_inclusion(_ in arb_inclusion()) {}
+
+    /*
+    #[test]
+    fn test_coequalize_vertices(ds in arb_discrete_span()) {
+        //TODO
+    }
+    */
 }
 
 // No proptest data required
