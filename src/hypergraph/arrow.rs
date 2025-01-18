@@ -90,3 +90,19 @@ where
             .finish()
     }
 }
+
+impl<K: ArrayKind, O: Debug, A: Debug> Clone for HypergraphArrow<K, O, A>
+where
+    K::Type<K::I>: Clone,
+    K::Type<A>: Clone,
+    K::Type<O>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            source: self.source.clone(),
+            target: self.target.clone(),
+            w: self.w.clone(),
+            x: self.x.clone(),
+        }
+    }
+}
