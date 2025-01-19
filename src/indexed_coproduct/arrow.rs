@@ -137,8 +137,27 @@ where
         todo!()
     }
 
-    pub fn map_values(&self, _x: &FiniteFunction<K>) -> Self {
-        todo!()
+    /// Map the *values* array of an indexed coproduct, leaving the sources unchanged.
+    ///
+    /// Given an indexed coproduct
+    ///
+    /// ```text
+    /// Σ_{i ∈ I} f_i : Σ_{i ∈ I} A_i → B
+    /// ```
+    ///
+    /// and a finite function `x : B → C`,
+    /// return a new [`IndexedCoproduct`] representing
+    ///
+    /// ```text
+    /// Σ_{i ∈ I} (f_i ; x) : Σ_{i ∈ I} A_i → C
+    /// ```
+    ///
+    /// Returns `None` if `x.source() != B`.
+    pub fn map_values(&self, x: &FiniteFunction<K>) -> Option<Self> {
+        Some(Self {
+            sources: self.sources.clone(),
+            values: (&self.values >> x)?,
+        })
     }
 
     pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> Self {

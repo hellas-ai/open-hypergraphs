@@ -92,12 +92,34 @@ proptest! {
     #[test]
     fn test_discrete_span(_ in arb_discrete_span()) {}
 
-    /*
     #[test]
-    fn test_coequalize_vertices(ds in arb_discrete_span()) {
-        //TODO
+    fn test_coequalize_vertices(DiscreteSpan{l, h, r} in arb_discrete_span()) {
+        // We have a discrete span
+        //
+        //      l   r
+        //   gl ← h → gr
+        //
+        // This represents two distinct hypergraphs (gl and gr) with some shared nodes (h)
+
+        // first compute the coproduct of gl and gr:
+        let gl = l.target;
+        let gr = r.target;
+
+        // get the coproduct `gl + gr`.
+        let g = gl.coproduct(&gr);
+
+        // Identify the nodes of gl + gr which come from h:
+        let q = l.w.inject0(gr.w.len()).coequalizer(&r.w.inject1(gl.w.len()))
+            .expect("construct coequalizer");
+        let k = g.coequalize_vertices(&q).expect("coequalize vertices");
+
+        // The number of wires in the 'quotiented' hypergraph k should have the number in the
+        // coproduct less the number of 'shared' wires.
+        assert_eq!(k.w.len(), g.w.len() - h.w.len());
+
+        // ... but the number of operations should be unchanged!
+        assert_eq!(k.x.len(), g.x.len());
     }
-    */
 }
 
 // No proptest data required

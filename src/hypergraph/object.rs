@@ -103,8 +103,9 @@ where
     }
 
     pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
-        let s = self.s.map_values(q);
-        let t = self.t.map_values(q);
+        // TODO: wrap coequalizers in a newtype!
+        let s = self.s.map_values(q)?;
+        let t = self.t.map_values(q)?;
         let w = SemifiniteFunction(coequalizer_universal(q, &self.w.0)?);
         let x = self.x.clone();
         Some(Hypergraph { s, t, w, x })
