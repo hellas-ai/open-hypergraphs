@@ -1,54 +1,12 @@
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::hypergraph::{arrow::*, *};
+use open_hypergraphs::hypergraph::*;
 
 use super::strategy::{DiscreteSpan, Labels};
 
 use proptest::proptest;
 
-// TODO: move arb_object, arb_arrow to their own file.
-use proptest::strategy::{BoxedStrategy, Strategy};
-
-// Define a signature within this file for `i8` objects and `u8` arrows.
-// We then wrap super::strategy methods to use this signature for convenience.
-
-type Obj = i8;
-type Arr = u8;
-
-// Generate objects (vertices) as usize values in range 0..10
-fn arb_object() -> BoxedStrategy<Obj> {
-    (0..10i8).boxed()
-}
-
-// Generate arrows (edges) as usize values in range 0..5
-fn arb_arrow() -> BoxedStrategy<Arr> {
-    (0..5u8).boxed()
-}
-
-fn arb_labels() -> BoxedStrategy<Labels<Obj, Arr>> {
-    super::strategy::arb_labels(arb_object(), arb_arrow())
-}
-
-fn arb_hypergraph() -> BoxedStrategy<Hypergraph<VecKind, Obj, Arr>> {
-    arb_labels()
-        .prop_flat_map(super::strategy::arb_hypergraph)
-        .boxed()
-}
-
-fn arb_inclusion() -> BoxedStrategy<HypergraphArrow<VecKind, Obj, Arr>> {
-    // NOTE: this is just `liftM2 arb_inclusion arb_labels arb_hypergraph`
-    arb_hypergraph()
-        .prop_flat_map(move |g| {
-            arb_labels()
-                .prop_flat_map(move |labels| super::strategy::arb_inclusion(labels, g.clone()))
-        })
-        .boxed()
-}
-
-fn arb_discrete_span() -> BoxedStrategy<DiscreteSpan<Obj, Arr>> {
-    arb_labels()
-        .prop_flat_map(super::strategy::arb_discrete_span)
-        .boxed()
-}
+// Actual test generators using a specific (but meaningless) ground theory.
+use crate::theory::meaningless::*;
 
 proptest! {
     #[test]
