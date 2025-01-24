@@ -11,20 +11,65 @@ use proptest::collection::vec;
 use proptest::prelude::*;
 use proptest::strategy::{BoxedStrategy, Strategy};
 
-const MAX_HYPERNODES: usize = 32;
+#[non_exhaustive]
+#[derive(Debug, PartialEq)]
+pub struct FiniteFunctionType {
+    pub source: usize,
+    pub target: usize,
+}
 
-// NOTE: this definition is not safe, because we could generate a finite function of type
-// `n → 1` for `n > 0`. However, it's only ever called safely: see arb_num_hypernodes
-pub fn arb_finite_function(
-    source: BoxedStrategy<usize>,
-    target: BoxedStrategy<usize>,
-) -> BoxedStrategy<FiniteFunction<VecKind>> {
-    (source, target)
-        .prop_flat_map(|(source_size, target_size)| {
-            // Generate a vector of values in range 0..target_size with length source_size
-            vec((0..target_size).boxed(), source_size..=source_size)
-                .prop_map(move |values| FiniteFunction::new(VecArray(values), target_size).unwrap())
+impl FiniteFunctionType {
+    pub fn new(source: usize, target: usize) -> Option<Self> {
+        if source > 0 && target == 0 {
+            None
+        } else {
+            Some(Self { source, target })
+        }
+    }
+}
+
+pub fn arb_finite_function_type(
+    max_size: usize,
+    fixed_a: Option<usize>,
+    fixed_b: Option<usize>,
+) -> BoxedStrategy<FiniteFunctionType> {
+    // If the user specified an impossible type (e.g., 1 → 0), crash immediately.
+    if let (Some(a), Some(b)) = (fixed_a, fixed_b) {
+        assert!(
+            b > 0 || a == 0,
+            "Impossible FiniteFunction type specified: {:?} → {:?}",
+            a,
+            b
+        );
+    }
+
+    let a_strategy = match fixed_a {
+        Some(a) => Just(a).boxed(),
+        None => (0..=max_size).boxed(),
+    };
+
+    let b_strategy = match fixed_b {
+        Some(b) => Just(b).boxed(),
+        None => (1..=max_size).boxed(),
+    };
+
+    // Filter out impossible types.
+    (a_strategy, b_strategy)
+        .prop_filter("Domain size must be >= codomain size for n>0", |(a, b)| {
+            *b > 0 || *a == 0
         })
+        .prop_map(|(a, b)| FiniteFunctionType::new(a, b).unwrap())
+        .boxed()
+}
+
+pub fn arb_finite_function(
+    FiniteFunctionType { source, target }: FiniteFunctionType,
+) -> BoxedStrategy<FiniteFunction<VecKind>> {
+    assert!(target > 0 || source == 0, "what"); // check this is a valid finite function type
+
+    // Generate a vector of values in range 0..target with length source
+    vec((0..target).boxed(), source..=source)
+        .prop_map(move |values| FiniteFunction::new(VecArray(values), target).unwrap())
         .boxed()
 }
 
@@ -42,13 +87,12 @@ pub fn arb_semifinite<T: Debug + 'static>(
 }
 
 pub fn arb_indexed_coproduct_finite(
-    len: BoxedStrategy<usize>,
-    target: BoxedStrategy<usize>,
+    len: usize,
+    target: usize,
 ) -> BoxedStrategy<IndexedCoproduct<VecKind, FiniteFunction<VecKind>>> {
-    // Generate sources - a SemifiniteFunction<VecKind, usize>
-    // We need each element to be small enough that their sum won't exceed the target
-    let small_nums = (0..=5usize).boxed(); // Small numbers to keep sums manageable
-    let sources = arb_semifinite(small_nums, Some(len));
+    // Max source is arbitrarily chosen as 10, unless target is 0, in which case it must also be 0.
+    let max_source: usize = if target == 0 { 0 } else { 10 };
+    let sources = arb_semifinite((0..=max_source).boxed(), Some(Just(len).boxed()));
 
     // Create strategy for the values FiniteFunction
     sources
@@ -57,9 +101,9 @@ pub fn arb_indexed_coproduct_finite(
             // Calculate total size needed for values - sum of sources
             let total_size = sources.0.as_ref().iter().sum();
 
-            // Generate a FiniteFunction of appropriate size
-            // TODO: likely to crash when target is 0.
-            let ff = arb_finite_function(Just(total_size).boxed(), target.clone());
+            let ff = arb_finite_function_type(1, Some(total_size), Some(target))
+                .prop_flat_map(arb_finite_function)
+                .boxed();
 
             // Combine into IndexedCoproduct
             ff.prop_map(move |values| {
@@ -68,12 +112,6 @@ pub fn arb_indexed_coproduct_finite(
             })
         })
         .boxed()
-}
-
-/// Generate a number of hypernodes given the number of hyperedges
-pub fn arb_num_hypernodes(num_hyperedges: usize) -> BoxedStrategy<usize> {
-    let min_value = if num_hyperedges > 0 { 1 } else { 0 };
-    (min_value..=MAX_HYPERNODES).boxed()
 }
 
 /// The *label arrays* for a hypergraph.
@@ -93,13 +131,9 @@ pub fn arb_labels<
     arb_arrow: BoxedStrategy<A>,
 ) -> BoxedStrategy<Labels<O, A>> {
     let operations = arb_semifinite::<A>(arb_arrow, None);
-    operations
-        .prop_flat_map(move |x| {
-            let num_hyperedges = x.len();
-            let num_wires = arb_num_hypernodes(num_hyperedges);
-            let wires = arb_semifinite::<O>(arb_object.clone(), Some(num_wires));
-            wires.prop_flat_map(move |w| Just(Labels { w, x: x.clone() }))
-        })
+    let objects = arb_semifinite::<O>(arb_object, None);
+    (objects, operations)
+        .prop_map(|(w, x)| Labels { w, x })
         .boxed()
 }
 
@@ -111,10 +145,12 @@ pub fn arb_hypergraph<
 >(
     Labels { w, x }: Labels<O, A>,
 ) -> BoxedStrategy<Hypergraph<VecKind, O, A>> {
-    let num_arr = Just(x.len()).boxed();
-    let num_obj = Just(w.len()).boxed();
-    let s = arb_indexed_coproduct_finite(num_arr.clone(), num_obj.clone());
+    let num_arr = x.len();
+    let num_obj = w.len();
+
+    let s = arb_indexed_coproduct_finite(num_arr, num_obj);
     let t = arb_indexed_coproduct_finite(num_arr, num_obj);
+
     (s, t)
         .prop_flat_map(move |(s, t)| {
             Just(Hypergraph {

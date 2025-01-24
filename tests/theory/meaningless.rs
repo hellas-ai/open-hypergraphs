@@ -4,8 +4,9 @@
 
 use open_hypergraphs::array::vec::*;
 use open_hypergraphs::hypergraph::{arrow::*, *};
+use open_hypergraphs::open_hypergraph::*;
 
-use crate::hypergraph::strategy::*;
+use crate::hypergraph::strategy::{DiscreteSpan, Labels};
 use proptest::strategy::{BoxedStrategy, Strategy};
 
 // Objects are integers
@@ -48,5 +49,11 @@ pub fn arb_inclusion() -> BoxedStrategy<HypergraphArrow<VecKind, Obj, Arr>> {
 pub fn arb_discrete_span() -> BoxedStrategy<DiscreteSpan<Obj, Arr>> {
     arb_labels()
         .prop_flat_map(crate::hypergraph::strategy::arb_discrete_span)
+        .boxed()
+}
+
+pub fn arb_open_hypergraph() -> BoxedStrategy<OpenHypergraph<VecKind, Obj, Arr>> {
+    arb_labels()
+        .prop_flat_map(crate::open_hypergraph::strategy::arb_open_hypergraph::<VecKind, Obj, Arr>)
         .boxed()
 }

@@ -15,6 +15,7 @@ impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     }
 }
 
+#[derive(Debug)]
 pub enum InvalidOpenHypergraph<K: ArrayKind> {
     CospanSourceType(K::I, K::I),
     CospanTargetType(K::I, K::I),
