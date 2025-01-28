@@ -154,6 +154,28 @@ impl<T: Clone + Sub<Output = T>> Sub<VecArray<T>> for VecArray<T> {
     }
 }
 
+impl<T: Ord + Clone> OrdArray<VecKind, T> for VecArray<T> {
+    /// ```rust
+    /// # use open_hypergraphs::array::*;
+    /// # use open_hypergraphs::array::vec::*;
+    /// let values: VecArray<usize> = VecArray(vec![1, 2, 0, 3]);
+    /// let actual: VecArray<usize> = values.argsort();
+    /// let expected = VecArray::<usize>(vec![2, 0, 1, 3]);
+    /// assert_eq!(actual, expected);
+    ///
+    /// // Check monotonicity
+    /// let monotonic = values.gather(actual.as_slice());
+    /// for i in 0..(monotonic.len()-1) {
+    ///     assert!(monotonic[i] <= monotonic[i+1]);
+    /// }
+    /// ```
+    fn argsort(&self) -> VecArray<usize> {
+        let mut indices = (0..self.len()).collect::<Vec<_>>();
+        indices.sort_by_key(|&i| &self[i]);
+        VecArray(indices)
+    }
+}
+
 impl NaturalArray<VecKind> for VecArray<usize> {
     fn max(&self) -> Option<usize> {
         self.iter().max().copied()

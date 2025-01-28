@@ -54,6 +54,6 @@ pub fn arb_discrete_span() -> BoxedStrategy<DiscreteSpan<Obj, Arr>> {
 
 pub fn arb_open_hypergraph() -> BoxedStrategy<OpenHypergraph<VecKind, Obj, Arr>> {
     arb_labels()
-        .prop_flat_map(crate::open_hypergraph::strategy::arb_open_hypergraph::<VecKind, Obj, Arr>)
+        .prop_flat_map(crate::open_hypergraph::strategy::arb_open_hypergraph::<Obj, Arr>)
         .boxed()
 }

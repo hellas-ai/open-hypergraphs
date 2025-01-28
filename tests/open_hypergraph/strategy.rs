@@ -1,8 +1,10 @@
-use open_hypergraphs::array::{vec::*, *};
+use open_hypergraphs::array::vec::*;
 use open_hypergraphs::category::*;
 use open_hypergraphs::open_hypergraph::OpenHypergraph;
 
-use crate::hypergraph::strategy::{arb_hypergraph, arb_semifinite, Labels};
+use crate::hypergraph::strategy::{
+    arb_finite_function, arb_finite_function_type, arb_hypergraph, arb_semifinite, Labels,
+};
 use proptest::strategy::{BoxedStrategy, Strategy};
 
 use core::fmt::Debug;
@@ -19,20 +21,22 @@ pub fn identities<
         .boxed()
 }
 
-#[allow(unreachable_code)]
 pub fn arb_open_hypergraph<
-    K: ArrayKind,
     O: Debug + Clone + PartialEq + 'static,
     A: Debug + Clone + PartialEq + 'static,
 >(
     labels: Labels<O, A>,
-) -> BoxedStrategy<OpenHypergraph<VecKind, O, A>>
-where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O> + Debug,
-    K::Type<A>: Array<K, A> + Debug,
-{
+) -> BoxedStrategy<OpenHypergraph<VecKind, O, A>> {
     arb_hypergraph(labels)
-        .prop_map(move |_h| OpenHypergraph::new(todo!(), todo!(), _h).unwrap())
+        .prop_flat_map(move |h| {
+            let source = arb_finite_function_type(10, None, Some(h.w.len()))
+                .prop_flat_map(arb_finite_function)
+                .boxed();
+            let target = arb_finite_function_type(10, None, Some(h.w.len()))
+                .prop_flat_map(arb_finite_function)
+                .boxed();
+
+            (source, target).prop_map(move |(s, t)| OpenHypergraph::new(s, t, h.clone()).unwrap())
+        })
         .boxed()
 }

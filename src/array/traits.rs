@@ -106,10 +106,16 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     fn scatter(&self, idx: K::Slice<'_, K::I>, n: K::I) -> Self;
 }
 
+pub trait OrdArray<K: ArrayKind, T>: Clone + PartialEq<Self> + Array<K, T> {
+    /// Produce an array of indices which sorts `self`.
+    /// That is, `self.gather(self.argsort())` is monotonic.
+    fn argsort(&self) -> K::Index;
+}
+
 /// Arrays of natural numbers.
 /// This is used for computing with *indexes* and *sizes*.
 pub trait NaturalArray<K: ArrayKind>:
-    Array<K, K::I> + Sized + Sub<Self, Output = Self> + Add<Self, Output = Self> + AsRef<K::Index>
+    OrdArray<K, K::I> + Sized + Sub<Self, Output = Self> + Add<Self, Output = Self> + AsRef<K::Index>
 {
     fn max(&self) -> Option<K::I>;
 
