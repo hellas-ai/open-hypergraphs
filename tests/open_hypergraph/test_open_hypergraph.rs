@@ -32,4 +32,19 @@ proptest! {
         assert_open_hypergraph_equality_invariants(&f, &pre_compose);
         assert_open_hypergraph_equality_invariants(&f, &post_compose);
     }
+
+    #[test]
+    fn test_composition_wire_count(v in arb_composite_open_hypergraph(2)) {
+        let [f, g] = v.as_slice() else { panic!("arb_composite_open_hypergraph returned wrong number of open hypergraphs") };
+        let h = (f.compose(g)).unwrap();
+
+        assert_eq!(h.source(), f.source());
+        assert_eq!(h.target(), g.target());
+
+        // The composition h = f ; g should have less than or equal to the number of wires than f, g.
+        assert!(h.h.w.len() <= f.h.w.len() + g.h.w.len());
+
+        // ... and *more* than or equal to the number of wires in f, g less those on the boundary.
+        assert!(h.h.w.len() >= f.h.w.len() + g.h.w.len() - f.t.source());
+    }
 }

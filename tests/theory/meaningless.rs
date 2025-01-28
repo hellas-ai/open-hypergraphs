@@ -57,3 +57,9 @@ pub fn arb_open_hypergraph() -> BoxedStrategy<OpenHypergraph<VecKind, Obj, Arr>>
         .prop_flat_map(crate::open_hypergraph::strategy::arb_open_hypergraph::<Obj, Arr>)
         .boxed()
 }
+
+pub fn arb_composite_open_hypergraph(
+    n: usize,
+) -> BoxedStrategy<Vec<OpenHypergraph<VecKind, Obj, Arr>>> {
+    crate::open_hypergraph::strategy::arb_composite_open_hypergraph(n, arb_labels())
+}
