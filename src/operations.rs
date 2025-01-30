@@ -50,3 +50,33 @@ where
         self.x.len()
     }
 }
+
+impl<K: ArrayKind, O, A> std::fmt::Debug for Operations<K, O, A>
+where
+    K::Type<A>: std::fmt::Debug,
+    K::Type<O>: std::fmt::Debug,
+    K::Type<K::I>: std::fmt::Debug, // TODO: can we remove this bound? required only for singleton.
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Operations")
+            .field("x", &self.x)
+            .field("a", &self.a)
+            .field("b", &self.b)
+            .finish()
+    }
+}
+
+impl<K: ArrayKind, O, A> Clone for Operations<K, O, A>
+where
+    K::Type<A>: Array<K, A>,
+    K::Type<O>: Array<K, O>,
+    K::Type<K::I>: NaturalArray<K>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            x: self.x.clone(),
+            a: self.a.clone(),
+            b: self.b.clone(),
+        }
+    }
+}

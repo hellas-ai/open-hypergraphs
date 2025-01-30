@@ -56,13 +56,11 @@ impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    // TODO: need to know a length of values!
     pub fn new(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
-        if sources.0.as_ref().sum() > values.len() {
+        if sources.0.as_ref().sum() != values.len() {
             return None;
         }
 
-        // TODO: check "length" of values!
         Some(IndexedCoproduct { sources, values })
     }
 

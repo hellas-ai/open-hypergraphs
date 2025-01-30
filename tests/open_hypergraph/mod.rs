@@ -1,3 +1,6 @@
 pub mod equality;
 pub mod strategy;
-mod test_open_hypergraph;
+
+mod test_category;
+mod test_constructor;
+mod test_symmetric_monoidal;

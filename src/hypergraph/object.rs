@@ -120,14 +120,13 @@ where
         }
     }
 
-    pub fn tensor_operations(operations: Operations<K, O, A>) -> Hypergraph<K, O, A> {
-        let Operations { x, a, b } = operations;
+    pub fn tensor_operations(Operations { x, a, b }: Operations<K, O, A>) -> Hypergraph<K, O, A> {
         // NOTE: the validity of the result assumes validity of `operations`.
         let inj0 = FiniteFunction::inj0(a.values.len(), b.values.len());
-        let inj1 = FiniteFunction::inj0(a.values.len(), b.values.len());
-        let s = IndexedCoproduct::new(a.sources, inj0).expect("By construction");
-        let t = IndexedCoproduct::new(b.sources, inj1).expect("By construction");
-        let w = a.values.coproduct(&b.values);
+        let inj1 = FiniteFunction::inj1(a.values.len(), b.values.len());
+        let s = IndexedCoproduct::new(a.sources, inj0).expect("invalid Operations?");
+        let t = IndexedCoproduct::new(b.sources, inj1).expect("invalid Operations?");
+        let w = a.values + b.values;
         Hypergraph { s, t, w, x }
     }
 }

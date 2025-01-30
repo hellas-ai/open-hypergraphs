@@ -130,7 +130,7 @@ pub trait NaturalArray<K: ArrayKind>:
         if self.len() == K::I::zero() {
             K::I::zero()
         } else {
-            self.cumulative_sum().get(self.len() - K::I::one())
+            self.cumulative_sum().get(self.len())
         }
     }
 

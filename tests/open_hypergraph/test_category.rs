@@ -8,7 +8,6 @@ use crate::theory::meaningless::*;
 use proptest::proptest;
 
 proptest! {
-
     #[test]
     fn test_identity_type(f in strategy::identities::<Obj, Arr>(arb_object()))
     {
