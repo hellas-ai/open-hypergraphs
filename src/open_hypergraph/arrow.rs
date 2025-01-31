@@ -175,6 +175,30 @@ where
     }
 }
 
+impl<K: ArrayKind, O, A> Spider<K> for OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O>,
+    K::Type<A>: Array<K, A>,
+{
+    fn dagger(&self) -> Self {
+        OpenHypergraph {
+            s: self.t.clone(),
+            t: self.s.clone(),
+            h: self.h.clone(),
+        }
+    }
+
+    fn spider(s: FiniteFunction<K>, t: FiniteFunction<K>, w: Self::Object) -> Option<Self> {
+        if s.target() != w.len() || t.target() != w.len() {
+            return None;
+        }
+
+        let h = Hypergraph::discrete(w);
+        Some(OpenHypergraph { s, t, h })
+    }
+}
+
 // Syntactic sugar for composition and tensor
 impl<K: ArrayKind, O, A> Shr<&OpenHypergraph<K, O, A>> for &OpenHypergraph<K, O, A>
 where
