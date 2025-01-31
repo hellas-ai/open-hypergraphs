@@ -63,3 +63,7 @@ pub fn arb_composite_open_hypergraph(
 ) -> BoxedStrategy<Vec<OpenHypergraph<VecKind, Obj, Arr>>> {
     crate::open_hypergraph::strategy::arb_composite_open_hypergraph(n, arb_labels())
 }
+
+pub fn arb_labeled_cospan() -> BoxedStrategy<crate::hypergraph::strategy::LabeledCospan<Obj>> {
+    crate::hypergraph::strategy::arb_labeled_cospan(arb_object())
+}

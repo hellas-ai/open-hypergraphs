@@ -12,7 +12,7 @@ use proptest::prelude::*;
 use proptest::strategy::{BoxedStrategy, Strategy};
 
 #[non_exhaustive]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FiniteFunctionType {
     pub source: usize,
     pub target: usize,
@@ -230,6 +230,39 @@ pub fn arb_discrete_span<
                 let h = h.clone();
                 Just(DiscreteSpan { l, h, r }.validate())
             })
+        })
+        .boxed()
+}
+
+pub type LabeledCospan<T> = (
+    FiniteFunction<VecKind>,
+    FiniteFunction<VecKind>,
+    SemifiniteFunction<VecKind, T>,
+);
+
+pub fn arb_cospan_type() -> BoxedStrategy<(FiniteFunctionType, FiniteFunctionType)> {
+    let max_size = 10;
+    let s = arb_finite_function_type(max_size.clone(), None, None);
+    s.prop_flat_map(move |s| {
+        let target = s.target;
+        (
+            Just(s),
+            arb_finite_function_type(max_size, None, Some(target)),
+        )
+    })
+    .boxed()
+}
+
+pub fn arb_labeled_cospan<O: Debug + Clone + PartialEq + 'static>(
+    arb_object: BoxedStrategy<O>,
+) -> BoxedStrategy<LabeledCospan<O>> {
+    arb_cospan_type()
+        .prop_flat_map(move |(ts, tt)| {
+            (
+                arb_finite_function(ts),
+                arb_finite_function(tt.clone()),
+                arb_semifinite::<O>(arb_object.clone(), Some(Just(tt.target).boxed())),
+            )
         })
         .boxed()
 }
