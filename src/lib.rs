@@ -7,3 +7,5 @@ pub mod semifinite;
 
 pub mod hypergraph;
 pub mod open_hypergraph;
+
+pub mod functor;
