@@ -6,7 +6,7 @@ use crate::semifinite::*;
 /// Strict symmetric monoidal hypergraph functors
 pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {
     /// Action on objects
-    fn map_object(&self, a: SemifiniteFunction<K, O1>) -> SemifiniteFunction<K, O2>;
+    fn map_object(&self, a: &SemifiniteFunction<K, O1>) -> SemifiniteFunction<K, O2>;
 
     /// Action on arrows
     fn map_arrow(&self, a: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
@@ -21,8 +21,8 @@ where
     K::Type<O>: Clone,
     K::Type<A>: Clone,
 {
-    fn map_object(&self, a: SemifiniteFunction<K, O>) -> SemifiniteFunction<K, O> {
-        a
+    fn map_object(&self, a: &SemifiniteFunction<K, O>) -> SemifiniteFunction<K, O> {
+        a.clone()
     }
 
     fn map_arrow(&self, f: &OpenHypergraph<K, O, A>) -> OpenHypergraph<K, O, A> {
