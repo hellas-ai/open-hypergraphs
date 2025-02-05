@@ -108,7 +108,7 @@ pub fn arb_indexed_coproduct_finite(
             // Combine into IndexedCoproduct
             ff.prop_map(move |values| {
                 let sources = sources.clone();
-                IndexedCoproduct::new(sources, values).unwrap()
+                IndexedCoproduct::from_semifinite(sources, values).unwrap()
             })
         })
         .boxed()

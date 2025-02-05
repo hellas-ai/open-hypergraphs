@@ -4,7 +4,7 @@ use crate::finite_function::*;
 use crate::semifinite::*;
 
 use core::fmt::Debug;
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 // The minimum set of operations some arrows must have in order to define an [`IndexedCoproduct`]
 // over them.
@@ -36,7 +36,10 @@ where
 /// Pragmatically, it's a segmented array
 #[non_exhaustive] // force construction via new.
 pub struct IndexedCoproduct<K: ArrayKind, F> {
-    pub sources: SemifiniteFunction<K, K::I>,
+    /// A ['FiniteFunction'] satisfying `self.target() = self.table.sum() + 1`
+    pub sources: FiniteFunction<K>,
+
+    /// The concatenation of all arrays in the coproduct.
     pub values: F,
 }
 
@@ -56,24 +59,37 @@ impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    pub fn new(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
-        if sources.0.as_ref().sum() != values.len() {
+    /// Create a new IndexedCoproduct from a FiniteFunction whose target is the sum of its
+    /// elements. This condition is checked by summing the array.
+    pub fn new(sources: FiniteFunction<K>, values: F) -> Option<Self> {
+        // use the from_semifinite construct, but check against declared sum anyway.
+        let target = sources.target();
+        let result = Self::from_semifinite(SemifiniteFunction(sources.table.into()), values)?;
+        if result.sources.target() != target {
             return None;
         }
 
+        Some(result)
+    }
+
+    pub fn from_semifinite(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
+        let sum = sources.0.as_ref().sum();
+        if sum != values.len() {
+            return None;
+        }
+
+        let sources = FiniteFunction::new(sources.0.into(), sum + K::I::one()).unwrap();
         Some(IndexedCoproduct { sources, values })
     }
 
     pub fn singleton(values: F) -> Self {
         let n = values.len();
-        let sources = SemifiniteFunction::singleton(n);
+        let sources = FiniteFunction::constant(K::I::one(), n, K::I::zero());
         IndexedCoproduct { sources, values }
     }
 
     pub fn len(&self) -> K::I {
-        // NOTE: this forces the NaturalArray bound on `K::Type<K::I>` since we can't witness these
-        // types as equal.
-        self.sources.0.as_ref().len()
+        self.sources.source()
     }
 
     /// Compose two `IndexedCoproduct` thought of as lists-of-lists.
@@ -91,9 +107,10 @@ where
     /// z : Σ_{a ∈ A} s'(a) → C     aka A → C*
     /// ```
     pub fn flatmap(&self, other: &IndexedCoproduct<K, F>) -> IndexedCoproduct<K, F> {
-        let x: &K::Index = self.sources.0.as_ref();
-        let y: &K::Index = other.sources.0.as_ref();
-        let sources: SemifiniteFunction<K, K::I> = SemifiniteFunction(x.segmented_sum(y).into());
+        let sources = FiniteFunction {
+            table: self.sources.table.segmented_sum(&other.sources.table),
+            target: other.sources.target.clone(), // TODO: write a test for this
+        };
         let values = other.values.clone();
         IndexedCoproduct { sources, values }
     }
@@ -114,8 +131,9 @@ where
     K::Type<K::I>: NaturalArray<K>,
 {
     /// The initial object, i.e., the finite coproduct indexed by the empty set
+    /// Note that the target of `sources` must be zero for laws to work here.
     pub fn initial(target: K::I) -> Self {
-        let sources = SemifiniteFunction::zero();
+        let sources = FiniteFunction::initial(K::I::one());
         let values = FiniteFunction::initial(target);
         IndexedCoproduct { sources, values }
     }
@@ -125,8 +143,14 @@ where
         &self,
         other: &IndexedCoproduct<K, FiniteFunction<K>>,
     ) -> IndexedCoproduct<K, FiniteFunction<K>> {
+        // build a new finite function for 'sources'. it consists of:
+        //  - concatenated segment sizes
+        //  - target equal to *total sum* (sum of targets)
+        let table = self.sources.table.concatenate(&other.sources.table);
+        let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
+
         IndexedCoproduct {
-            sources: self.sources.coproduct(&other.sources),
+            sources: FiniteFunction { table, target },
             values: &self.values | &other.values,
         }
     }
@@ -165,7 +189,7 @@ where
 
 impl<K: ArrayKind, F: Debug> Debug for IndexedCoproduct<K, F>
 where
-    K::Type<K::I>: Debug,
+    K::Index: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IndexedCoproduct")

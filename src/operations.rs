@@ -55,7 +55,7 @@ impl<K: ArrayKind, O, A> std::fmt::Debug for Operations<K, O, A>
 where
     K::Type<A>: std::fmt::Debug,
     K::Type<O>: std::fmt::Debug,
-    K::Type<K::I>: std::fmt::Debug, // TODO: can we remove this bound? required only for singleton.
+    K::Index: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Operations")

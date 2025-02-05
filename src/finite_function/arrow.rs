@@ -24,6 +24,7 @@ impl<K: ArrayKind> FiniteFunction<K> {
     /// Construct a FiniteFunction from a table of indices
     pub fn new(table: K::Index, target: K::I) -> Option<FiniteFunction<K>> {
         // If table was nonempty and had a value larger or equal to codomain, this is invalid.
+        // TODO: should check that table min is greater than zero!
         if let Some(true) = table.max().map(|m| m >= target) {
             return None;
         }
