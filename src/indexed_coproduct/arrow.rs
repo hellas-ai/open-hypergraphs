@@ -81,10 +81,21 @@ where
         let sources = FiniteFunction::new(sources.0.into(), sum + K::I::one()).unwrap();
         Some(IndexedCoproduct { sources, values })
     }
+}
 
+impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F> {
+    /// Construct a segmented array with a single segment containing values.
     pub fn singleton(values: F) -> Self {
         let n = values.len();
         let sources = FiniteFunction::constant(K::I::one(), n, K::I::zero());
+        IndexedCoproduct { sources, values }
+    }
+
+    /// Construct a segmented array with `values.len()` segments, each containing a single element.
+    pub fn elements(values: F) -> Self {
+        let n = values.len();
+        // note: is this somehow dual to singleton; the first two args are swapped?
+        let sources = FiniteFunction::constant(n, K::I::one(), K::I::zero());
         IndexedCoproduct { sources, values }
     }
 
@@ -177,6 +188,22 @@ where
     /// Returns `None` if `x.source() != B`.
     pub fn map_values(&self, x: &FiniteFunction<K>) -> Option<Self> {
         Some(Self {
+            sources: self.sources.clone(),
+            values: (&self.values >> x)?,
+        })
+    }
+
+    // TODO: FIXME: including this is annoying. Can we roll map_values and map_semifinite into one
+    // function by just requiring the `F` parameter to be post-composable with FiniteFunction?
+    /// Same as `map_values`, but for `SemifiniteFunction`.
+    pub fn map_semifinite<T>(
+        &self,
+        x: &SemifiniteFunction<K, T>,
+    ) -> Option<IndexedCoproduct<K, SemifiniteFunction<K, T>>>
+    where
+        K::Type<T>: Array<K, T>,
+    {
+        Some(IndexedCoproduct::<K, SemifiniteFunction<K, T>> {
             sources: self.sources.clone(),
             values: (&self.values >> x)?,
         })

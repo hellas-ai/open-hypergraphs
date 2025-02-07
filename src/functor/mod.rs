@@ -1,3 +1,3 @@
-pub mod frobenius;
+pub mod spider;
 
-pub use frobenius::*;
+pub use spider::*;
