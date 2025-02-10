@@ -10,13 +10,10 @@ use crate::semifinite::*;
 /// Strict symmetric monoidal hypergraph functors
 pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {
     /// Action on objects
-    fn map_object(
-        &self,
-        a: &SemifiniteFunction<K, O1>,
-    ) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
+    fn map_object(a: &SemifiniteFunction<K, O1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
 
     /// Action on arrows
-    fn map_arrow(&self, a: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
+    fn map_arrow(a: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
 }
 
 /// The identity functor, which implements [`Functor`] for any signature.
@@ -28,14 +25,11 @@ where
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
-    fn map_object(
-        &self,
-        a: &SemifiniteFunction<K, O>,
-    ) -> IndexedCoproduct<K, SemifiniteFunction<K, O>> {
+    fn map_object(a: &SemifiniteFunction<K, O>) -> IndexedCoproduct<K, SemifiniteFunction<K, O>> {
         IndexedCoproduct::elements(a.clone())
     }
 
-    fn map_arrow(&self, f: &OpenHypergraph<K, O, A>) -> OpenHypergraph<K, O, A> {
+    fn map_arrow(f: &OpenHypergraph<K, O, A>) -> OpenHypergraph<K, O, A> {
         f.clone()
     }
 }
@@ -79,25 +73,22 @@ where
     K::Type<A2>: Array<K, A2>,
 {
     /// Action on objects
-    fn map_object(
-        &self,
-        a: &SemifiniteFunction<K, O1>,
-    ) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
+    fn map_object(a: &SemifiniteFunction<K, O1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
 
     /// Often, it's easier to map a list of operations f, g, h into their tensoring F(f) ● F(g) ●
     /// F(h).
     /// This efficiently generalises to the implementation of map_arrow.
-    fn map_operations(&self, ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
+    fn map_operations(ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
 
     #[allow(non_snake_case)]
-    fn map_arrow(&self, f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
+    fn map_arrow(f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
         // Compute the tensoring of operations
         // Fx = F(x₀) ● F(x₁) ● ... ● F(x_n)
-        let Fx = self.map_operations(to_operations(f));
+        let Fx = Self::map_operations(to_operations(f));
 
         // Compute the tensoring of objects
         // Fw = F(w₀) ● F(w₁) ● ... ● ... F(w_n)
-        let Fw = self.map_object(&f.h.w);
+        let Fw = Self::map_object(&f.h.w);
 
         // Construct the identity map on the wires of F(w)
         let i = OpenHypergraph::<K, O2, A2>::identity(Fw.values.clone());
@@ -142,15 +133,12 @@ where
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
-    fn map_object(
-        &self,
-        a: &SemifiniteFunction<K, O>,
-    ) -> IndexedCoproduct<K, SemifiniteFunction<K, O>> {
+    fn map_object(a: &SemifiniteFunction<K, O>) -> IndexedCoproduct<K, SemifiniteFunction<K, O>> {
         // same action on objects
-        <Self as Functor<K, O, A, O, A>>::map_object(self, a)
+        <Self as Functor<K, O, A, O, A>>::map_object(a)
     }
 
-    fn map_operations(&self, ops: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
+    fn map_operations(ops: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
         OpenHypergraph::tensor_operations(ops)
     }
 }

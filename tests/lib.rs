@@ -2,6 +2,7 @@
 pub mod theory;
 
 pub mod finite_function;
+pub mod indexed_coproduct;
 pub mod semifinite;
 
 pub mod operations;

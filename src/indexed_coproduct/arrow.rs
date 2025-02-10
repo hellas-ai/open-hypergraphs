@@ -117,7 +117,7 @@ impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F> {
     /// y : Σ_{b ∈ B} s(b) → C      aka B → C*
     /// z : Σ_{a ∈ A} s'(a) → C     aka A → C*
     /// ```
-    pub fn flatmap(&self, other: &IndexedCoproduct<K, F>) -> IndexedCoproduct<K, F> {
+    pub fn flatmap<G: Clone>(&self, other: &IndexedCoproduct<K, G>) -> IndexedCoproduct<K, G> {
         let sources = FiniteFunction {
             table: self.sources.table.segmented_sum(&other.sources.table),
             target: other.sources.target.clone(), // TODO: write a test for this
@@ -149,6 +149,23 @@ where
         IndexedCoproduct { sources, values }
     }
 
+    pub fn coproduct(
+        &self,
+        other: &IndexedCoproduct<K, FiniteFunction<K>>,
+    ) -> Option<IndexedCoproduct<K, FiniteFunction<K>>> {
+        // build a new finite function for 'sources'. it consists of:
+        //  - concatenated segment sizes
+        //  - target equal to *total sum* (sum of targets)
+        let table = self.sources.table.concatenate(&other.sources.table);
+        let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
+
+        // NOTE: this might fail if the two underlying FiniteFunctions do not share a codomain.
+        Some(IndexedCoproduct {
+            sources: FiniteFunction { table, target },
+            values: self.values.coproduct(&other.values)?,
+        })
+    }
+
     // This could generalise to any type with a tensor product, but we only need it for finite functions
     pub fn tensor(
         &self,
@@ -164,10 +181,6 @@ where
             sources: FiniteFunction { table, target },
             values: &self.values | &other.values,
         }
-    }
-
-    pub fn indexed_values(&self, _x: &FiniteFunction<K>) -> FiniteFunction<K> {
-        todo!()
     }
 
     /// Map the *values* array of an indexed coproduct, leaving the sources unchanged.
@@ -208,9 +221,50 @@ where
             values: (&self.values >> x)?,
         })
     }
+}
 
-    pub fn map_indexes(&self, _x: &FiniteFunction<K>) -> Self {
-        todo!()
+// Special case methods for SemifiniteFunction
+impl<K: ArrayKind, T> IndexedCoproduct<K, SemifiniteFunction<K, T>>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<T>: Array<K, T>,
+{
+    pub fn coproduct(&self, other: &Self) -> Self {
+        // build a new finite function for 'sources'. it consists of:
+        //  - concatenated segment sizes
+        //  - target equal to *total sum* (sum of targets)
+        let table = self.sources.table.concatenate(&other.sources.table);
+        let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
+
+        // NOTE: this might fail if the two underlying FiniteFunctions do not share a codomain.
+        IndexedCoproduct {
+            sources: FiniteFunction { table, target },
+            values: self.values.coproduct(&other.values),
+        }
+    }
+
+    /// Given an [`IndexedCoproduct`] of [`SemifiniteFunction`]:
+    ///
+    /// ```text
+    /// Σ_{i ∈ X} f_i : Σ_{i ∈ X} A_i → B
+    /// ```
+    ///
+    /// and a finite function `x : W → X`
+    ///
+    /// Return a new [`IndexedCoproduct`] representing
+    ///
+    /// ```text
+    /// Σ_{i ∈ X} f_{x(i)} : Σ_{i ∈ W} A_{x(i)} → B
+    /// ```
+    pub fn map_indexes(&self, x: &FiniteFunction<K>) -> Option<Self> {
+        let sources = (x >> &self.sources)?;
+        let values = self.indexed_values(x)?;
+        Some(IndexedCoproduct { sources, values })
+    }
+
+    /// Like [`Self::map_indexes`] but only returns the values array.
+    pub fn indexed_values(&self, x: &FiniteFunction<K>) -> Option<SemifiniteFunction<K, T>> {
+        &self.sources.injections(x)? >> &self.values
     }
 }
 

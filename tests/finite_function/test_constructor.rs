@@ -14,6 +14,13 @@ proptest! {
         assert_eq!(f.table, VecArray((0..domain_usize).collect::<Vec<_>>()));
         assert_eq!(f.target, domain_usize);
     }
+
+    #[test]
+    fn test_constant_type(a in 0..10usize, x in 0..10usize, b in 0..10usize) {
+        let f = FiniteFunction::<VecKind>::constant(a, x, b);
+        assert_eq!(f.source(), a);
+        assert_eq!(f.target(), x + 1 + b);
+    }
 }
 
 proptest! {
