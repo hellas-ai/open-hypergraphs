@@ -4,6 +4,7 @@ use crate::finite_function::*;
 use crate::semifinite::*;
 
 use core::fmt::Debug;
+use core::ops::{Add, Shr};
 use num_traits::{One, Zero};
 
 // The minimum set of operations some arrows must have in order to define an [`IndexedCoproduct`]
@@ -149,23 +150,6 @@ where
         IndexedCoproduct { sources, values }
     }
 
-    pub fn coproduct(
-        &self,
-        other: &IndexedCoproduct<K, FiniteFunction<K>>,
-    ) -> Option<IndexedCoproduct<K, FiniteFunction<K>>> {
-        // build a new finite function for 'sources'. it consists of:
-        //  - concatenated segment sizes
-        //  - target equal to *total sum* (sum of targets)
-        let table = self.sources.table.concatenate(&other.sources.table);
-        let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
-
-        // NOTE: this might fail if the two underlying FiniteFunctions do not share a codomain.
-        Some(IndexedCoproduct {
-            sources: FiniteFunction { table, target },
-            values: self.values.coproduct(&other.values)?,
-        })
-    }
-
     // This could generalise to any type with a tensor product, but we only need it for finite functions
     pub fn tensor(
         &self,
@@ -224,12 +208,15 @@ where
 }
 
 // Special case methods for SemifiniteFunction
-impl<K: ArrayKind, T> IndexedCoproduct<K, SemifiniteFunction<K, T>>
+// NOTE: this is a bit of a hack: it requires Shr and Add instances for the values type (F)
+// so this impl works for both SemifiniteFunction and FiniteFunction values arrays.
+impl<K: ArrayKind, F> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<T>: Array<K, T>,
+    for<'a, 'b> &'a FiniteFunction<K>: Shr<&'b F, Output = Option<F>>, // compose
+    for<'a, 'b> &'a F: Add<&'b F, Output = Option<F>>,                 // coproduct
 {
-    pub fn coproduct(&self, other: &Self) -> Self {
+    pub fn coproduct(&self, other: &Self) -> Option<Self> {
         // build a new finite function for 'sources'. it consists of:
         //  - concatenated segment sizes
         //  - target equal to *total sum* (sum of targets)
@@ -237,10 +224,10 @@ where
         let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
 
         // NOTE: this might fail if the two underlying FiniteFunctions do not share a codomain.
-        IndexedCoproduct {
+        Some(IndexedCoproduct {
             sources: FiniteFunction { table, target },
-            values: self.values.coproduct(&other.values),
-        }
+            values: (&self.values + &other.values)?,
+        })
     }
 
     /// Given an [`IndexedCoproduct`] of [`SemifiniteFunction`]:
@@ -254,16 +241,16 @@ where
     /// Return a new [`IndexedCoproduct`] representing
     ///
     /// ```text
-    /// Σ_{i ∈ X} f_{x(i)} : Σ_{i ∈ W} A_{x(i)} → B
+    /// Σ_{i ∈ W} f_{x(i)} : Σ_{i ∈ W} A_{x(i)} → B
     /// ```
     pub fn map_indexes(&self, x: &FiniteFunction<K>) -> Option<Self> {
-        let sources = (x >> &self.sources)?;
+        let sources = (x.compose(&self.sources))?;
         let values = self.indexed_values(x)?;
         Some(IndexedCoproduct { sources, values })
     }
 
     /// Like [`Self::map_indexes`] but only returns the values array.
-    pub fn indexed_values(&self, x: &FiniteFunction<K>) -> Option<SemifiniteFunction<K, T>> {
+    pub fn indexed_values(&self, x: &FiniteFunction<K>) -> Option<F> {
         &self.sources.injections(x)? >> &self.values
     }
 }

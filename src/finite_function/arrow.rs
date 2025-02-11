@@ -2,7 +2,7 @@ use crate::array::*;
 use crate::category::*;
 
 use core::fmt::Debug;
-use core::ops::{BitOr, Shr};
+use core::ops::{Add, BitOr, Shr};
 use num_traits::{One, Zero};
 
 /// A finite function is an array of indices in a range `{0..N}` for some `N ∈ Nat`
@@ -365,7 +365,16 @@ impl<K: ArrayKind> Shr<&FiniteFunction<K>> for &FiniteFunction<K> {
     }
 }
 
-// Parallel composition
+// Sugar for coproduct
+impl<K: ArrayKind> Add<&FiniteFunction<K>> for &FiniteFunction<K> {
+    type Output = Option<FiniteFunction<K>>;
+
+    fn add(self, rhs: &FiniteFunction<K>) -> Option<FiniteFunction<K>> {
+        self.coproduct(rhs)
+    }
+}
+
+// Tensor product (parallel composition)
 impl<K: ArrayKind> BitOr<&FiniteFunction<K>> for &FiniteFunction<K> {
     type Output = FiniteFunction<K>;
     fn bitor(self, rhs: &FiniteFunction<K>) -> FiniteFunction<K> {

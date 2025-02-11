@@ -78,10 +78,10 @@ impl<K: ArrayKind, T> Add<&SemifiniteFunction<K, T>> for &SemifiniteFunction<K, 
 where
     K::Type<T>: Array<K, T>,
 {
-    type Output = SemifiniteFunction<K, T>;
+    type Output = Option<SemifiniteFunction<K, T>>; // NOTE: redundant Option, always succeeds
 
     fn add(self, rhs: &SemifiniteFunction<K, T>) -> Self::Output {
-        self.coproduct(rhs)
+        Some(self.coproduct(rhs))
     }
 }
 
