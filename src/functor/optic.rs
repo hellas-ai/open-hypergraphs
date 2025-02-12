@@ -12,7 +12,7 @@ use core::fmt::Debug;
 use num_traits::One;
 
 /// An optic is composed of forward and reverse functors along with a residual object
-pub trait Optic<K: ArrayKind + Debug, O1, A1, O2, A2>: SpiderFunctor<K, O1, A1, O2, A2>
+pub trait Optic<K: ArrayKind + Debug, O1, A1, O2, A2>
 where
     K::Type<K::I>: NaturalArray<K>,
     K::Type<O1>: Array<K, O1> + Debug,
@@ -29,8 +29,8 @@ where
 
     fn map_object(a: &SemifiniteFunction<K, O1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>> {
         // Each object A is mapped to F(A) ● R(A)
-        let fa = <Self as Optic<_, _, _, _, _>>::F::map_object(a);
-        let ra = <Self as Optic<_, _, _, _, _>>::R::map_object(a);
+        let fa = Self::F::map_object(a);
+        let ra = Self::R::map_object(a);
 
         assert_eq!(fa.len(), ra.len());
         let n = fa.len();
@@ -41,26 +41,31 @@ where
             .expect("Coproduct of SemifiniteFunction always succeeds");
         let p = FiniteFunction::transpose(K::I::one() + K::I::one(), n);
 
-        // TODO: checkme.
-        paired.map_indexes(&p).unwrap()
+        let sources = FiniteFunction::new(
+            fa.sources.table + ra.sources.table,
+            fa.sources.target + ra.sources.target - K::I::one(),
+        )
+        .unwrap();
+        let values = paired.indexed_values(&p).unwrap();
+        IndexedCoproduct::new(sources, values).unwrap()
     }
 
-    fn map_operations(&self, ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
+    fn map_operations(ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
         // Forward and reverse maps
-        let fwd = <Self as Optic<_, _, _, _, _>>::F::map_operations(ops.clone());
-        let rev = <Self as Optic<_, _, _, _, _>>::R::map_operations(ops.clone());
+        let fwd = Self::F::map_operations(ops.clone());
+        let rev = Self::R::map_operations(ops.clone());
 
         // Get mapped objects
-        let fa = <Self as Optic<_, _, _, _, _>>::F::map_object(&ops.a.values);
-        let fb = <Self as Optic<_, _, _, _, _>>::F::map_object(&ops.b.values);
-        let ra = <Self as Optic<_, _, _, _, _>>::R::map_object(&ops.a.values);
-        let rb = <Self as Optic<_, _, _, _, _>>::R::map_object(&ops.b.values);
+        let fa = Self::F::map_object(&ops.a.values);
+        let fb = Self::F::map_object(&ops.b.values);
+        let ra = Self::R::map_object(&ops.a.values);
+        let rb = Self::R::map_object(&ops.b.values);
 
         let m = Self::residual(&ops);
 
         // Create interleavings
-        let fwd_interleave = self.interleave_blocks(&ops.b.flatmap(&fb), &m).dagger();
-        let rev_cointerleave = self.interleave_blocks(&m, &ops.b.flatmap(&rb));
+        let fwd_interleave = interleave_blocks(&ops.b.flatmap(&fb), &m).dagger();
+        let rev_cointerleave = interleave_blocks(&m, &ops.b.flatmap(&rb));
 
         debug_assert_eq!(fwd.target(), fwd_interleave.source());
         debug_assert_eq!(rev_cointerleave.target(), rev.source());
@@ -77,59 +82,82 @@ where
         let d = partial_dagger(&c, &fa, &fb, &ra, &rb);
 
         // Final interleaving
-        let lhs = self.interleave_blocks(&fa, &ra).dagger();
-        let rhs = self.interleave_blocks(&fb, &rb);
+        let lhs = interleave_blocks(&fa, &ra).dagger();
+        let rhs = interleave_blocks(&fb, &rb);
 
         lhs.compose(&d).unwrap().compose(&rhs).unwrap()
     }
 
-    fn interleave_blocks(
-        &self,
-        a: &IndexedCoproduct<K, SemifiniteFunction<K, O2>>,
-        b: &IndexedCoproduct<K, SemifiniteFunction<K, O2>>,
-    ) -> OpenHypergraph<K, O2, A2> {
-        if a.len() != b.len() {
-            panic!("Can't interleave types of unequal lengths");
-        }
+    fn map_arrow(f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
+        // Compute the tensoring of operations
+        // Fx = F(x₀) ● F(x₁) ● ... ● F(x_n)
+        let fx = Self::map_operations(to_operations(f));
 
-        let ab = a
-            .coproduct(b)
-            .expect("Coproduct of SemifiniteFunction always succeeds");
+        // Compute the tensoring of objects
+        // Fw = F(w₀) ● F(w₁) ● ... ● ... F(w_n)
+        let fw = Self::map_object(&f.h.w);
 
-        let two = K::I::one() + K::I::one();
-        let s = FiniteFunction::identity(ab.values.len());
-        let t = ab
-            .sources
-            .injections(&FiniteFunction::transpose(two, a.len()))
-            .unwrap();
+        spider_map_arrow::<K, O1, A1, O2, A2>(f, fw, fx)
+    }
+}
 
-        OpenHypergraph::spider(s, t, ab.values.clone()).unwrap()
+pub fn adapt<K: ArrayKind + Debug, O1, A1, O2, A2, T: Optic<K, O1, A1, O2, A2>>(
+    c: &OpenHypergraph<K, O2, A2>,
+    a: &SemifiniteFunction<K, O1>,
+    b: &SemifiniteFunction<K, O1>,
+) -> OpenHypergraph<K, O2, A2>
+where
+    K::Index: Debug,
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O1>: Array<K, O1> + Debug,
+    K::Type<A1>: Array<K, A1> + Debug,
+    K::Type<O2>: Array<K, O2> + Debug,
+    K::Type<A2>: Array<K, A2> + Debug,
+{
+    let fa = T::F::map_object(a);
+    let fb = T::F::map_object(b);
+    let ra = T::R::map_object(a);
+    let rb = T::R::map_object(b);
+
+    // Uninterleave to get d : FA●RA → FB●RB
+    let lhs = interleave_blocks(&fa, &ra);
+    let rhs = interleave_blocks(&fb, &rb).dagger();
+    let d = lhs.compose(c).unwrap().compose(&rhs).unwrap();
+
+    // Verify source/target
+    // NOTE: unwrap() because coproduct of semifinite functions always succeeds.
+    debug_assert_eq!(d.source(), fa.coproduct(&ra).unwrap().values);
+    debug_assert_eq!(d.target(), fb.coproduct(&rb).unwrap().values);
+
+    // Partial dagger to get d : FA●RB → FB●RA
+    partial_dagger(&d, &fa, &fb, &rb, &ra)
+}
+
+fn interleave_blocks<K: ArrayKind, O, A>(
+    a: &IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+    b: &IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+) -> OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O> + Debug,
+    K::Type<A>: Array<K, A> + Debug,
+{
+    if a.len() != b.len() {
+        panic!("Can't interleave types of unequal lengths");
     }
 
-    fn adapt(
-        &self,
-        c: &OpenHypergraph<K, O2, A2>,
-        a: &SemifiniteFunction<K, O1>,
-        b: &SemifiniteFunction<K, O1>,
-    ) -> OpenHypergraph<K, O2, A2> {
-        let fa = Self::F::map_object(a);
-        let fb = Self::F::map_object(b);
-        let ra = Self::R::map_object(a);
-        let rb = Self::R::map_object(b);
+    let ab = a
+        .coproduct(b)
+        .expect("Coproduct of SemifiniteFunction always succeeds");
 
-        // Uninterleave to get d : FA●RA → FB●RB
-        let lhs = self.interleave_blocks(&fa, &ra);
-        let rhs = self.interleave_blocks(&fb, &rb).dagger();
-        let d = lhs.compose(c).unwrap().compose(&rhs).unwrap();
+    let two = K::I::one() + K::I::one();
+    let s = FiniteFunction::identity(ab.values.len());
+    let t = ab
+        .sources
+        .injections(&FiniteFunction::transpose(two, a.len()))
+        .unwrap();
 
-        // Verify source/target
-        // NOTE: unwrap() because coproduct of semifinite functions always succeeds.
-        debug_assert_eq!(d.source(), fa.coproduct(&ra).unwrap().values);
-        debug_assert_eq!(d.target(), fb.coproduct(&rb).unwrap().values);
-
-        // Partial dagger to get d : FA●RB → FB●RA
-        partial_dagger(&d, &fa, &fb, &rb, &ra)
-    }
+    OpenHypergraph::spider(s, t, ab.values.clone()).unwrap()
 }
 
 /// Helper function to perform partial dagger operation
