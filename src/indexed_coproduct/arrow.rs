@@ -37,7 +37,7 @@ where
 /// Pragmatically, it's a segmented array
 #[non_exhaustive] // force construction via new.
 pub struct IndexedCoproduct<K: ArrayKind, F> {
-    /// A ['FiniteFunction'] satisfying `self.target() = self.table.sum() + 1`
+    /// A ['FiniteFunction'] whose sum is the length of `values`, and whose target is `sum + 1`.
     pub sources: FiniteFunction<K>,
 
     /// The concatenation of all arrays in the coproduct.
@@ -63,28 +63,34 @@ where
     /// Create a new IndexedCoproduct from a FiniteFunction whose target is the sum of its
     /// elements. This condition is checked by summing the array.
     pub fn new(sources: FiniteFunction<K>, values: F) -> Option<Self> {
-        // use the from_semifinite construct, but check against declared sum anyway.
-        let target = sources.target();
-        let result = Self::from_semifinite(SemifiniteFunction(sources.table.into()), values)?;
-        if result.sources.target() != target {
-            return None;
-        }
-
-        Some(result)
+        IndexedCoproduct { sources, values }.validate()
     }
 
     pub fn from_semifinite(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
-        let sum = sources.0.as_ref().sum();
-        if sum != values.len() {
+        let sources = FiniteFunction::new(sources.0.into(), values.len() + K::I::one())?;
+        IndexedCoproduct { sources, values }.validate()
+    }
+
+    fn validate(self) -> Option<Self> {
+        let sum = self.sources.table.sum();
+
+        // Target of 'sources' must equal its sum + 1
+        if self.sources.target != sum.clone() + K::I::one() {
             return None;
         }
 
-        let sources = FiniteFunction::new(sources.0.into(), sum + K::I::one()).unwrap();
-        Some(IndexedCoproduct { sources, values })
+        if sum != self.values.len() {
+            return None;
+        }
+
+        Some(self)
     }
 }
 
-impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F> {
+impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F>
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
     /// Construct a segmented array with a single segment containing values.
     pub fn singleton(values: F) -> Self {
         let n = values.len();
@@ -95,9 +101,13 @@ impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F> {
     /// Construct a segmented array with `values.len()` segments, each containing a single element.
     pub fn elements(values: F) -> Self {
         let n = values.len();
-        // note: is this somehow dual to singleton; the first two args are swapped?
-        let sources = FiniteFunction::constant(n, K::I::one(), K::I::zero());
-        IndexedCoproduct { sources, values }
+
+        // Construct the sources array directly: an array of constant 1s with target n+1.
+        let sources =
+            FiniteFunction::new(K::Index::fill(K::I::one(), n.clone()), n + K::I::one()).unwrap();
+
+        //let sources = FiniteFunction::terminal(n.clone()).inject1(n);
+        IndexedCoproduct::new(sources, values).expect("by construction")
     }
 
     pub fn len(&self) -> K::I {
@@ -213,6 +223,7 @@ where
 impl<K: ArrayKind, F> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: NaturalArray<K>,
+    F: HasLen<K> + Clone,
     for<'a, 'b> &'a FiniteFunction<K>: Shr<&'b F, Output = Option<F>>, // compose
     for<'a, 'b> &'a F: Add<&'b F, Output = Option<F>>,                 // coproduct
 {
@@ -244,9 +255,9 @@ where
     /// Σ_{i ∈ W} f_{x(i)} : Σ_{i ∈ W} A_{x(i)} → B
     /// ```
     pub fn map_indexes(&self, x: &FiniteFunction<K>) -> Option<Self> {
-        let sources = (x.compose(&self.sources))?;
+        let sources = x.compose(&self.sources)?;
         let values = self.indexed_values(x)?;
-        Some(IndexedCoproduct { sources, values })
+        IndexedCoproduct::from_semifinite(SemifiniteFunction(sources.table.into()), values)
     }
 
     /// Like [`Self::map_indexes`] but only returns the values array.

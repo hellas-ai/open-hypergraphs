@@ -25,15 +25,14 @@ proptest! {
         let c = IndexedCoproduct::<VecKind, FiniteFunction<VecKind>>::elements(f.clone());
         assert_eq!(c.len(), f.len()); // one 'element' of the sum for each array entry
         assert_eq!(c.values, f); // values are equal to the finite function
-        assert_eq!(c.sources.target, 2); // always 2: biggest entry is 1.
+        assert_eq!(c.sources.target, f.source() + 1);
     }
 
     #[test]
-    /// Verify that `IndexedCoproduct::map_indexes` works as expected
     fn test_indexed_coproduct_map((c, x) in arb_map_with_indexed_coproducts()) {
         let d = c.map_indexes(&x).unwrap();
 
-        // TODO: also check that sources and values arrays are as expected
         assert_eq!(d.len(), x.source());
+        // TODO: also check that sources and values arrays are as expected
     }
 }
