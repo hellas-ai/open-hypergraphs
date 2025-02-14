@@ -190,15 +190,21 @@ pub trait NaturalArray<K: ArrayKind>:
     /// When `self.sum() != x.len()`
     fn segmented_sum(&self, x: &Self) -> Self {
         let segment_sizes = self;
+
+        // cumulative sum of segments, including total size (last element)
+        // [ 2 4 ] → [ 0 2 6 ]
         let ptr = segment_sizes.cumulative_sum();
+
+        // Cumulative sum of values
+        // [ 1 2 3 4 5 6 ] → [ 0 1 3 6 10 15 21 ]
         let sum = x.cumulative_sum();
 
-        let n = sum.len();
+        // total number of pointers (num segments + 1)
+        let n = ptr.len();
 
         // NOTE: we do two allocations for both `gather`s here, but avoiding this
         // would require complicating the API quite a bit!
-        let one = K::I::one();
-        sum.gather(ptr.get_range(one.clone()..)) - sum.gather(ptr.get_range(..n - one))
+        sum.gather(ptr.get_range(K::I::one()..)) - sum.gather(ptr.get_range(..n - K::I::one()))
     }
 
     /// Given an array of *sizes* compute the concatenation of `arange` arrays of each size.
