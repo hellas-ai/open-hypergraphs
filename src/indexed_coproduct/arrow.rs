@@ -114,21 +114,24 @@ where
         self.sources.source()
     }
 
-    /// Compose two `IndexedCoproduct` thought of as lists-of-lists.
+    /// Compose two [`IndexedCoproduct`] thought of as lists-of-lists.
     ///
-    /// An indexed (finite) coproduct `c` consists of a mapping
-    /// `s : A → K`
-    /// and
-    /// of arrows `f : s(a) is a map `x : Σ_{a ∈ A} s(a) → B`,
-    /// where `s(a)
-    ///
+    /// Given
     ///
     /// ```text
     /// x : Σ_{a ∈ A} s(a) → B      aka A → B*
     /// y : Σ_{b ∈ B} s(b) → C      aka B → C*
-    /// z : Σ_{a ∈ A} s'(a) → C     aka A → C*
+    /// ```
+    ///
+    /// we obtain
+    ///
+    /// ```text
+    /// x.flatmap(y) : Σ_{a ∈ A} s(a) → C     aka A → C*
     /// ```
     pub fn flatmap<G: Clone>(&self, other: &IndexedCoproduct<K, G>) -> IndexedCoproduct<K, G> {
+        // The number of ...?
+        assert_eq!(self.values.len(), other.len());
+
         let sources = FiniteFunction {
             table: self.sources.table.segmented_sum(&other.sources.table),
             target: other.sources.target.clone(), // TODO: write a test for this
