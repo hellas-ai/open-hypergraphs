@@ -12,8 +12,8 @@ use num_traits::{One, Zero};
 /// See also: the [Coffman-Graham Algorithm](https://en.wikipedia.org/wiki/Coffman%E2%80%93Graham_algorithm)
 pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<bool>)
 where
-    K::Type<bool>: Array<K, bool>,
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<bool>: MutArray<K, bool>,
+    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K>,
     K::Type<A>: Array<K, A>,
 {
     let a = operation_adjacency(f);
@@ -30,8 +30,8 @@ fn kahn<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> (K::Index, K::Type<bool>)
 where
-    K::Type<bool>: Array<K, bool>,
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<bool>: MutArray<K, bool>,
+    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K>,
 {
     // The layering assignment to each node.
     // A mutable array of length n with values in {0..n}
@@ -51,12 +51,12 @@ where
         // Mark nodes in the current frontier as visited
         // TODO: these are not correct! We need 'scatter_assign'?
         // visited[frontier] = true;
-        scatter_constant_assign::<K, bool>(&mut visited, &frontier, true);
+        visited.scatter_constant_assign(&frontier, true);
 
         // Set the order of nodes in the frontier to the current depth.
         // order[frontier] = depth;
         let mut tmp = order.into();
-        scatter_constant_assign::<K, K::I>(&mut tmp, &frontier, depth.clone());
+        tmp.scatter_constant_assign(&frontier, depth.clone());
         order = tmp.into();
 
         // relative_indegree : N → E
@@ -112,19 +112,19 @@ fn relative_indegree<K: ArrayKind>(
     f: &FiniteFunction<K>,
 ) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<K::I>: NaturalArray<K> + Sparse<K>,
 {
     // Array of
     let reached = adjacency.indexed_values(f).unwrap();
 
-    let table = bincount::<K>(&reached.table, adjacency.len());
+    let table = (reached.table.as_ref() as &K::Type<K::I>).bincount(adjacency.len());
     FiniteFunction::new(table, adjacency.values.len()).unwrap()
 }
 
 /// Compute indegree of nodes
 fn indegree<K: ArrayKind>(adjacency: &IndexedCoproduct<K, FiniteFunction<K>>) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<K::I>: NaturalArray<K> + Sparse<K>,
 {
     // Indegree is *relative* indegree with respect to all nodes.
     // PERFORMANCE: can compute this more efficiently by just bincounting adjacency directly.
@@ -140,7 +140,7 @@ fn operation_adjacency<K: ArrayKind, O, A>(
     f: &OpenHypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<K::I>: NaturalArray<K> + Sparse<K>,
 {
     f.h.s.flatmap(&converse(&f.h.t))
 }
@@ -165,15 +165,16 @@ pub fn converse<K: ArrayKind>(
     r: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<K::I>: Sparse<K>,
 {
-    let sources_table = bincount::<K>(&r.values.table, r.values.target.clone());
+    let r_values_table: &K::Type<K::I> = r.values.table.as_ref();
+    let sources_table = r_values_table.bincount(r.values.target.clone());
 
     let key = r.sources.table.segmented_arange();
-    let values_table = sort_by::<K>(&r.values.table, &key);
+    let sorted_table = r_values_table.sort_by(&key);
 
-    let sources = FiniteFunction::new(sources_table, values_table.len() + K::I::one()).unwrap();
-    let values = FiniteFunction::new(values_table, r.len()).unwrap();
+    let sources = FiniteFunction::new(sources_table, r_values_table.len() + K::I::one()).unwrap();
+    let values = FiniteFunction::new(sorted_table, r.len()).unwrap();
 
     IndexedCoproduct::new(sources, values).unwrap()
 }
@@ -181,33 +182,73 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 // New array trait methods
 
-fn sort_by<K: ArrayKind>(_k: &K::Index, _v: &K::Index) -> K::Index {
-    todo!()
-}
-
-fn bincount<K: ArrayKind>(_x: &K::Index, _size: K::I) -> K::Index {
-    todo!()
-}
-
-/*
-// Compute `dst[ixs] -= rhs`
-fn scatter_sub_assign<K: ArrayKind>(dst: &mut K::Index, ixs: &K::Index, rhs: &K::Index)
+// FiniteFunction helpers
+fn zero<K: ArrayKind>(f: &FiniteFunction<K>) -> K::Index
 where
-    K::Type<K::I>: NaturalArray<K>,
+    K::Type<K::I>: Sparse<K>,
 {
-    todo!()
-}
-*/
-
-// Numpy `dst[ixs] = arg`
-fn scatter_constant_assign<K: ArrayKind, T>(_dst: &mut K::Type<T>, _ixs: &K::Index, _arg: T)
-where
-    K::Type<T>: Array<K, T>,
-{
-    todo!()
+    (f.table.as_ref() as &K::Type<K::I>).zero()
 }
 
-// Return indices of `f` which are zero.
-fn zero<K: ArrayKind>(_f: &FiniteFunction<K>) -> K::Index {
-    todo!()
+pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
+    fn sort_by(&self, _key: &K::Index) -> K::Index;
+
+    fn bincount(&self, _size: K::I) -> K::Index;
+
+    // Return indices of `f` which are zero.
+    fn zero(&self) -> K::Index;
+}
+
+pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
+    // Numpy `self[ixs] = arg`
+    fn scatter_constant_assign(&mut self, _ixs: &K::Index, _arg: T);
+
+    /*
+    // Compute `dst[ixs] -= rhs`
+    fn scatter_sub_assign<K: ArrayKind>(dst: &mut K::Index, ixs: &K::Index, rhs: &K::Index)
+    where
+        K::Type<K::I>: NaturalArray<K>,
+    {
+        todo!()
+    }
+    */
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// VecArray impl
+
+use crate::array::vec::*;
+
+impl Sparse<VecKind> for VecArray<usize> {
+    fn sort_by(&self, key: &VecArray<usize>) -> VecArray<usize> {
+        let mut indices: Vec<usize> = (0..self.len()).collect();
+        indices.sort_by_key(|&i| key[i]);
+        VecArray(indices)
+    }
+
+    fn bincount(&self, size: usize) -> VecArray<usize> {
+        let mut counts = vec![0; size];
+        for &idx in self.iter() {
+            counts[idx] += 1;
+        }
+        VecArray(counts)
+    }
+
+    fn zero(&self) -> VecArray<usize> {
+        let mut zero_indices = Vec::with_capacity(self.len());
+        for (i, &val) in self.iter().enumerate() {
+            if val == 0 {
+                zero_indices.push(i);
+            }
+        }
+        VecArray(zero_indices)
+    }
+}
+
+impl<T: Clone + PartialEq> MutArray<VecKind, T> for VecArray<T> {
+    fn scatter_constant_assign(&mut self, ixs: &VecArray<usize>, arg: T) {
+        for &idx in ixs.iter() {
+            self[idx] = arg.clone();
+        }
+    }
 }
