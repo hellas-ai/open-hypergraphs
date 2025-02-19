@@ -6,6 +6,8 @@ use crate::open_hypergraph::*;
 
 use num_traits::{One, Zero};
 
+use std::fmt::Debug;
+
 /// Compute a *layering* of an [`OpenHypergraph`]: a mapping `layer : X → K` from operations to
 /// integers compatible with the partial ordering on `X` induced by hypergraph structure.
 ///
@@ -13,8 +15,11 @@ use num_traits::{One, Zero};
 pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<bool>)
 where
     K::Type<bool>: MutArray<K, bool>,
-    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K>,
     K::Type<A>: Array<K, A>,
+    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
+    K::Index: Debug,
+    K::Type<O>: Debug,
+    K::Type<A>: Debug,
 {
     let a = operation_adjacency(f);
     let (ordering, completed) = kahn(&a);
@@ -51,12 +56,12 @@ where
         // Mark nodes in the current frontier as visited
         // TODO: these are not correct! We need 'scatter_assign'?
         // visited[frontier] = true;
-        visited.scatter_constant_assign(&frontier, true);
+        visited.scatter_assign_constant(&frontier, true);
 
         // Set the order of nodes in the frontier to the current depth.
         // order[frontier] = depth;
         let mut tmp = order.into();
-        tmp.scatter_constant_assign(&frontier, depth.clone());
+        tmp.scatter_assign_constant(&frontier, depth.clone());
         order = tmp.into();
 
         // relative_indegree : N → E
@@ -136,13 +141,17 @@ where
 /// If `X` is the finite set of operations in `f`, then `operation_adjacency(f)` computes the
 /// indexed coproduct `adjacency : X → X*`, where the list `adjacency(x)` is all operations reachable in
 /// a single step from operation `x`.
-fn operation_adjacency<K: ArrayKind, O, A>(
+pub fn operation_adjacency<K: ArrayKind, O, A>(
     f: &OpenHypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K>,
+    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Index: Debug,
+    K::Type<O>: Debug,
+    K::Type<A>: Debug,
 {
-    f.h.s.flatmap(&converse(&f.h.t))
+    let c = converse(&f.h.s);
+    c.map_indexes(&f.h.t.values).unwrap()
 }
 
 /// Compute the *converse* of an [`IndexedCoproduct`] thought of as a "multirelation".
@@ -165,16 +174,23 @@ pub fn converse<K: ArrayKind>(
     r: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: Sparse<K>,
+    K::Type<K::I>: Sparse<K> + Debug,
+    K::Index: Debug,
 {
-    let r_values_table: &K::Type<K::I> = r.values.table.as_ref();
-    let sources_table = r_values_table.bincount(r.values.target.clone());
+    // Create the 'values' array of the resulting [`IndexedCoproduct`]
+    // Sort segmented_arange(r.sources.table) by the *values* of r.
+    let values_table = {
+        let arange = K::Index::arange(&K::I::zero(), &r.sources.len());
+        let unsorted_values = r.sources.table.repeat(arange.get_range(..));
+        unsorted_values.sort_by(&r.values.table)
+    };
 
-    let key = r.sources.table.segmented_arange();
-    let sorted_table = r_values_table.sort_by(&key);
+    // Create the "sources" array of the result
+    let sources_table =
+        (r.values.table.as_ref() as &K::Type<K::I>).bincount(r.values.target.clone());
 
-    let sources = FiniteFunction::new(sources_table, r_values_table.len() + K::I::one()).unwrap();
-    let values = FiniteFunction::new(sorted_table, r.len()).unwrap();
+    let sources = FiniteFunction::new(sources_table, r.values.table.len() + K::I::one()).unwrap();
+    let values = FiniteFunction::new(values_table, r.len()).unwrap();
 
     IndexedCoproduct::new(sources, values).unwrap()
 }
@@ -191,8 +207,6 @@ where
 }
 
 pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
-    fn sort_by(&self, _key: &K::Index) -> K::Index;
-
     fn bincount(&self, _size: K::I) -> K::Index;
 
     // Return indices of `f` which are zero.
@@ -201,17 +215,10 @@ pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
 
 pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
     // Numpy `self[ixs] = arg`
-    fn scatter_constant_assign(&mut self, _ixs: &K::Index, _arg: T);
+    fn scatter_assign_constant(&mut self, _ixs: &K::Index, _arg: T);
 
-    /*
-    // Compute `dst[ixs] -= rhs`
-    fn scatter_sub_assign<K: ArrayKind>(dst: &mut K::Index, ixs: &K::Index, rhs: &K::Index)
-    where
-        K::Type<K::I>: NaturalArray<K>,
-    {
-        todo!()
-    }
-    */
+    // Compute `self[ixs] -= rhs`
+    //fn scatter_sub_assign<K: ArrayKind>(&self, ixs: &K::Index, rhs: &K::Index);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -220,12 +227,6 @@ pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
 use crate::array::vec::*;
 
 impl Sparse<VecKind> for VecArray<usize> {
-    fn sort_by(&self, key: &VecArray<usize>) -> VecArray<usize> {
-        let mut indices: Vec<usize> = (0..self.len()).collect();
-        indices.sort_by_key(|&i| key[i]);
-        VecArray(indices)
-    }
-
     fn bincount(&self, size: usize) -> VecArray<usize> {
         let mut counts = vec![0; size];
         for &idx in self.iter() {
@@ -246,9 +247,153 @@ impl Sparse<VecKind> for VecArray<usize> {
 }
 
 impl<T: Clone + PartialEq> MutArray<VecKind, T> for VecArray<T> {
-    fn scatter_constant_assign(&mut self, ixs: &VecArray<usize>, arg: T) {
+    fn scatter_assign_constant(&mut self, ixs: &VecArray<usize>, arg: T) {
         for &idx in ixs.iter() {
             self[idx] = arg.clone();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::array::vec::*;
+    use crate::finite_function::*;
+    use crate::indexed_coproduct::*;
+    use crate::layer::{converse, layer, operation_adjacency, MutArray, Sparse};
+    use crate::open_hypergraph::*;
+    use crate::semifinite::*;
+
+    #[derive(Clone, PartialEq, Debug)]
+    pub enum Arr {
+        F,
+        G,
+    }
+
+    #[derive(Clone, PartialEq, Debug)]
+    pub enum Obj {
+        A,
+        B,
+    }
+
+    ////////////////////////////////////////
+    // Main methods
+
+    #[test]
+    fn test_converse() {
+        let sources = SemifiniteFunction::<VecKind, usize>(VecArray(vec![2, 0, 2]));
+        let values = FiniteFunction::new(VecArray(vec![4, 4, 0, 1]), 5).unwrap();
+        let c = IndexedCoproduct::from_semifinite(sources, values).unwrap();
+
+        let actual = converse(&c);
+
+        let sources = SemifiniteFunction::<VecKind, usize>(VecArray(vec![1, 1, 0, 0, 2]));
+        let values = FiniteFunction::new(VecArray(vec![2, 2, 0, 0]), 3).unwrap();
+        let expected = IndexedCoproduct::from_semifinite(sources, values).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_operation_adjacency() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+
+        // There are no operations adjacent to f
+        //      ┌───┐
+        // ●────│   │
+        //      │ f │────●
+        // ●────│   │
+        //      └───┘
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
+        let result = operation_adjacency::<VecKind, Obj, Arr>(&f);
+        assert_eq!(result.sources.table, VecArray(vec![0]));
+        assert_eq!(result.values.table, VecArray(vec![]));
+
+        //      ┌───┐
+        // ●────│ g │────┐    ┌───┐
+        //      └───┘    ●────│   │
+        //                    │ f │────●
+        //      ┌───┐    ●────│   │
+        // ●────│ g │────┘    └───┘
+        //      └───┘
+        let g = OpenHypergraph::singleton(G, y.clone(), y.clone());
+        let h = (&(&g | &g) >> &f).unwrap();
+        // f_op (id 1) is adjacent to f, but not vice-versa.
+        let result = operation_adjacency::<VecKind, Obj, Arr>(&h);
+
+        assert_eq!(result.sources.table, VecArray(vec![1, 1, 0]));
+        assert_eq!(result.values.table, VecArray(vec![2, 2]));
+
+        // the composition
+        //
+        //      ┌───┐     ┌───┐
+        // ●────│   │     │   │────●
+        //      │ f │──●──│ f │
+        // ●────│   │     │   │────●
+        //      └───┘     └───┘
+        //
+        // TODO: FIX BUG! Probably because converse of *sources* has 3 elements and we're not
+        // computing sources of result properly.
+        let f_op = OpenHypergraph::singleton(F, y.clone(), x.clone());
+        let h = (&f >> &f_op).unwrap();
+        let result = operation_adjacency(&h);
+        dbg!(&h.h.x);
+        assert_eq!(result.sources.table, VecArray(vec![1, 0]));
+        assert_eq!(result.values.table, VecArray(vec![1]));
+    }
+
+    #[test]
+    fn test_layer_simple() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x, y);
+
+        layer::<VecKind, Obj, Arr>(&f);
+    }
+
+    ////////////////////////////////////////
+    // Array method tests
+
+    #[test]
+    fn test_scatter_assign_constant() {
+        let mut actual = VecArray(vec![0, 1, 2, 3, 4, 5]);
+        let i = VecArray(vec![0, 2, 4]);
+        actual.scatter_assign_constant(&i, 10);
+        let expected = VecArray(vec![10, 1, 10, 3, 10, 5]);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_zero() {
+        let x = VecArray(vec![0, 1, 0, 2, 0, 3]);
+        let actual = x.zero();
+        let expected = VecArray(vec![0, 2, 4]);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_bincount() {
+        let input = VecArray(vec![0, 3, 1, 3, 0, 3, 3]);
+        let actual = input.bincount(4);
+        let expected = VecArray(vec![2, 1, 0, 4]);
+        assert_eq!(actual, expected);
+
+        // Test with empty array
+        let empty = VecArray(vec![]);
+        let actual_empty = empty.bincount(3);
+        let expected_empty = VecArray(vec![0, 0, 0]);
+        assert_eq!(actual_empty, expected_empty);
+
+        // Test with single element
+        let single = VecArray(vec![1]);
+        let actual_single = single.bincount(2);
+        let expected_single = VecArray(vec![0, 1]);
+        assert_eq!(actual_single, expected_single);
     }
 }
