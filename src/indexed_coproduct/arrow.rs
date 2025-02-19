@@ -56,6 +56,12 @@ where
     }
 }
 
+impl<K: ArrayKind, F: PartialEq> PartialEq for IndexedCoproduct<K, F> {
+    fn eq(&self, other: &Self) -> bool {
+        self.sources == other.sources && self.values == other.values
+    }
+}
+
 impl<K: ArrayKind, F: Clone + HasLen<K>> IndexedCoproduct<K, F>
 where
     K::Type<K::I>: NaturalArray<K>,
@@ -129,7 +135,8 @@ where
     /// x.flatmap(y) : Σ_{a ∈ A} s(a) → C     aka A → C*
     /// ```
     pub fn flatmap<G: Clone>(&self, other: &IndexedCoproduct<K, G>) -> IndexedCoproduct<K, G> {
-        // The number of ...?
+        // Total length of all sublists in self must equal *number* of sublists in other.
+        // That is, For each value in concatenated self, we have a sublist in other.
         assert_eq!(self.values.len(), other.len());
 
         let sources = FiniteFunction {
