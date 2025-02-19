@@ -110,6 +110,20 @@ pub trait OrdArray<K: ArrayKind, T>: Clone + PartialEq<Self> + Array<K, T> {
     /// Produce an array of indices which sorts `self`.
     /// That is, `self.gather(self.argsort())` is monotonic.
     fn argsort(&self) -> K::Index;
+
+    /// Sort this array by the given keys
+    ///
+    /// ```rust
+    /// use open_hypergraphs::array::{*, vec::*};
+    /// let values = VecArray(vec![10, 20, 30, 40]);
+    /// let keys = VecArray(vec![3, 1, 0, 2]);
+    /// let expected = VecArray(vec![30, 20, 40, 10]);
+    /// let actual = values.sort_by(&keys);
+    /// assert_eq!(expected, actual);
+    /// ```
+    fn sort_by(&self, key: &Self) -> Self {
+        self.gather(key.argsort().get_range(..))
+    }
 }
 
 /// Arrays of natural numbers.
@@ -143,6 +157,7 @@ pub trait NaturalArray<K: ArrayKind>:
     ///
     /// let x1 = VecArray::arange(&0, &0);
     /// assert_eq!(x1, VecArray(vec![]));
+    /// ```
     fn arange(start: &K::I, stop: &K::I) -> Self;
 
     /// Repeat each element of the given slice.
