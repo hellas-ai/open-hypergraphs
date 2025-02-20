@@ -64,8 +64,8 @@ where
         let m = Self::residual(&ops);
 
         // Create interleavings
-        let fwd_interleave = interleave_blocks(&ops.b.flatmap(&fb), &m).dagger();
-        let rev_cointerleave = interleave_blocks(&m, &ops.b.flatmap(&rb));
+        let fwd_interleave = interleave_blocks(&ops.b.flatmap_sources(&fb), &m).dagger();
+        let rev_cointerleave = interleave_blocks(&m, &ops.b.flatmap_sources(&rb));
 
         debug_assert_eq!(fwd.target(), fwd_interleave.source());
         debug_assert_eq!(rev_cointerleave.target(), rev.source());

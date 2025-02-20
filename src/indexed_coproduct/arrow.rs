@@ -120,21 +120,21 @@ where
         self.sources.source()
     }
 
-    /// Compose two [`IndexedCoproduct`] thought of as lists-of-lists.
+    /// Like [`IndexedCoproduct::flatmap`], but where the values of `other` are already mapped.
     ///
-    /// Given
-    ///
-    /// ```text
-    /// x : Σ_{a ∈ A} s(a) → B      aka A → B*
-    /// y : Σ_{b ∈ B} s(b) → C      aka B → C*
-    /// ```
-    ///
-    /// we obtain
+    /// Conceptually, suppose we have
     ///
     /// ```text
-    /// x.flatmap(y) : Σ_{a ∈ A} s(a) → C     aka A → C*
+    /// self : [[T]]
+    /// other: [[U]]
     /// ```
-    pub fn flatmap<G: Clone>(&self, other: &IndexedCoproduct<K, G>) -> IndexedCoproduct<K, G> {
+    ///
+    /// where `other` defines a sublist for each element of `join(self)`.
+    /// Then `self.flatmap_sources(other)` merges sublists of `other` using the sources of `self`.
+    pub fn flatmap_sources<G: Clone>(
+        &self,
+        other: &IndexedCoproduct<K, G>,
+    ) -> IndexedCoproduct<K, G> {
         // Total length of all sublists in self must equal *number* of sublists in other.
         // That is, For each value in concatenated self, we have a sublist in other.
         assert_eq!(self.values.len(), other.len());
@@ -224,6 +224,33 @@ where
             sources: self.sources.clone(),
             values: (&self.values >> x)?,
         })
+    }
+
+    /// Compose two [`IndexedCoproduct`] thought of as lists-of-lists.
+    /// Given
+    ///
+    /// ```text
+    /// self : Σ_{a ∈ A} s(a) → B      aka A → B*
+    /// other : Σ_{b ∈ B} s(b) → C      aka B → C*
+    /// ```
+    ///
+    /// we obtain
+    ///
+    /// ```text
+    /// self.flatmap(other) : Σ_{a ∈ A} s(a) → C     aka A → C*
+    /// ```
+    pub fn flatmap(&self, other: &Self) -> Self {
+        assert_eq!(self.values.target(), other.len());
+
+        let sources_table = self
+            .sources
+            .table
+            .segmented_sum(&(&self.values >> &other.sources).unwrap().table);
+
+        let values = &other.sources.injections(&self.values).unwrap() >> &other.values;
+        let values = values.unwrap();
+
+        IndexedCoproduct::from_semifinite(SemifiniteFunction(sources_table.into()), values).unwrap()
     }
 }
 

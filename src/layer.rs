@@ -151,7 +151,7 @@ where
     K::Type<A>: Debug,
 {
     let c = converse(&f.h.s);
-    c.map_indexes(&f.h.t.values).unwrap()
+    f.h.t.flatmap(&c)
 }
 
 /// Compute the *converse* of an [`IndexedCoproduct`] thought of as a "multirelation".
@@ -272,7 +272,6 @@ mod tests {
     #[derive(Clone, PartialEq, Debug)]
     pub enum Obj {
         A,
-        B,
     }
 
     ////////////////////////////////////////
@@ -312,6 +311,7 @@ mod tests {
         assert_eq!(result.sources.table, VecArray(vec![0]));
         assert_eq!(result.values.table, VecArray(vec![]));
 
+        // both copies of g are adjacent to f, and f is adjacent to nothing
         //      ┌───┐
         // ●────│ g │────┐    ┌───┐
         //      └───┘    ●────│   │
@@ -321,13 +321,11 @@ mod tests {
         //      └───┘
         let g = OpenHypergraph::singleton(G, y.clone(), y.clone());
         let h = (&(&g | &g) >> &f).unwrap();
-        // f_op (id 1) is adjacent to f, but not vice-versa.
         let result = operation_adjacency::<VecKind, Obj, Arr>(&h);
-
         assert_eq!(result.sources.table, VecArray(vec![1, 1, 0]));
         assert_eq!(result.values.table, VecArray(vec![2, 2]));
 
-        // the composition
+        // the lhs f is adjacent to the rhs, but not vice-versa.
         //
         //      ┌───┐     ┌───┐
         // ●────│   │     │   │────●
@@ -335,14 +333,22 @@ mod tests {
         // ●────│   │     │   │────●
         //      └───┘     └───┘
         //
-        // TODO: FIX BUG! Probably because converse of *sources* has 3 elements and we're not
-        // computing sources of result properly.
         let f_op = OpenHypergraph::singleton(F, y.clone(), x.clone());
         let h = (&f >> &f_op).unwrap();
         let result = operation_adjacency(&h);
-        dbg!(&h.h.x);
         assert_eq!(result.sources.table, VecArray(vec![1, 0]));
         assert_eq!(result.values.table, VecArray(vec![1]));
+
+        // LHS f is adjacent to RHS f in *two distinct ways*!
+        //    ┌───┐         ┌───┐
+        //    │   │────●────│   │
+        // ●──│ f │         │ f │──●
+        //    │   │────●────│   │
+        //    └───┘         └───┘
+        let h = (&f_op >> &f).unwrap();
+        let result = operation_adjacency(&h);
+        assert_eq!(result.sources.table, VecArray(vec![2, 0]));
+        assert_eq!(result.values.table, VecArray(vec![1, 1]));
     }
 
     #[test]
