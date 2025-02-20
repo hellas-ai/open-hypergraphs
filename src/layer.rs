@@ -14,7 +14,7 @@ use std::fmt::Debug;
 /// See also: the [Coffman-Graham Algorithm](https://en.wikipedia.org/wiki/Coffman%E2%80%93Graham_algorithm)
 pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<bool>)
 where
-    K::Type<bool>: MutArray<K, bool>,
+    K::Type<bool>: MutArray<K, bool> + Debug,
     K::Type<A>: Array<K, A>,
     K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
     K::Index: Debug,
@@ -35,7 +35,7 @@ fn kahn<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> (K::Index, K::Type<bool>)
 where
-    K::Type<bool>: MutArray<K, bool>,
+    K::Type<bool>: MutArray<K, bool> + Debug,
     K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
     K::Index: Debug,
 {
@@ -44,7 +44,7 @@ where
     let mut order: K::Index = K::Index::fill(K::I::zero(), adjacency.len());
 
     // Predicate determining if a node has been visited
-    let mut visited: K::Type<bool> = K::Type::<bool>::fill(false, adjacency.len());
+    let mut unvisited: K::Type<bool> = K::Type::<bool>::fill(true, adjacency.len());
 
     // Indegree of each node.
     let mut indegree = indegree(adjacency);
@@ -52,12 +52,13 @@ where
     // the set of nodes on the frontier, initialized to those with zero indegree.
     let mut frontier: K::Index = zero(&indegree);
 
+    // Loop until frontier is empty, or at max possible layering depth.
     let mut depth = K::I::zero();
-    while !frontier.is_empty() {
+    while !frontier.is_empty() && depth <= adjacency.len() {
         // Mark nodes in the current frontier as visited
         // TODO: these are not correct! We need 'scatter_assign'?
         // visited[frontier] = true;
-        visited.scatter_assign_constant(&frontier, true);
+        unvisited.scatter_assign_constant(&frontier, false);
 
         // Set the order of nodes in the frontier to the current depth.
         // order[frontier] = depth;
@@ -72,13 +73,14 @@ where
             &FiniteFunction::new(frontier, adjacency.len()).unwrap(),
         );
 
-        // Decrement indegree of each adjacent node by the number of nodes in the frontier that can
-        // reach it.
+        // Decrement indegree of reachable nodes by the number of nodes in the frontier that can reach them.
         indegree =
             FiniteFunction::new(indegree.table - relative_indegree.table, indegree.target).unwrap();
 
         // The new frontier consists of nodes with zero indegree.
         frontier = zero(&indegree);
+        // compact - only those in frontier not visited.
+        frontier = frontier.into().filter(&unvisited);
 
         depth = depth + K::I::one();
 
@@ -93,7 +95,7 @@ where
         //      - In Rust: `reachable_ix.gather(zero(indegree.gather(reachable_ix)))`
     }
 
-    (order, visited)
+    (order, unvisited)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +110,7 @@ where
 ///
 /// # Returns
 ///
-/// A finite function `f : N → E` denoting
+/// A finite function `f : N → E+1` denoting
 ///
 /// # TODO
 ///
@@ -121,7 +123,8 @@ where
     K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
     K::Index: Debug,
 {
-    assert_eq!(adjacency.len(), f.source());
+    // Must have that the number of nodes `adjacency.len()`
+    assert_eq!(adjacency.len(), f.target());
 
     // Operations reachable from those in the set f.
     let reached = adjacency.indexed_values(f).unwrap();
@@ -219,6 +222,9 @@ pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
 
     // Return indices of `f` which are zero.
     fn zero(&self) -> K::Index;
+
+    // TODO: implement via compaction
+    fn filter(&self, p: &K::Type<bool>) -> K::Index;
 }
 
 pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
@@ -226,7 +232,7 @@ pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
     fn scatter_assign_constant(&mut self, _ixs: &K::Index, _arg: T);
 
     // Compute `self[ixs] -= rhs`
-    //fn scatter_sub_assign<K: ArrayKind>(&self, ixs: &K::Index, rhs: &K::Index);
+    //fn scatter_sub_assign(&self, ixs: &K::Index, rhs: &K::Index);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -251,6 +257,16 @@ impl Sparse<VecKind> for VecArray<usize> {
             }
         }
         VecArray(zero_indices)
+    }
+
+    fn filter(&self, p: &VecArray<bool>) -> VecArray<usize> {
+        VecArray(
+            self.iter()
+                .zip(p.iter())
+                .filter(|(_x, &b)| b)
+                .map(|(elem, _flag)| *elem)
+                .collect(),
+        )
     }
 }
 
@@ -285,16 +301,50 @@ mod tests {
     ////////////////////////////////////////
     // Main methods
 
+    #[test]
     fn test_layer_singleton() {
         use Arr::*;
         use Obj::*;
 
         let x = SemifiniteFunction(VecArray(vec![A, A]));
         let y = SemifiniteFunction(VecArray(vec![A]));
-        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x, y);
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
 
-        layer::<VecKind, Obj, Arr>(&f);
+        let (layer, _) = layer::<VecKind, Obj, Arr>(&f);
+        assert_eq!(layer.table, VecArray(vec![0]));
     }
+
+    #[test]
+    fn test_layer_f_f_op() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
+        let f_op = OpenHypergraph::<VecKind, _, _>::singleton(F, y, x);
+
+        let (layer, _) = layer::<VecKind, Obj, Arr>(&(&f >> &f_op).unwrap());
+        assert_eq!(layer.table, VecArray(vec![0, 1]));
+    }
+
+    #[test]
+    fn test_layer_g_tensor_g_f() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
+        let g = OpenHypergraph::singleton(G, y.clone(), y.clone());
+        let h = (&(&g | &g) >> &f).unwrap();
+
+        let (layer, _) = layer::<VecKind, Obj, Arr>(&h);
+        assert_eq!(layer.table, VecArray(vec![0, 0, 1]));
+    }
+
+    // TODO: test a non-monogamous-acyclic diagram
 
     #[test]
     fn test_indegree() {
