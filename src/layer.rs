@@ -36,7 +36,8 @@ fn kahn<K: ArrayKind>(
 ) -> (K::Index, K::Type<bool>)
 where
     K::Type<bool>: MutArray<K, bool>,
-    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K>,
+    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
+    K::Index: Debug,
 {
     // The layering assignment to each node.
     // A mutable array of length n with values in {0..n}
@@ -117,19 +118,26 @@ fn relative_indegree<K: ArrayKind>(
     f: &FiniteFunction<K>,
 ) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K>,
+    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Index: Debug,
 {
-    // Array of
+    assert_eq!(adjacency.len(), f.source());
+
+    // Operations reachable from those in the set f.
     let reached = adjacency.indexed_values(f).unwrap();
 
+    // target is +1 because all edges could point to the same operation, so its indegree will be
+    // adjacency.len().
+    let target = adjacency.len() + K::I::one();
     let table = (reached.table.as_ref() as &K::Type<K::I>).bincount(adjacency.len());
-    FiniteFunction::new(table, adjacency.values.len()).unwrap()
+    FiniteFunction::new(table, target).unwrap()
 }
 
 /// Compute indegree of nodes
 fn indegree<K: ArrayKind>(adjacency: &IndexedCoproduct<K, FiniteFunction<K>>) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K>,
+    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Index: Debug,
 {
     // Indegree is *relative* indegree with respect to all nodes.
     // PERFORMANCE: can compute this more efficiently by just bincounting adjacency directly.
@@ -259,7 +267,7 @@ mod tests {
     use crate::array::vec::*;
     use crate::finite_function::*;
     use crate::indexed_coproduct::*;
-    use crate::layer::{converse, layer, operation_adjacency, MutArray, Sparse};
+    use crate::layer::{converse, indegree, layer, operation_adjacency, MutArray, Sparse};
     use crate::open_hypergraph::*;
     use crate::semifinite::*;
 
@@ -276,6 +284,80 @@ mod tests {
 
     ////////////////////////////////////////
     // Main methods
+
+    fn test_layer_singleton() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x, y);
+
+        layer::<VecKind, Obj, Arr>(&f);
+    }
+
+    #[test]
+    fn test_indegree() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+
+        // There are no operations adjacent to f
+        //      ┌───┐
+        // ●────│   │
+        //      │ f │────●
+        // ●────│   │
+        //      └───┘
+        println!("singleton");
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
+        let a = operation_adjacency(&f);
+        let i = indegree(&a);
+        assert_eq!(i.table, VecArray(vec![0]));
+
+        // both copies of g are adjacent to f, and f is adjacent to nothing
+        //      ┌───┐
+        // ●────│ g │────┐    ┌───┐
+        //      └───┘    ●────│   │
+        //                    │ f │────●
+        //      ┌───┐    ●────│   │
+        // ●────│ g │────┘    └───┘
+        //      └───┘
+        println!("(g | g) >> f");
+        let g = OpenHypergraph::singleton(G, y.clone(), y.clone());
+        let h = (&(&g | &g) >> &f).unwrap();
+        let a = operation_adjacency(&h);
+        let i = indegree(&a);
+        assert_eq!(i.table, VecArray(vec![0, 0, 2]));
+
+        // the lhs f is adjacent to the rhs, but not vice-versa.
+        //
+        //      ┌───┐     ┌───┐
+        // ●────│   │     │   │────●
+        //      │ f │──●──│ f │
+        // ●────│   │     │   │────●
+        //      └───┘     └───┘
+        //
+        println!("f >> f_op");
+        let f_op = OpenHypergraph::singleton(F, y.clone(), x.clone());
+        let h = (&f >> &f_op).unwrap();
+        let a = operation_adjacency(&h);
+        let i = indegree(&a);
+        assert_eq!(i.table, VecArray(vec![0, 1]));
+
+        // LHS f is adjacent to RHS f in *two distinct ways*!
+        //    ┌───┐         ┌───┐
+        //    │   │────●────│   │
+        // ●──│ f │         │ f │──●
+        //    │   │────●────│   │
+        //    └───┘         └───┘
+        println!("f_op >> f");
+        let h = (&f_op >> &f).unwrap();
+        let a = operation_adjacency(&h);
+        let i = indegree(&a);
+        assert_eq!(i.table, VecArray(vec![0, 2]));
+    }
 
     #[test]
     fn test_converse() {
@@ -349,18 +431,6 @@ mod tests {
         let result = operation_adjacency(&h);
         assert_eq!(result.sources.table, VecArray(vec![2, 0]));
         assert_eq!(result.values.table, VecArray(vec![1, 1]));
-    }
-
-    #[test]
-    fn test_layer_simple() {
-        use Arr::*;
-        use Obj::*;
-
-        let x = SemifiniteFunction(VecArray(vec![A, A]));
-        let y = SemifiniteFunction(VecArray(vec![A]));
-        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x, y);
-
-        layer::<VecKind, Obj, Arr>(&f);
     }
 
     ////////////////////////////////////////
