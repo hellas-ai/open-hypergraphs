@@ -12,9 +12,8 @@ use std::fmt::Debug;
 /// integers compatible with the partial ordering on `X` induced by hypergraph structure.
 ///
 /// See also: the [Coffman-Graham Algorithm](https://en.wikipedia.org/wiki/Coffman%E2%80%93Graham_algorithm)
-pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<bool>)
+pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<K::I>)
 where
-    K::Type<bool>: MutArray<K, bool> + Debug,
     K::Type<A>: Array<K, A>,
     K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
     K::Index: Debug,
@@ -33,9 +32,8 @@ where
 /// [`IndexedCoproduct`] (see [`converse`] for details)
 fn kahn<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
-) -> (K::Index, K::Type<bool>)
+) -> (K::Index, K::Type<K::I>)
 where
-    K::Type<bool>: MutArray<K, bool> + Debug,
     K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
     K::Index: Debug,
 {
@@ -43,8 +41,11 @@ where
     // A mutable array of length n with values in {0..n}
     let mut order: K::Index = K::Index::fill(K::I::zero(), adjacency.len());
 
-    // Predicate determining if a node has been visited
-    let mut unvisited: K::Type<bool> = K::Type::<bool>::fill(true, adjacency.len());
+    // Predicate determining if a node has been visited.
+    // 1 = unvisited
+    // 0 = visited
+    // NOTE: we store this as "NOT visited" so we can efficiently filter using "repeat".
+    let mut unvisited: K::Type<K::I> = K::Type::<K::I>::fill(K::I::one(), adjacency.len());
 
     // Indegree of each node.
     let mut indegree = indegree(adjacency);
@@ -56,9 +57,8 @@ where
     let mut depth = K::I::zero();
     while !frontier.is_empty() && depth <= adjacency.len() {
         // Mark nodes in the current frontier as visited
-        // TODO: these are not correct! We need 'scatter_assign'?
-        // visited[frontier] = true;
-        unvisited.scatter_assign_constant(&frontier, false);
+        // unvisited[frontier] = 0;
+        unvisited.scatter_assign_constant(&frontier, K::I::zero());
 
         // Set the order of nodes in the frontier to the current depth.
         // order[frontier] = depth;
@@ -77,10 +77,9 @@ where
         indegree =
             FiniteFunction::new(indegree.table - relative_indegree.table, indegree.target).unwrap();
 
-        // The new frontier consists of nodes with zero indegree.
-        frontier = zero(&indegree);
-        // compact - only those in frontier not visited.
-        frontier = frontier.into().filter(&unvisited);
+        // The new frontier consists of unvisited nodes with zero indegree.
+        // TODO: compute zero indegree more efficiently using directly reachable nodes.
+        frontier = filter::<K>(&zero(&indegree), unvisited.as_ref());
 
         depth = depth + K::I::one();
 
@@ -96,6 +95,17 @@ where
     }
 
     (order, unvisited)
+}
+
+/// Given an array of indices `values` in `{0..N}` and a predicate `N → 2`, select select values `i` for
+/// which `predicate(i) = 1`.
+fn filter<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    predicate
+        .gather(values.get_range(..))
+        .repeat(values.get_range(..))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -222,9 +232,6 @@ pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
 
     // Return indices of `f` which are zero.
     fn zero(&self) -> K::Index;
-
-    // TODO: implement via compaction
-    fn filter(&self, p: &K::Type<bool>) -> K::Index;
 }
 
 pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
@@ -257,16 +264,6 @@ impl Sparse<VecKind> for VecArray<usize> {
             }
         }
         VecArray(zero_indices)
-    }
-
-    fn filter(&self, p: &VecArray<bool>) -> VecArray<usize> {
-        VecArray(
-            self.iter()
-                .zip(p.iter())
-                .filter(|(_x, &b)| b)
-                .map(|(elem, _flag)| *elem)
-                .collect(),
-        )
     }
 }
 
