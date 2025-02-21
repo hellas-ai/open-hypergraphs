@@ -16,7 +16,7 @@ pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction
 where
     K::Type<A>: Array<K, A>,
     K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
-    K::Index: Debug,
+    K::Index: Sparse<K> + Debug,
     K::Type<O>: Debug,
     K::Type<A>: Debug,
 {
@@ -35,11 +35,11 @@ fn kahn<K: ArrayKind>(
 ) -> (K::Index, K::Type<K::I>)
 where
     K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
-    K::Index: Debug,
+    K::Index: Sparse<K> + Debug,
 {
     // The layering assignment to each node.
     // A mutable array of length n with values in {0..n}
-    let mut order: K::Index = K::Index::fill(K::I::zero(), adjacency.len());
+    let mut order: K::Type<K::I> = K::Type::<K::I>::fill(K::I::zero(), adjacency.len());
 
     // Predicate determining if a node has been visited.
     // 1 = unvisited
@@ -55,6 +55,15 @@ where
 
     // Loop until frontier is empty, or at max possible layering depth.
     let mut depth = K::I::zero();
+
+    // Implementation outline:
+    // 1. Compute *sparse* relative indegree, which is:
+    //      - idxs of reachable nodes
+    //      - counts of reachability from a given set
+    // 2. Subtract from global indegree array using scatter_sub_assign
+    //      - scatter_sub_assign::<K>(&mut indegree.table, &reachable_ix, &reachable_count.table);
+    // 3. Compute new frontier:
+    //      - Numpy-esque: `reachable_ix[indegree[reachable_ix] == 0 && unvisited[reachable_ix]]`
     while !frontier.is_empty() && depth <= adjacency.len() {
         // Mark nodes in the current frontier as visited
         // unvisited[frontier] = 0;
@@ -62,44 +71,63 @@ where
 
         // Set the order of nodes in the frontier to the current depth.
         // order[frontier] = depth;
-        let mut tmp = order.into();
-        tmp.scatter_assign_constant(&frontier, depth.clone());
-        order = tmp.into();
+        order.scatter_assign_constant(&frontier, depth.clone());
 
-        // relative_indegree : N → E
-        // For each node, compute the number of incoming edges from nodes in the frontier.
-        let relative_indegree = relative_indegree(
+        // For each node, compute the number of incoming edges from nodes in the frontier,
+        // and count paths to each.
+        let (reachable_ix, reachable_count) = sparse_relative_indegree(
             adjacency,
             &FiniteFunction::new(frontier, adjacency.len()).unwrap(),
         );
 
-        // Decrement indegree of reachable nodes by the number of nodes in the frontier that can reach them.
-        indegree =
-            FiniteFunction::new(indegree.table - relative_indegree.table, indegree.target).unwrap();
+        // indegree = indegree - dense_relative_indegree(a, f)
+        indegree
+            .table
+            .as_mut()
+            .scatter_sub_assign(&reachable_ix.table, &reachable_count.table);
 
-        // The new frontier consists of unvisited nodes with zero indegree.
-        // TODO: compute zero indegree more efficiently using directly reachable nodes.
-        frontier = filter::<K>(&zero(&indegree), unvisited.as_ref());
+        // Reachable nodes with zero indegree...
+        // frontier = reachable_ix[indegree[reachable_ix] == 0]
+        frontier = {
+            // Array of indices i within reachable_ix for which indegree[reachable_ix[i]] == 0
+            let reachable_ix_indegree_zero_ix = indegree
+                .table
+                .gather(reachable_ix.table.get_range(..))
+                .zero();
+            // Select the reachable indices whose indegree is zero...
+            reachable_ix
+                .table
+                .gather(reachable_ix_indegree_zero_ix.zero().get_range(..))
+        };
 
+        // .. and filter out those which have been visited.
+        // frontier = frontier[unvisited[frontier]]
+        frontier = filter::<K>(
+            &frontier,
+            &unvisited.as_ref().gather(frontier.get_range(..)),
+        );
+
+        // Increment depth
         depth = depth + K::I::one();
-
-        // PERFORMANCE: An alternative, more efficient implementation:
-        // 1. Compute *sparse* relative indegree:
-        //      - idxs of reachable nodes
-        //      - counts of reachability
-        // 2. Subtract using scatter_sub_assign
-        //      - scatter_sub_assign::<K>(&mut indegree.table, &reachable_ix, &reachable_count.table);
-        // 3. Compute frontier:
-        //      - In python: `reachable_ix[indegree[reachable_ix] == 0]`
-        //      - In Rust: `reachable_ix.gather(zero(indegree.gather(reachable_ix)))`
     }
 
-    (order, unvisited)
+    (order.into(), unvisited)
+}
+
+/// Given:
+///
+/// - `values : K → N`
+/// - `predicate : K → 2`
+///
+/// Return the subset of `values` for which `predicate(i) = 1`
+fn filter<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index {
+    predicate.repeat(values.get_range(..))
 }
 
 /// Given an array of indices `values` in `{0..N}` and a predicate `N → 2`, select select values `i` for
 /// which `predicate(i) = 1`.
-fn filter<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index
+#[allow(dead_code)]
+fn filter_by_dense<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index
 where
     K::Type<K::I>: NaturalArray<K>,
 {
@@ -111,21 +139,56 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 // Graph methods
 
-/// Using the adjacency information in `adjacency`, compute the indegree of nodes reachable from `f`.
+/// Using the adjacency information in `adjacency`, compute the indegree of all nodes reachable from `f`.
 ///
-/// More formally, let `f : K → N` be a set of `K` nodes, and let `g : K' → N` be the nodes
-/// reachable from `f`.
-/// Then `relative_indegree(a, f)` computes the indegree of `g` in the subgraph of `a` containing
-/// only edges between `f` and `g`.
+/// More formally, let:
+///
+/// - `a : Σ_{n ∈ A} s(n) → N` denote the adjacency information of each
+/// - `f : K → N` be a subset of `K` nodes
+///
+/// Then `sparse_relative_indegree(a, f)` computes:
+///
+/// - `g : R → N`, the subset of (R)eachable nodes reachable from `f`
+/// - `i : R → E+1`, the *indegree* of nodes in `R`.
+///
+fn sparse_relative_indegree<K: ArrayKind>(
+    a: &IndexedCoproduct<K, FiniteFunction<K>>,
+    f: &FiniteFunction<K>,
+) -> (FiniteFunction<K>, FiniteFunction<K>)
+where
+    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Index: Sparse<K> + Debug,
+{
+    // Must have that the number of nodes `adjacency.len()`
+    assert_eq!(a.len(), f.target());
+
+    // Indices of operations reachable from those in the set f.
+    // Indices may appear more than once.
+    let g = a.indexed_values(f).unwrap();
+    let (i, c) = g.table.sparse_bincount();
+    let target = a.len() + K::I::one();
+
+    (
+        FiniteFunction::new(i, a.len()).unwrap(),
+        FiniteFunction::new(c, target).unwrap(),
+    )
+}
+
+/// Using the adjacency information in `adjacency`, compute the indegree of all nodes reachable from `f`.
+///
+/// More formally, define:
+///
+/// ```text
+/// a : Σ_{n ∈ A} s(n) → N  // the adjacency information of each
+/// f : K → N               // a subset of `K` nodes
+/// ```
+///
+/// Then `dense_relative_indegree(a, f)` computes the indegree from `f` of all `N` nodes.
 ///
 /// # Returns
 ///
-/// A finite function `f : N → E+1` denoting
-///
-/// # TODO
-///
-/// Return a *sparse* subgraph.
-fn relative_indegree<K: ArrayKind>(
+/// A finite function `N → E+1` denoting indegree of each node in `N` relative to `f`.
+fn dense_relative_indegree<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
     f: &FiniteFunction<K>,
 ) -> FiniteFunction<K>
@@ -146,7 +209,7 @@ where
     FiniteFunction::new(table, target).unwrap()
 }
 
-/// Compute indegree of nodes
+/// Compute indegree of all nodes in a multigraph.
 fn indegree<K: ArrayKind>(adjacency: &IndexedCoproduct<K, FiniteFunction<K>>) -> FiniteFunction<K>
 where
     K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
@@ -154,7 +217,7 @@ where
 {
     // Indegree is *relative* indegree with respect to all nodes.
     // PERFORMANCE: can compute this more efficiently by just bincounting adjacency directly.
-    relative_indegree(adjacency, &FiniteFunction::<K>::identity(adjacency.len()))
+    dense_relative_indegree(adjacency, &FiniteFunction::<K>::identity(adjacency.len()))
 }
 
 /// Return the adjacency map for an [`OpenHypergraph`] `f`.
@@ -171,8 +234,7 @@ where
     K::Type<O>: Debug,
     K::Type<A>: Debug,
 {
-    let c = converse(&f.h.s);
-    f.h.t.flatmap(&c)
+    f.h.t.flatmap(&converse(&f.h.s))
 }
 
 /// Compute the *converse* of an [`IndexedCoproduct`] thought of as a "multirelation".
@@ -228,18 +290,26 @@ where
 }
 
 pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
-    fn bincount(&self, _size: K::I) -> K::Index;
+    // TODO: default implementation using sparse_bincount + scatter step
+    fn bincount(&self, size: K::I) -> K::Index;
+
+    // TODO: default implementation.
+    //  1. Sort values
+    //  2. Compare adjacent values[i] != values[i+1] to get segment markers
+    //  3. Compute output ptr as prefix sum of step 2
+    //  4. Write
+    fn sparse_bincount(&self) -> (K::Index, K::Index);
 
     // Return indices of `f` which are zero.
     fn zero(&self) -> K::Index;
+
+    // Compute `self[ixs] -= rhs`
+    fn scatter_sub_assign(&mut self, ixs: &K::Index, rhs: &K::Index);
 }
 
 pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
     // Numpy `self[ixs] = arg`
     fn scatter_assign_constant(&mut self, _ixs: &K::Index, _arg: T);
-
-    // Compute `self[ixs] -= rhs`
-    //fn scatter_sub_assign(&self, ixs: &K::Index, rhs: &K::Index);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -264,6 +334,32 @@ impl Sparse<VecKind> for VecArray<usize> {
             }
         }
         VecArray(zero_indices)
+    }
+
+    // Default implementation
+    fn sparse_bincount(&self) -> (VecArray<usize>, VecArray<usize>) {
+        use std::collections::HashMap;
+
+        // Count occurrences using a HashMap
+        let mut counts_map = HashMap::new();
+        for &idx in self.iter() {
+            *counts_map.entry(idx).or_insert(0) += 1;
+        }
+
+        // Extract and sort unique indices
+        let mut unique_indices: Vec<_> = counts_map.keys().cloned().collect();
+        unique_indices.sort_unstable();
+
+        // Gather counts in the same order as unique indices
+        let counts: Vec<_> = unique_indices.iter().map(|&idx| counts_map[&idx]).collect();
+
+        (VecArray(unique_indices), VecArray(counts))
+    }
+
+    fn scatter_sub_assign(&mut self, ixs: &VecArray<usize>, rhs: &VecArray<usize>) {
+        for i in 0..ixs.len() {
+            self[ixs[i]] -= rhs[i];
+        }
     }
 }
 
@@ -339,6 +435,20 @@ mod tests {
 
         let (layer, _) = layer::<VecKind, Obj, Arr>(&h);
         assert_eq!(layer.table, VecArray(vec![0, 0, 1]));
+    }
+
+    #[test]
+    fn test_layer_f_op_f() {
+        use Arr::*;
+        use Obj::*;
+
+        let x = SemifiniteFunction(VecArray(vec![A, A]));
+        let y = SemifiniteFunction(VecArray(vec![A]));
+        let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
+        let f_op = OpenHypergraph::<VecKind, _, _>::singleton(F, y, x);
+
+        let (layer, _) = layer::<VecKind, Obj, Arr>(&(&f_op >> &f).unwrap());
+        assert_eq!(layer.table, VecArray(vec![0, 1]));
     }
 
     // TODO: test a non-monogamous-acyclic diagram

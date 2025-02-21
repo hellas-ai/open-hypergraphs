@@ -26,6 +26,12 @@ impl AsRef<<VecKind as ArrayKind>::Index> for VecArray<usize> {
     }
 }
 
+impl AsMut<<VecKind as ArrayKind>::Index> for VecArray<usize> {
+    fn as_mut(&mut self) -> &mut <VecKind as ArrayKind>::Index {
+        self
+    }
+}
+
 // VecArray is a newtype wrapper, so we can just treat it like a regular old Vec.
 impl<T> Deref for VecArray<T> {
     type Target = Vec<T>;

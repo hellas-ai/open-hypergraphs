@@ -28,7 +28,8 @@ pub trait ArrayKind: Sized {
     type Index: NaturalArray<Self>
         + Into<Self::Type<Self::I>>
         + From<Self::Type<Self::I>>
-        + AsRef<Self::Type<Self::I>>;
+        + AsRef<Self::Type<Self::I>>
+        + AsMut<Self::Type<Self::I>>;
 
     /// a `Slice` is a read-only view into another array's data.
     /// For `VecKind` this is `&[T]`.
