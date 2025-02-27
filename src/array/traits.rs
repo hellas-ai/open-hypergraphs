@@ -105,6 +105,9 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     ///
     /// If there is any `i ≥ n` in `idx`
     fn scatter(&self, idx: K::Slice<'_, K::I>, n: K::I) -> Self;
+
+    /// Numpy `self[ixs] = arg`
+    fn scatter_assign_constant(&mut self, _ixs: &K::Index, _arg: T);
 }
 
 pub trait OrdArray<K: ArrayKind, T>: Clone + PartialEq<Self> + Array<K, T> {
@@ -258,4 +261,16 @@ pub trait NaturalArray<K: ArrayKind>:
         let i = Self::arange(&K::I::zero(), &sum);
         i - r
     }
+
+    /// Count occurrences of each value in the range [0, size)
+    fn bincount(&self, size: K::I) -> K::Index;
+
+    /// Compute index of unique values and their counts
+    fn sparse_bincount(&self) -> (K::Index, K::Index);
+
+    /// Return indices of elements which are zero
+    fn zero(&self) -> K::Index;
+
+    /// Compute `self[ixs] -= rhs`
+    fn scatter_sub_assign(&mut self, ixs: &K::Index, rhs: &K::Index);
 }

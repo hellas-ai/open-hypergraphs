@@ -122,6 +122,12 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     fn from_slice(slice: &[T]) -> Self {
         VecArray(slice.into())
     }
+
+    fn scatter_assign_constant(&mut self, ixs: &VecArray<usize>, arg: T) {
+        for &idx in ixs.iter() {
+            self[idx] = arg.clone();
+        }
+    }
 }
 
 impl Add<&VecArray<usize>> for usize {
@@ -270,5 +276,48 @@ impl NaturalArray<VecKind> for VecArray<usize> {
     ) -> (Self, <VecKind as ArrayKind>::I) {
         let (cc_ix, c) = connected_components(sources, targets, n);
         (VecArray(cc_ix), c)
+    }
+
+    fn bincount(&self, size: usize) -> VecArray<usize> {
+        let mut counts = vec![0; size];
+        for &idx in self.iter() {
+            counts[idx] += 1;
+        }
+        VecArray(counts)
+    }
+
+    fn zero(&self) -> VecArray<usize> {
+        let mut zero_indices = Vec::with_capacity(self.len());
+        for (i, &val) in self.iter().enumerate() {
+            if val == 0 {
+                zero_indices.push(i);
+            }
+        }
+        VecArray(zero_indices)
+    }
+
+    fn sparse_bincount(&self) -> (VecArray<usize>, VecArray<usize>) {
+        use std::collections::HashMap;
+
+        // Count occurrences using a HashMap
+        let mut counts_map = HashMap::new();
+        for &idx in self.iter() {
+            *counts_map.entry(idx).or_insert(0) += 1;
+        }
+
+        // Extract and sort unique indices
+        let mut unique_indices: Vec<_> = counts_map.keys().cloned().collect();
+        unique_indices.sort_unstable();
+
+        // Gather counts in the same order as unique indices
+        let counts: Vec<_> = unique_indices.iter().map(|&idx| counts_map[&idx]).collect();
+
+        (VecArray(unique_indices), VecArray(counts))
+    }
+
+    fn scatter_sub_assign(&mut self, ixs: &VecArray<usize>, rhs: &VecArray<usize>) {
+        for i in 0..ixs.len() {
+            self[ixs[i]] -= rhs[i];
+        }
     }
 }

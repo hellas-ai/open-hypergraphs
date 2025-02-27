@@ -15,8 +15,8 @@ use std::fmt::Debug;
 pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<K::I>)
 where
     K::Type<A>: Array<K, A>,
-    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
-    K::Index: Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
+    K::Index: Debug,
     K::Type<O>: Debug,
     K::Type<A>: Debug,
 {
@@ -34,8 +34,8 @@ fn kahn<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> (K::Index, K::Type<K::I>)
 where
-    K::Type<K::I>: NaturalArray<K> + MutArray<K, K::I> + Sparse<K> + Debug,
-    K::Index: Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
+    K::Index: Debug,
 {
     // The layering assignment to each node.
     // A mutable array of length n with values in {0..n}
@@ -156,8 +156,8 @@ fn sparse_relative_indegree<K: ArrayKind>(
     f: &FiniteFunction<K>,
 ) -> (FiniteFunction<K>, FiniteFunction<K>)
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
-    K::Index: Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
+    K::Index: Debug,
 {
     // Must have that the number of nodes `adjacency.len()`
     assert_eq!(a.len(), f.target());
@@ -193,7 +193,7 @@ fn dense_relative_indegree<K: ArrayKind>(
     f: &FiniteFunction<K>,
 ) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
     K::Index: Debug,
 {
     // Must have that the number of nodes `adjacency.len()`
@@ -212,7 +212,7 @@ where
 /// Compute indegree of all nodes in a multigraph.
 fn indegree<K: ArrayKind>(adjacency: &IndexedCoproduct<K, FiniteFunction<K>>) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
     K::Index: Debug,
 {
     // Indegree is *relative* indegree with respect to all nodes.
@@ -229,7 +229,7 @@ pub fn operation_adjacency<K: ArrayKind, O, A>(
     f: &OpenHypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: NaturalArray<K> + Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
     K::Index: Debug,
     K::Type<O>: Debug,
     K::Type<A>: Debug,
@@ -257,7 +257,7 @@ pub fn converse<K: ArrayKind>(
     r: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: Sparse<K> + Debug,
+    K::Type<K::I>: NaturalArray<K> + Debug,
     K::Index: Debug,
 {
     // Create the 'values' array of the resulting [`IndexedCoproduct`]
@@ -279,104 +279,23 @@ where
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// New array trait methods
+// Array trait helpers
 
 // FiniteFunction helpers
 fn zero<K: ArrayKind>(f: &FiniteFunction<K>) -> K::Index
 where
-    K::Type<K::I>: Sparse<K>,
+    K::Type<K::I>: NaturalArray<K>,
 {
     (f.table.as_ref() as &K::Type<K::I>).zero()
 }
 
-pub trait Sparse<K: ArrayKind>: NaturalArray<K> {
-    // TODO: default implementation using sparse_bincount + scatter step
-    fn bincount(&self, size: K::I) -> K::Index;
-
-    // TODO: default implementation.
-    //  1. Sort values
-    //  2. Compare adjacent values[i] != values[i+1] to get segment markers
-    //  3. Compute output ptr as prefix sum of step 2
-    //  4. Write
-    fn sparse_bincount(&self) -> (K::Index, K::Index);
-
-    // Return indices of `f` which are zero.
-    fn zero(&self) -> K::Index;
-
-    // Compute `self[ixs] -= rhs`
-    fn scatter_sub_assign(&mut self, ixs: &K::Index, rhs: &K::Index);
-}
-
-pub trait MutArray<K: ArrayKind, T>: Array<K, T> {
-    // Numpy `self[ixs] = arg`
-    fn scatter_assign_constant(&mut self, _ixs: &K::Index, _arg: T);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// VecArray impl
-
-use crate::array::vec::*;
-
-impl Sparse<VecKind> for VecArray<usize> {
-    fn bincount(&self, size: usize) -> VecArray<usize> {
-        let mut counts = vec![0; size];
-        for &idx in self.iter() {
-            counts[idx] += 1;
-        }
-        VecArray(counts)
-    }
-
-    fn zero(&self) -> VecArray<usize> {
-        let mut zero_indices = Vec::with_capacity(self.len());
-        for (i, &val) in self.iter().enumerate() {
-            if val == 0 {
-                zero_indices.push(i);
-            }
-        }
-        VecArray(zero_indices)
-    }
-
-    // Default implementation
-    fn sparse_bincount(&self) -> (VecArray<usize>, VecArray<usize>) {
-        use std::collections::HashMap;
-
-        // Count occurrences using a HashMap
-        let mut counts_map = HashMap::new();
-        for &idx in self.iter() {
-            *counts_map.entry(idx).or_insert(0) += 1;
-        }
-
-        // Extract and sort unique indices
-        let mut unique_indices: Vec<_> = counts_map.keys().cloned().collect();
-        unique_indices.sort_unstable();
-
-        // Gather counts in the same order as unique indices
-        let counts: Vec<_> = unique_indices.iter().map(|&idx| counts_map[&idx]).collect();
-
-        (VecArray(unique_indices), VecArray(counts))
-    }
-
-    fn scatter_sub_assign(&mut self, ixs: &VecArray<usize>, rhs: &VecArray<usize>) {
-        for i in 0..ixs.len() {
-            self[ixs[i]] -= rhs[i];
-        }
-    }
-}
-
-impl<T: Clone + PartialEq> MutArray<VecKind, T> for VecArray<T> {
-    fn scatter_assign_constant(&mut self, ixs: &VecArray<usize>, arg: T) {
-        for &idx in ixs.iter() {
-            self[idx] = arg.clone();
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::array::traits::{Array, NaturalArray};
     use crate::array::vec::*;
     use crate::finite_function::*;
     use crate::indexed_coproduct::*;
-    use crate::layer::{converse, indegree, layer, operation_adjacency, MutArray, Sparse};
+    use crate::layer::{converse, indegree, layer, operation_adjacency};
     use crate::open_hypergraph::*;
     use crate::semifinite::*;
 
@@ -588,45 +507,5 @@ mod tests {
         let result = operation_adjacency(&h);
         assert_eq!(result.sources.table, VecArray(vec![2, 0]));
         assert_eq!(result.values.table, VecArray(vec![1, 1]));
-    }
-
-    ////////////////////////////////////////
-    // Array method tests
-
-    #[test]
-    fn test_scatter_assign_constant() {
-        let mut actual = VecArray(vec![0, 1, 2, 3, 4, 5]);
-        let i = VecArray(vec![0, 2, 4]);
-        actual.scatter_assign_constant(&i, 10);
-        let expected = VecArray(vec![10, 1, 10, 3, 10, 5]);
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_zero() {
-        let x = VecArray(vec![0, 1, 0, 2, 0, 3]);
-        let actual = x.zero();
-        let expected = VecArray(vec![0, 2, 4]);
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_bincount() {
-        let input = VecArray(vec![0, 3, 1, 3, 0, 3, 3]);
-        let actual = input.bincount(4);
-        let expected = VecArray(vec![2, 1, 0, 4]);
-        assert_eq!(actual, expected);
-
-        // Test with empty array
-        let empty = VecArray(vec![]);
-        let actual_empty = empty.bincount(3);
-        let expected_empty = VecArray(vec![0, 0, 0]);
-        assert_eq!(actual_empty, expected_empty);
-
-        // Test with single element
-        let single = VecArray(vec![1]);
-        let actual_single = single.bincount(2);
-        let expected_single = VecArray(vec![0, 1]);
-        assert_eq!(actual_single, expected_single);
     }
 }
