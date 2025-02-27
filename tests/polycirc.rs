@@ -69,8 +69,8 @@ use core::ops::{Add, Mul};
 use num_traits::{One, Zero};
 use open_hypergraphs::finite_function::*;
 use open_hypergraphs::indexed_coproduct::*;
-// TODO
-//use open_hypergraphs::layer::{converse, layer};
+use open_hypergraphs::layer::{converse, layer};
+
 use std::iter::{Product, Sum};
 
 trait Semiring: Sized + Add + Zero + Sum + Mul + One + Product + Copy {}
@@ -78,25 +78,35 @@ trait Semiring: Sized + Add + Zero + Sum + Mul + One + Product + Copy {}
 impl Semiring for usize {}
 
 // TODO: is there a more data-parallel-friendly interface?
-fn to_slices(c: &IndexedCoproduct<VecKind, FiniteFunction<VecKind>>) -> Vec<&[usize]> {
+fn to_slices(c: &IndexedCoproduct<VecKind, FiniteFunction<VecKind>>) -> Vec<Vec<usize>> {
     let ptr = c.sources.table.cumulative_sum();
     let mut result = Vec::with_capacity(c.len());
     for i in 0..c.len() {
-        result.push(&c.values.table[ptr[i]..ptr[i + 1]])
+        result.push(c.values.table[ptr[i]..ptr[i + 1]].to_vec())
     }
     result
 }
 
-/*
-fn eval<T: Semiring + Clone + Default>(f: &Term) -> Option<Vec<T>> {
+fn layer_function_to_layers(f: FiniteFunction<VecKind>) -> Vec<Vec<usize>> {
+    let c = converse(&IndexedCoproduct::elements(f));
+    to_slices(&c)
+}
+
+fn eval<T: Semiring + PartialEq + Clone + Default + Debug>(
+    f: &Term,
+    inputs: Vec<T>,
+) -> Option<Vec<T>> {
     // Get layering
-    let (order, unvisited) = layer(&f);
-    if unvisited.any() {
-        return None;
+    let (order, unvisited) = layer(f);
+    let layering = &layer_function_to_layers(order);
+
+    if unvisited.0.iter().any(|x| *x == 1) {
+        None
     } else {
+        let (_, outputs) = eval_layers(f, inputs, layering);
+        Some(outputs)
     }
 }
-*/
 
 /// Given an [`OpenHypergraph`] `f` and a relation `layer : X → K` where `K <= X`,
 /// evaluate the
@@ -111,8 +121,8 @@ fn eval_layers<T: Semiring + Clone + PartialEq + Default + Debug>(
     let mut mem = VecArray(inputs).scatter(&f.s.table, f.h.w.len());
 
     // Indices of sources/targets for each operation
-    let sources: Vec<&[usize]> = to_slices(&f.h.s);
-    let targets: Vec<&[usize]> = to_slices(&f.h.t);
+    let sources = to_slices(&f.h.s);
+    let targets = to_slices(&f.h.t);
 
     //
     for ops in layer.iter() {
@@ -121,7 +131,7 @@ fn eval_layers<T: Semiring + Clone + PartialEq + Default + Debug>(
             let op = &f.h.x.0[*i];
 
             // NOTE: we don't bother looking up source/target type, since there's only one object!
-            let output_values = apply(op, &mem.gather(sources[*i]));
+            let output_values = apply(op, &mem.gather(&sources[*i]));
 
             // TODO: add a scatter_assign method
             for (target_ix, value) in targets[*i].iter().zip(output_values) {
@@ -154,10 +164,27 @@ fn test_square() {
     assert_eq!(f.source(), mktype(1));
     assert_eq!(f.target(), mktype(1));
 
-    // TODO: compute layers manually!
-    let (_, result) = eval_layers::<usize>(&f, vec![3], &[vec![0], vec![1]]);
+    //let (_, result) = eval_layers::<usize>(&f, vec![3], &[vec![0], vec![1]]);
+    let result = eval::<usize>(&f, vec![3]).expect("eval failed");
 
     // 3**2
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0], 9);
+    assert_eq!(result, vec![9]);
+}
+
+#[test]
+fn test_parallel_squares() {
+    // ----[square]-----
+    //
+    // ----[square]-----
+    let f = square().unwrap();
+    let g = &f | &f;
+
+    assert_eq!(f.source(), mktype(1));
+    assert_eq!(f.target(), mktype(1));
+
+    //let (_, result) = eval_layers::<usize>(&g, vec![3, 4], &[vec![0, 2], vec![1, 3]]);
+    let result = eval::<usize>(&g, vec![3, 4]).expect("eval failed");
+
+    // 3**2, 4**2
+    assert_eq!(result, vec![9, 16]);
 }

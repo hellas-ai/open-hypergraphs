@@ -89,15 +89,16 @@ where
         // Reachable nodes with zero indegree...
         // frontier = reachable_ix[indegree[reachable_ix] == 0]
         frontier = {
-            // Array of indices i within reachable_ix for which indegree[reachable_ix[i]] == 0
+            // *indices* i of reachable_ix such that indegree[reachable_ix[i]] == 0
             let reachable_ix_indegree_zero_ix = indegree
                 .table
                 .gather(reachable_ix.table.get_range(..))
                 .zero();
-            // Select the reachable indices whose indegree is zero...
+
+            // only nodes in reachable_ix with indegree 0
             reachable_ix
                 .table
-                .gather(reachable_ix_indegree_zero_ix.zero().get_range(..))
+                .gather(reachable_ix_indegree_zero_ix.get_range(..))
         };
 
         // .. and filter out those which have been visited.

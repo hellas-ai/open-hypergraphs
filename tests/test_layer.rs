@@ -9,6 +9,7 @@ use open_hypergraphs::semifinite::*;
 pub enum Arr {
     F,
     G,
+    H,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -60,6 +61,24 @@ fn test_layer_g_tensor_g_f() {
 
     let (layer, _) = layer::<VecKind, Obj, Arr>(&h);
     assert_eq!(layer.table, VecArray(vec![0, 0, 1]));
+}
+
+#[test]
+fn test_layer_fh_tensor_gh() {
+    use Arr::*;
+    use Obj::*;
+
+    let x = SemifiniteFunction(VecArray(vec![A]));
+
+    let f = OpenHypergraph::singleton(F, x.clone(), x.clone());
+    let g = OpenHypergraph::singleton(G, x.clone(), x.clone());
+    let h = OpenHypergraph::singleton(H, x.clone(), x.clone());
+
+    let z = &(&f >> &h).unwrap() | &(&g >> &h).unwrap();
+
+    let (layer, unvisited) = layer::<VecKind, Obj, Arr>(&z);
+    assert_eq!(layer.table, VecArray(vec![0, 1, 0, 1]));
+    assert!(!unvisited.0.iter().any(|x| *x == 1));
 }
 
 #[test]
