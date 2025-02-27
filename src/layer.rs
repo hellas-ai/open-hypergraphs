@@ -1,3 +1,5 @@
+//! A [Coffman-Graham](https://en.wikipedia.org/wiki/Coffman%E2%80%93Graham_algorithm)-inspired
+//! layering algorithm.
 use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;

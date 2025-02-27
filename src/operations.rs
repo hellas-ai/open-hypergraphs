@@ -1,3 +1,4 @@
+//! Tensorings of operations
 use crate::array::*;
 use crate::indexed_coproduct::*;
 use crate::semifinite::*;

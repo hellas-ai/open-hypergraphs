@@ -1,3 +1,4 @@
+//! Functors between categories of open hypergraphs
 pub mod optic;
 pub mod spider;
 
