@@ -102,14 +102,13 @@ fn eval<T: Semiring + Clone + Default>(f: &Term) -> Option<Vec<T>> {
 /// evaluate the
 fn eval_layers<T: Semiring + Clone + PartialEq + Default + Debug>(
     f: &Term,
+    inputs: Vec<T>,
+    // "level sets" of operations: evaluating f level-by-level will always result in
     layer: &[Vec<usize>],
-) -> Vec<T> {
-    // allocate memory for every wire in f
-    let x = T::default();
-    let mut mem = VecArray(vec![x; f.h.w.len()]);
-
-    // TODO: remove me!
-    mem[0] = T::one() + T::one() + T::one();
+) -> (Vec<T>, Vec<T>) {
+    // Create mutable memory for all wires in diagram.
+    // Write supplied inputs to named input wires.
+    let mut mem = VecArray(inputs).scatter(&f.s.table, f.h.w.len());
 
     // Indices of sources/targets for each operation
     let sources: Vec<&[usize]> = to_slices(&f.h.s);
@@ -131,7 +130,10 @@ fn eval_layers<T: Semiring + Clone + PartialEq + Default + Debug>(
         }
     }
 
-    mem.0
+    // Get values of all outputs wires, in order.
+    let outputs = mem.gather(&f.t.table);
+
+    (mem.0, outputs.to_vec())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,10 +155,9 @@ fn test_square() {
     assert_eq!(f.target(), mktype(1));
 
     // TODO: compute layers manually!
-    // TODO: input sources!
-    // TODO: get outputs!
-    let result = eval_layers::<usize>(&f, &[vec![0], vec![1]]);
+    let (_, result) = eval_layers::<usize>(&f, vec![3], &[vec![0], vec![1]]);
 
     // 3**2
-    assert_eq!(result[3], 9);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], 9);
 }
