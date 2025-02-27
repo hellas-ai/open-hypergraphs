@@ -5,7 +5,7 @@ edition = "2021"
 description = "Data-Parallel Algorithms for Open Hypergraphs"
 license = "MIT"
 repository = "https://github.com/hellas-ai/open-hypergraphs"
-documentation = "https://docs.rs/your_crate"
+documentation = "https://docs.rs/open-hypergraphs"
 
 [dependencies]
 num-traits = "0.2.19"
