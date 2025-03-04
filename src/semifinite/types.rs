@@ -23,6 +23,10 @@ impl<K: ArrayKind, T> SemifiniteFunction<K, T>
 where
     K::Type<T>: Array<K, T>,
 {
+    pub fn new(x: K::Type<T>) -> Self {
+        Self(x)
+    }
+
     pub fn len(&self) -> K::I {
         self.0.len()
     }
