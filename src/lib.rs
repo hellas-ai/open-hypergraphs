@@ -51,12 +51,19 @@
 //!     use Operation::*;
 //!     use Object::*;
 //!
-//!     let int = SemifiniteFunction::new(VecArray(vec![Int])); // a single int
-//!     let int2 = SemifiniteFunction::new(VecArray(vec![Int, Int])); // a single int
+//!     // Objects (or "types") in an open hypergraph are *lists* of generating types.
+//!     // 'int' is the singleton list Int
+//!     let int = SemifiniteFunction::new(VecArray(vec![Int]));
+//!     // ... 'int2' is the list `Int ● Int` - the `●` denotes *tensor product* in the category;
+//!     // you can think of `X₁ ● X₂ ● ... ● Xn` as a list of generating objects `[X₁, X₂, ..., Xn]`.
+//!     let int2 = SemifiniteFunction::new(VecArray(vec![Int, Int]));
 //!
 //!     match op {
+//!         // `Negate : Int → Int` has 1 integer input and 1 integer output
 //!         Negate => (int.clone(), int),
+//!         // `Add : Int ● Int → Int` a binary operation
 //!         Add => (int2, int),
+//!         // `Copy : Int → Int ● Int` has a single integer input, but *two* outputs.
 //!         Copy => (int, int2),
 //!     }
 //! }
