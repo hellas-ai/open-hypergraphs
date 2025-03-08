@@ -8,8 +8,6 @@ use crate::open_hypergraph::*;
 
 use num_traits::{One, Zero};
 
-use std::fmt::Debug;
-
 /// Compute a *layering* of an [`OpenHypergraph`]: a mapping `layer : X → K` from operations to
 /// integers compatible with the partial ordering on `X` induced by hypergraph structure.
 ///
@@ -17,10 +15,7 @@ use std::fmt::Debug;
 pub fn layer<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> (FiniteFunction<K>, K::Type<K::I>)
 where
     K::Type<A>: Array<K, A>,
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
-    K::Type<O>: Debug,
-    K::Type<A>: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     let a = operation_adjacency(f);
     let (ordering, completed) = kahn(&a);
@@ -36,8 +31,7 @@ fn kahn<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> (K::Index, K::Type<K::I>)
 where
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     // The layering assignment to each node.
     // A mutable array of length n with values in {0..n}
@@ -159,8 +153,7 @@ fn sparse_relative_indegree<K: ArrayKind>(
     f: &FiniteFunction<K>,
 ) -> (FiniteFunction<K>, FiniteFunction<K>)
 where
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     // Must have that the number of nodes `adjacency.len()`
     assert_eq!(a.len(), f.target());
@@ -196,8 +189,7 @@ fn dense_relative_indegree<K: ArrayKind>(
     f: &FiniteFunction<K>,
 ) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     // Must have that the number of nodes `adjacency.len()`
     assert_eq!(adjacency.len(), f.target());
@@ -217,8 +209,7 @@ pub fn indegree<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> FiniteFunction<K>
 where
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     // Indegree is *relative* indegree with respect to all nodes.
     // PERFORMANCE: can compute this more efficiently by just bincounting adjacency directly.
@@ -234,10 +225,7 @@ pub fn operation_adjacency<K: ArrayKind, O, A>(
     f: &OpenHypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
-    K::Type<O>: Debug,
-    K::Type<A>: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     f.h.t.flatmap(&converse(&f.h.s))
 }
@@ -262,8 +250,7 @@ pub fn converse<K: ArrayKind>(
     r: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
-    K::Type<K::I>: NaturalArray<K> + Debug,
-    K::Index: Debug,
+    K::Type<K::I>: NaturalArray<K>,
 {
     // Create the 'values' array of the resulting [`IndexedCoproduct`]
     // Sort segmented_arange(r.sources.table) by the *values* of r.
