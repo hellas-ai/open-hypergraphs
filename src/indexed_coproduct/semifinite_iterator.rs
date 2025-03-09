@@ -1,29 +1,30 @@
 //! [`IndexedCoproduct`] as collections of [`FiniteFunction`]s.
 //! NOTE: the implementations here are not optimized.
 use crate::array::*;
-use crate::finite_function::*;
 use crate::indexed_coproduct::*;
+use crate::semifinite::*;
 use core::iter::IntoIterator;
 use num_traits::{One, Zero};
 
 /// Iterator for IndexedCoproduct that yields each element
-pub struct IndexedCoproductFiniteFunctionIterator<K: ArrayKind> {
+pub struct IndexedCoproductSemifiniteFunctionIterator<K: ArrayKind, T> {
     /// Cumulative sum of sources of an indexed coproduct
     pointers: K::Type<K::I>,
 
     /// Unchanged values array
-    values: FiniteFunction<K>,
+    values: SemifiniteFunction<K, T>,
 
     /// index of next slice.
     index: K::I,
 }
 
-impl<K: ArrayKind> Iterator for IndexedCoproductFiniteFunctionIterator<K>
+impl<K: ArrayKind, T> Iterator for IndexedCoproductSemifiniteFunctionIterator<K, T>
 where
     K::Type<K::I>: NaturalArray<K>,
+    K::Type<T>: Array<K, T>,
     K::I: Into<usize>,
 {
-    type Item = FiniteFunction<K>;
+    type Item = SemifiniteFunction<K, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Check if we've reached the end of the iterator
@@ -35,14 +36,11 @@ where
         let start = self.pointers.get(self.index.clone());
         let end = self.pointers.get(self.index.clone() + K::I::one());
 
-        // Create a FiniteFunction from the slice of values between start and end
-        let values = self.values.table.get_range(start.clone()..end.clone());
+        // Create a SemifiniteFunction from the slice of values between start and end
+        let values = self.values.0.get_range(start.clone()..end.clone());
 
-        // Create a new FiniteFunction with the extracted values
-        let ff = FiniteFunction {
-            table: K::Index::from_slice(values),
-            target: self.values.target.clone(),
-        };
+        // Create a new SemifiniteFunction with the extracted values
+        let ff = SemifiniteFunction::new(K::Type::<T>::from_slice(values));
 
         // Increment the index for the next call
         self.index = self.index.clone() + K::I::one();
@@ -56,9 +54,10 @@ where
     }
 }
 
-impl<K: ArrayKind> ExactSizeIterator for IndexedCoproductFiniteFunctionIterator<K>
+impl<K: ArrayKind, T> ExactSizeIterator for IndexedCoproductSemifiniteFunctionIterator<K, T>
 where
     K::Type<K::I>: NaturalArray<K>,
+    K::Type<T>: Array<K, T>,
     K::I: Into<usize>,
 {
     fn len(&self) -> usize {
@@ -66,16 +65,17 @@ where
     }
 }
 
-impl<K: ArrayKind> IntoIterator for IndexedCoproduct<K, FiniteFunction<K>>
+impl<K: ArrayKind, T> IntoIterator for IndexedCoproduct<K, SemifiniteFunction<K, T>>
 where
     K::Type<K::I>: NaturalArray<K>,
+    K::Type<T>: Array<K, T>,
     K::I: Into<usize>,
 {
-    type Item = FiniteFunction<K>;
-    type IntoIter = IndexedCoproductFiniteFunctionIterator<K>;
+    type Item = SemifiniteFunction<K, T>;
+    type IntoIter = IndexedCoproductSemifiniteFunctionIterator<K, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        IndexedCoproductFiniteFunctionIterator {
+        IndexedCoproductSemifiniteFunctionIterator {
             pointers: self.sources.table.into().cumulative_sum(),
             values: self.values,
             index: K::I::zero(),

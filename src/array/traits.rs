@@ -106,8 +106,10 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     /// If there is any `i ≥ n` in `idx`
     fn scatter(&self, idx: K::Slice<'_, K::I>, n: K::I) -> Self;
 
+    fn scatter_assign(&mut self, ixs: &K::Index, values: Self);
+
     /// Numpy `self[ixs] = arg`
-    fn scatter_assign_constant(&mut self, _ixs: &K::Index, _arg: T);
+    fn scatter_assign_constant(&mut self, ixs: &K::Index, arg: T);
 }
 
 pub trait OrdArray<K: ArrayKind, T>: Clone + PartialEq<Self> + Array<K, T> {

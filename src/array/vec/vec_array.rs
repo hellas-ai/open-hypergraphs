@@ -128,6 +128,12 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
             self[idx] = arg.clone();
         }
     }
+
+    fn scatter_assign(&mut self, ixs: &<VecKind as ArrayKind>::Index, values: Self) {
+        for (i, x) in ixs.iter().zip(values.iter()) {
+            self[*i] = x.clone();
+        }
+    }
 }
 
 impl Add<&VecArray<usize>> for usize {
