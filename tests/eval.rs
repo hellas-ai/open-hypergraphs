@@ -1,4 +1,4 @@
-use open_hypergraphs::array::{vec::*};
+use open_hypergraphs::array::vec::*;
 use open_hypergraphs::category::*;
 use open_hypergraphs::eval::*;
 use open_hypergraphs::indexed_coproduct::*;
@@ -58,7 +58,7 @@ fn arr(op: Arr) -> Term {
 }
 
 /// Apply a single operation to its arguments.
-fn apply_op<T: Semiring + Copy>(op: &Arr, args: &Vec<T>) -> Vec<T> {
+fn apply_op<T: Semiring + Copy>(op: &Arr, args: &[T]) -> Vec<T> {
     use Arr::*;
     match op {
         Add => vec![args.iter().copied().sum()],
@@ -84,14 +84,15 @@ fn apply<T: Clone + PartialEq + Semiring + Copy>(
 
     // First collect the lengths for the sources array
     let sizes: Vec<usize> = coargs.iter().map(|v| v.len()).collect();
-    
+
     // Then flatten all the values for the values array
     let flat_values: Vec<T> = coargs.into_iter().flatten().collect();
-    
+
     IndexedCoproduct::from_semifinite(
         SemifiniteFunction(VecArray(sizes)),
-        SemifiniteFunction(VecArray(flat_values))
-    ).expect("Invalid IndexedCoproduct construction")
+        SemifiniteFunction(VecArray(flat_values)),
+    )
+    .expect("Invalid IndexedCoproduct construction")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
