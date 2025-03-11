@@ -1,6 +1,8 @@
 //! [`IndexedCoproduct`] as collections of [`FiniteFunction`]s.
 //! NOTE: the implementations here are not optimized.
 use crate::array::*;
+#[allow(unused_imports)] // for docs
+use crate::finite_function::*;
 use crate::indexed_coproduct::*;
 use crate::semifinite::*;
 use core::iter::IntoIterator;
