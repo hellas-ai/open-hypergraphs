@@ -1,81 +1,16 @@
 use open_hypergraphs::array::{vec::*, *};
 use open_hypergraphs::category::*;
-use open_hypergraphs::open_hypergraph::*;
-use open_hypergraphs::semifinite::*;
-
-////////////////////////////////////////////////////////////////////////////////
-// Define the theory of polynomial circuits
-
-// There is only one generating object
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Obj;
-
-// Generating arrows are basic arithmetic operations with copying and discarding
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Arr {
-    Add,
-    Zero,
-    Mul,
-    One,
-    Copy,
-    Discard,
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Helper types and functions
-
-type Term = OpenHypergraph<VecKind, Obj, Arr>;
-
-// Get the type (arity and coarity) of a generating operation
-fn arr_type(a: &Arr) -> (usize, usize) {
-    use Arr::*;
-    match a {
-        Add => (2, 1),
-        Zero => (0, 1),
-        Mul => (2, 1),
-        One => (0, 1),
-        Copy => (1, 2),
-        Discard => (1, 0),
-    }
-}
-
-fn mktype(n: usize) -> SemifiniteFunction<VecKind, Obj> {
-    SemifiniteFunction(VecArray(vec![Obj; n]))
-}
-
-// Turn an operation into an OpenHypergraph using `singleton`
-fn arr(op: Arr) -> Term {
-    let (a, b) = arr_type(&op);
-    OpenHypergraph::singleton(op, mktype(a), mktype(b))
-}
-
-fn apply<T: Semiring + Copy>(op: &Arr, args: &Vec<T>) -> Vec<T> {
-    use Arr::*;
-    match op {
-        Add => vec![args.iter().copied().sum()],
-        Zero => vec![T::zero()],
-        Mul => vec![args.iter().copied().product()],
-        One => vec![T::one()],
-        Copy => vec![args[0], args[0]],
-        Discard => vec![],
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Evaluation
-
-use core::fmt::Debug;
-use core::ops::{Add, Mul};
-use num_traits::{One, Zero};
 use open_hypergraphs::finite_function::*;
 use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::layer::{converse, layer};
+use open_hypergraphs::layer::*;
 
-use std::iter::{Product, Sum};
+use core::fmt::Debug;
 
-trait Semiring: Sized + Add + Zero + Sum + Mul + One + Product + Copy {}
+use crate::theory::polycirc::*;
 
-impl Semiring for usize {}
+////////////////////////////////////////////////////////////////////////////////
+// Custom eval code - not using library eval.
+// Makes sure we test *layering* code.
 
 // TODO: is there a more data-parallel-friendly interface?
 fn to_slices(c: &IndexedCoproduct<VecKind, FiniteFunction<VecKind>>) -> Vec<Vec<usize>> {
@@ -90,6 +25,18 @@ fn to_slices(c: &IndexedCoproduct<VecKind, FiniteFunction<VecKind>>) -> Vec<Vec<
 fn layer_function_to_layers(f: FiniteFunction<VecKind>) -> Vec<Vec<usize>> {
     let c = converse(&IndexedCoproduct::elements(f));
     to_slices(&c)
+}
+
+fn apply<T: Semiring + Copy>(op: &Arr, args: &Vec<T>) -> Vec<T> {
+    use Arr::*;
+    match op {
+        Add => vec![args.iter().copied().sum()],
+        Zero => vec![T::zero()],
+        Mul => vec![args.iter().copied().product()],
+        One => vec![T::one()],
+        Copy => vec![args[0], args[0]],
+        Discard => vec![],
+    }
 }
 
 fn eval<T: Semiring + PartialEq + Clone + Default + Debug>(

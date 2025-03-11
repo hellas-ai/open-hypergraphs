@@ -2,63 +2,12 @@ use open_hypergraphs::array::vec::*;
 use open_hypergraphs::category::*;
 use open_hypergraphs::eval::*;
 use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::open_hypergraph::*;
 use open_hypergraphs::semifinite::*;
 
-use core::ops::{Add, Mul};
-use num_traits::{One, Zero};
-use std::iter::{Product, Sum};
-trait Semiring: Sized + Add + Zero + Sum + Mul + One + Product + Copy {}
-impl Semiring for usize {}
-
-////////////////////////////////////////////////////////////////////////////////
-// Define the theory of polynomial circuits
-
-// There is only one generating object
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Obj;
-
-// Generating arrows are basic arithmetic operations with copying and discarding
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Arr {
-    Add,
-    Zero,
-    Mul,
-    One,
-    Copy,
-    Discard,
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Helper types and functions
-
-type Term = OpenHypergraph<VecKind, Obj, Arr>;
-
-// Get the type (arity and coarity) of a generating operation
-fn arr_type(a: &Arr) -> (usize, usize) {
-    use Arr::*;
-    match a {
-        Add => (2, 1),
-        Zero => (0, 1),
-        Mul => (2, 1),
-        One => (0, 1),
-        Copy => (1, 2),
-        Discard => (1, 0),
-    }
-}
-
-fn mktype(n: usize) -> SemifiniteFunction<VecKind, Obj> {
-    SemifiniteFunction(VecArray(vec![Obj; n]))
-}
-
-// Turn an operation into an OpenHypergraph using `singleton`
-fn arr(op: Arr) -> Term {
-    let (a, b) = arr_type(&op);
-    OpenHypergraph::singleton(op, mktype(a), mktype(b))
-}
+use crate::theory::polycirc::*;
 
 /// Apply a single operation to its arguments.
-fn apply_op<T: Semiring + Copy>(op: &Arr, args: &[T]) -> Vec<T> {
+pub fn apply_op<T: Semiring + Copy>(op: &Arr, args: &[T]) -> Vec<T> {
     use Arr::*;
     match op {
         Add => vec![args.iter().copied().sum()],
@@ -71,7 +20,7 @@ fn apply_op<T: Semiring + Copy>(op: &Arr, args: &[T]) -> Vec<T> {
 }
 
 // Apply a list of operations to some arguments.
-fn apply<T: Clone + PartialEq + Semiring + Copy>(
+pub fn apply<T: Clone + PartialEq + Semiring + Copy>(
     ops: SemifiniteFunction<VecKind, Arr>,
     args: IndexedCoproduct<VecKind, SemifiniteFunction<VecKind, T>>,
 ) -> IndexedCoproduct<VecKind, SemifiniteFunction<VecKind, T>> {
