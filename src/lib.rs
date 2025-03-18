@@ -115,6 +115,9 @@ pub mod eval;
 pub mod functor;
 pub mod layer;
 
+// imperative interface to building open hypergraphs
+pub mod relaxed;
+
 pub mod prelude {
     //! Type alises for Open Hypergraphs using the [`VecKind`] array backend.
     pub use crate::array::vec::*;
