@@ -1,5 +1,6 @@
 use crate::array::vec::{VecArray, VecKind};
-use crate::hypergraph;
+use crate::finite_function::*;
+
 use core::fmt::Debug;
 
 #[derive(Debug, Clone, Copy)]
@@ -101,32 +102,48 @@ impl<O, A> Hypergraph<O, A> {
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {
     /// Construct a [`Hypergraph`] by identifying nodes in the quotient map.
+    /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from `self.quotient`.
     ///
     /// NOTE: this operation is unchecked; you should verify quotiented nodes have the exact same
     /// type first, or this operation is undefined.
-    pub fn quotient(&self) -> hypergraph::Hypergraph<VecKind, O, A> {
-        use crate::finite_function::*;
+    pub fn quotient(&mut self) -> FiniteFunction<VecKind> {
+        use std::mem::take;
+        let q = self.coequalizer();
 
-        // Compute the coequalizer of the quotient map
-        let q = {
-            let s: FiniteFunction<VecKind> = FiniteFunction {
-                table: VecArray(self.quotient.0.iter().map(|x| x.0).collect()),
-                target: self.nodes.len(),
-            };
+        self.nodes = coequalizer_universal(&q, &VecArray(take(&mut self.nodes)))
+            .unwrap()
+            .0;
 
-            let t: FiniteFunction<VecKind> = FiniteFunction {
-                table: VecArray(self.quotient.1.iter().map(|x| x.0).collect()),
-                target: self.nodes.len(),
-            };
-            s.coequalizer(&t)
+        // map hyperedges
+        for e in &mut self.adjacency {
+            e.sources.iter_mut().for_each(|x| *x = NodeId(q.table[x.0]));
+            e.targets.iter_mut().for_each(|x| *x = NodeId(q.table[x.0]));
         }
-        .expect("coequalizer must exist for any graph");
 
-        // Create a crate::hypergraph::Hypergraph, then coequalize its vertices.
-        // TODO: faster to coequalize here?
+        // clear the quotient map (we just used it)
+        self.quotient = (vec![], vec![]); // empty
+
+        q // return the coequalizer used to quotient the hypergraph
+    }
+
+    pub fn to_hypergraph(&self) -> crate::prelude::Hypergraph<O, A> {
         make_hypergraph(self)
-            .coequalize_vertices(&q)
-            .expect("coequalize_vertices should work for any coequalizer")
+    }
+
+    fn coequalizer(&self) -> FiniteFunction<VecKind> {
+        // Compute the coequalizer (connected components) of the quotient graph
+        let s: FiniteFunction<VecKind> = FiniteFunction {
+            table: VecArray(self.quotient.0.iter().map(|x| x.0).collect()),
+            target: self.nodes.len(),
+        };
+
+        let t: FiniteFunction<VecKind> = FiniteFunction {
+            table: VecArray(self.quotient.1.iter().map(|x| x.0).collect()),
+            target: self.nodes.len(),
+        };
+
+        s.coequalizer(&t)
+            .expect("coequalizer must exist for any graph")
     }
 }
 

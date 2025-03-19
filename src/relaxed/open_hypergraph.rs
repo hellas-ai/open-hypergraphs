@@ -1,7 +1,5 @@
 //! Cospans of Hypergraphs.
 use super::hypergraph::*;
-use crate::array::vec::VecKind;
-use crate::open_hypergraph;
 
 /// A relaxed OpenHypergraph is a cospan of relaxed hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
@@ -40,16 +38,29 @@ impl<O, A> OpenHypergraph<O, A> {
 }
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
-    /// Compute a (strict) [`open_hypergraph::OpenHypergraph`] by quotienting nodes of
-    /// `self.hypergraph`.
-    pub fn quotient(&self) -> open_hypergraph::OpenHypergraph<VecKind, O, A> {
+    /// Quotient this OpenHypergraph in-place
+    pub fn quotient(&mut self) {
+        // mutably quotient self.hypergraph, returning the coequalizer q
+        let q = self.hypergraph.quotient();
+
+        // note: this is composition of finite functions `q >> self.sources`,
+        // but we do it mutably in-place.
+        self.sources
+            .iter_mut()
+            .for_each(|x| *x = NodeId(q.table[x.0]));
+        self.targets
+            .iter_mut()
+            .for_each(|x| *x = NodeId(q.table[x.0]));
+    }
+
+    pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
         use crate::array::vec::VecArray;
         use crate::finite_function::FiniteFunction;
         use crate::open_hypergraph::OpenHypergraph;
 
-        let h = self.hypergraph.quotient();
+        self.quotient();
 
-        let target = h.w.len();
+        let target = self.hypergraph.nodes.len();
 
         let s = {
             let table = self.sources.iter().map(|x| x.0).collect();
@@ -60,6 +71,8 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
             let table = self.targets.iter().map(|x| x.0).collect();
             FiniteFunction::new(VecArray(table), target).expect("Valid by construction")
         };
+
+        let h = self.hypergraph.to_hypergraph();
 
         OpenHypergraph::new(s, t, h).expect("any valid relaxed::Hypergraph must be quotientable!")
     }
