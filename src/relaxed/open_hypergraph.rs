@@ -12,7 +12,9 @@ pub struct OpenHypergraph<O, A> {
 
 // Imperative-specific methods
 impl<O, A> OpenHypergraph<O, A> {
-    /// the empty (unit) OpenHypergraph - equal to the identity map at the unit object.
+    /// The empty OpenHypergraph with no nodes and no edges.
+    ///
+    /// In categorical terms, this is the identity map at the unit object.
     pub fn empty() -> Self {
         OpenHypergraph {
             sources: vec![],
@@ -21,7 +23,21 @@ impl<O, A> OpenHypergraph<O, A> {
         }
     }
 
-    /// Convenience wrapper for [`Hypergraph::new_operation`]
+    /// Create a new node in the hypergraph labeled `w`.
+    pub fn new_node(&mut self, w: O) -> NodeId {
+        self.hypergraph.new_node(w)
+    }
+
+    /// Create a new "operation" in the hypergraph.
+    /// Concretely, `f.new_operation(x, s, t)` mutates `f` by adding:
+    ///
+    /// 1. a new hyperedge labeled `x`
+    /// 2. `len(s)` new nodes, with the `i`th node labeled `s[i]`
+    /// 3. `len(t)` new nodes, with the `i`th node labeled `t[i]`
+    ///
+    /// Returns the new hyperedge ID and the [`NodeId`]s of the source/target nodes.
+    ///
+    /// This is a convenience wrapper for [`Hypergraph::new_operation`]
     pub fn new_operation(
         &mut self,
         x: A,
@@ -38,7 +54,8 @@ impl<O, A> OpenHypergraph<O, A> {
 }
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
-    /// Quotient this OpenHypergraph in-place
+    /// Apply the quotient map to identify nodes in the internal [`Hypergraph`].
+    /// This deletes the internal quotient map, resulting in a *strict* [`OpenHypergraph`].
     pub fn quotient(&mut self) {
         // mutably quotient self.hypergraph, returning the coequalizer q
         let q = self.hypergraph.quotient();
@@ -53,6 +70,8 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
             .for_each(|x| *x = NodeId(q.table[x.0]));
     }
 
+    /// Convert this *relaxed* [`OpenHypergraph`] to a strict [`crate::prelude::OpenHypergraph`] by
+    /// quotienting.
     pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
         use crate::array::vec::VecArray;
         use crate::finite_function::FiniteFunction;

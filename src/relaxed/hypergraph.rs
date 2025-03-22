@@ -3,11 +3,11 @@ use crate::finite_function::*;
 
 use core::fmt::Debug;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(transparent)]
 pub struct NodeId(pub usize);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(transparent)]
 pub struct EdgeId(pub usize);
 
