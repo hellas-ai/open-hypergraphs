@@ -11,22 +11,28 @@ fn binop<O: Clone, A: HasVar>(lhs: Var<O, A>, rhs: Var<O, A>, result_label: O, o
     let source_type = vec![lhs.label.clone(), rhs.label.clone()];
     let target_type = vec![result_label.clone()];
 
-    let mut state = lhs.state.borrow_mut();
+    let target = {
+        let mut state = lhs.state.borrow_mut();
 
-    // Create a new Add operation
-    let (_, (s, t)) = state.new_operation(op, source_type, target_type);
+        // Create a new Add operation
+        let (_, (s, t)) = state.new_operation(op, source_type, target_type);
 
-    // op is a binary operation by construction
-    assert_eq!(s.len(), 2);
-    assert_eq!(t.len(), 1);
+        // op is a binary operation by construction
+        assert_eq!(s.len(), 2);
+        assert_eq!(t.len(), 1);
 
-    // Connect the input vars to the new operation
-    state.unify(s[0], lhs_node);
-    state.unify(s[1], rhs_node);
+        // Connect the input vars to the new operation
+        state.unify(s[0], lhs_node);
+        state.unify(s[1], rhs_node);
+
+        t[0]
+    };
 
     // Create a Var for the result, unify op target (t[0]) with its input, and return the Var.
-    let v = Var::new(lhs.state.clone(), result_label);
-    state.unify(t[0], v.new_source());
+    // TODO: helper method to create a var from a node?
+    let v = Var::new(rhs.state.clone(), result_label);
+    let v_source = v.new_source(); // new_source calls borrow_mut, so must be done first.
+    v.state.borrow_mut().unify(target, v_source); // unify target from above with source of v.
     v
 }
 
