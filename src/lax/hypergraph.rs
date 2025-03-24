@@ -19,7 +19,7 @@ pub struct Hyperedge {
 
 pub type Interface = (Vec<NodeId>, Vec<NodeId>);
 
-/// A [`crate::relaxed::Hypergraph`] represents an "un-quotiented" hypergraph.
+/// A [`crate::lax::Hypergraph`] represents an "un-quotiented" hypergraph.
 ///
 /// It can be thought of as a collection of disconnected operations and wires along with a
 /// *quotient map* which can be used with connected components to produce a `Hypergraph`.
@@ -178,8 +178,8 @@ fn make_hypergraph<O: Clone, A: Clone>(
         }
 
         let sources = SemifiniteFunction(VecArray(lengths));
-        let values = FiniteFunction::new(VecArray(values), h.nodes.len())
-            .expect("invalid relaxed::Hypergraph!");
+        let values =
+            FiniteFunction::new(VecArray(values), h.nodes.len()).expect("invalid lax::Hypergraph!");
         IndexedCoproduct::from_semifinite(sources, values).expect("valid IndexedCoproduct")
     };
 
@@ -192,8 +192,8 @@ fn make_hypergraph<O: Clone, A: Clone>(
         }
 
         let sources = SemifiniteFunction(VecArray(lengths));
-        let values = FiniteFunction::new(VecArray(values), h.nodes.len())
-            .expect("invalid relaxed::Hypergraph!");
+        let values =
+            FiniteFunction::new(VecArray(values), h.nodes.len()).expect("invalid lax::Hypergraph!");
         IndexedCoproduct::from_semifinite(sources, values).expect("valid IndexedCoproduct")
     };
 

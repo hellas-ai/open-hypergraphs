@@ -1,6 +1,6 @@
-//! An imperative/sequential interface for constructing "Relaxed" Open Hypergraphs.
+//! An imperative/sequential interface for constructing "Lax" Open Hypergraphs.
 //!
-//! A relaxed open hypergraph is similar to an open hypergraph, but where the connecting of nodes
+//! A lax open hypergraph is similar to an open hypergraph, but where the connecting of nodes
 //! is deferred until the [`OpenHypergraph::quotient`] operation is called.
 //!
 //! For example, a "strict" [`OpenHypergraph`] representing the composite of "copy" and "multiply"
@@ -14,7 +14,7 @@
 //!     └──────┘       └──────┘
 //! ```
 //!
-//! A *relaxed* OpenHypergraph supports having distinct nodes for each operation, with a "quotient
+//! A *lax* OpenHypergraph supports having distinct nodes for each operation, with a "quotient
 //! map" (depicted as a dotted line) recording which nodes are to be identified.
 //!
 //! ```text
@@ -28,10 +28,10 @@
 //! Calling [`OpenHypergraph::quotient`] on this datastructure recovers the strict
 //! [`crate::open_hypergraph::OpenHypergraph`] by identifying `x0` with `y0` and `x1` with `y1`.
 //!
-//! The relaxed [`OpenHypergraph`] can be constructed with the following Rust code.
+//! The lax [`OpenHypergraph`] can be constructed with the following Rust code.
 //!
 //! ```rust
-//! use open_hypergraphs::relaxed::OpenHypergraph;
+//! use open_hypergraphs::lax::OpenHypergraph;
 //!
 //! #[derive(PartialEq, Clone)]
 //! pub enum Obj { A }
@@ -66,7 +66,7 @@
 //! }
 //! ```
 //!
-//! The "relaxed" representation also allows for type checking and inference:
+//! The "lax" representation also allows for type checking and inference:
 //! when composing two operations as in the former diagram, we can have distinct types for
 //! connected nodes, e.g., x0 and y0. this allows both *checking* (of e.g. equality) and
 //! *inference*: inequal types might be *unified* into a single type.

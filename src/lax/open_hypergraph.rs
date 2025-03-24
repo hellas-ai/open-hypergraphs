@@ -1,7 +1,7 @@
 //! Cospans of Hypergraphs.
 use super::hypergraph::*;
 
-/// A relaxed OpenHypergraph is a cospan of relaxed hypergraphs:
+/// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
 #[derive(Debug, Clone)]
 pub struct OpenHypergraph<O, A> {
@@ -78,7 +78,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
             .for_each(|x| *x = NodeId(q.table[x.0]));
     }
 
-    /// Convert this *relaxed* [`OpenHypergraph`] to a strict [`crate::prelude::OpenHypergraph`] by
+    /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::prelude::OpenHypergraph`] by
     /// quotienting.
     pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
         use crate::array::vec::VecArray;
@@ -101,6 +101,6 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
 
         let h = self.hypergraph.to_hypergraph();
 
-        OpenHypergraph::new(s, t, h).expect("any valid relaxed::Hypergraph must be quotientable!")
+        OpenHypergraph::new(s, t, h).expect("any valid lax::Hypergraph must be quotientable!")
     }
 }

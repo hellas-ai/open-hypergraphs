@@ -119,8 +119,8 @@ fn square() -> Option<Term> {
 
 mod imperative {
     use super::{Arr, Obj};
-    use open_hypergraphs::relaxed::*;
-    type Term = open_hypergraphs::relaxed::OpenHypergraph<Obj, Arr>;
+    use open_hypergraphs::lax::*;
+    type Term = open_hypergraphs::lax::OpenHypergraph<Obj, Arr>;
 
     /// Creates a non-typed-annotated binary operation, and unpacks its variables.
     fn binop(state: &mut Term, x: Arr) -> ((NodeId, NodeId), NodeId) {
