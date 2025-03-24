@@ -1,18 +1,20 @@
 use super::var::*;
-use std::ops::{Add, BitXor};
+use std::ops::{Add, BitAnd, BitOr, BitXor};
 
 // helper function to create binary ops
 fn binop<O: Clone, A: HasVar>(lhs: Var<O, A>, rhs: Var<O, A>, result_label: O, op: A) -> Var<O, A> {
+    // Get nodes for lhs and rhs vars
     let lhs_node = lhs.new_target();
     let rhs_node = rhs.new_target();
 
-    let source = vec![lhs.label, rhs.label];
-    let target = vec![result_label.clone()];
+    // Get source/target types
+    let source_type = vec![lhs.label.clone(), rhs.label.clone()];
+    let target_type = vec![result_label.clone()];
 
     let mut state = lhs.state.borrow_mut();
 
     // Create a new Add operation
-    let (_, (s, t)) = state.new_operation(op, source, target);
+    let (_, (s, t)) = state.new_operation(op, source_type, target_type);
 
     // op is a binary operation by construction
     assert_eq!(s.len(), 2);
@@ -22,8 +24,8 @@ fn binop<O: Clone, A: HasVar>(lhs: Var<O, A>, rhs: Var<O, A>, result_label: O, o
     state.unify(s[0], lhs_node);
     state.unify(s[1], rhs_node);
 
-    // Return a var
-    let v = Var::new(rhs.state, result_label);
+    // Create a Var for the result, unify op target (t[0]) with its input, and return the Var.
+    let v = Var::new(lhs.state.clone(), result_label);
     state.unify(t[0], v.new_source());
     v
 }
@@ -57,3 +59,25 @@ impl<O: Clone, A: HasVar + HasBitXor<O, A>> BitXor for Var<O, A> {
         binop(self, rhs, result_label, op)
     }
 }
+
+// Macro to reduce boilerplate for binary operators
+macro_rules! define_binary_op {
+    ($trait_name:ident, $fn_name:ident, $has_trait_name:ident) => {
+        #[doc = r" Vars support this operator when the underlying signature has the appropriate operation."]
+        pub trait $has_trait_name<O, A> {
+            fn $fn_name(lhs_type: O, rhs_type: O) -> (O, A);
+        }
+
+        impl<O: Clone, A: HasVar + $has_trait_name<O, A>> $trait_name for Var<O, A> {
+            type Output = Var<O, A>;
+
+            fn $fn_name(self, rhs: Self) -> Self::Output {
+                let (result_label, op) = A::$fn_name(self.label.clone(), rhs.label.clone());
+                binop(self, rhs, result_label, op)
+            }
+        }
+    };
+}
+
+define_binary_op!(BitAnd, bitand, HasBitAnd);
+define_binary_op!(BitOr, bitor, HasBitOr);
