@@ -98,6 +98,20 @@ impl<O, A> Hypergraph<O, A> {
         self.quotient.0.push(v);
         self.quotient.1.push(w);
     }
+
+    /// Add a new *source* node labeled `w` to edge `edge_id`.
+    pub fn add_edge_source(&mut self, edge_id: EdgeId, w: O) -> NodeId {
+        let node_id = self.new_node(w);
+        self.adjacency[edge_id.0].sources.push(node_id);
+        node_id
+    }
+
+    /// Add a new *target* node labeled `w` to edge `edge_id`
+    pub fn add_edge_target(&mut self, edge_id: EdgeId, w: O) -> NodeId {
+        let node_id = self.new_node(w);
+        self.adjacency[edge_id.0].targets.push(node_id);
+        node_id
+    }
 }
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {

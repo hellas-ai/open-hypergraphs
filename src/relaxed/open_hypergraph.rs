@@ -51,6 +51,14 @@ impl<O, A> OpenHypergraph<O, A> {
     pub fn unify(&mut self, v: NodeId, w: NodeId) {
         self.hypergraph.unify(v, w);
     }
+
+    pub fn add_edge_source(&mut self, edge_id: EdgeId, w: O) -> NodeId {
+        self.hypergraph.add_edge_source(edge_id, w)
+    }
+
+    pub fn add_edge_target(&mut self, edge_id: EdgeId, w: O) -> NodeId {
+        self.hypergraph.add_edge_target(edge_id, w)
+    }
 }
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {

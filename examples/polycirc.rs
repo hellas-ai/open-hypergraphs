@@ -129,11 +129,11 @@ mod imperative {
     }
 
     /// Creates a multiply operation, and unpacks ...
-    fn mul(state: &mut Term) -> ((NodeId, NodeId), NodeId) {
+    pub fn mul(state: &mut Term) -> ((NodeId, NodeId), NodeId) {
         binop(state, Arr::Mul)
     }
 
-    fn copy(state: &mut Term) -> (NodeId, (NodeId, NodeId)) {
+    pub fn copy(state: &mut Term) -> (NodeId, (NodeId, NodeId)) {
         let (_, (x, y)) = state.new_operation(Arr::Copy, vec![Obj], vec![Obj, Obj]);
         (x[0], (y[0], y[1]))
     }
