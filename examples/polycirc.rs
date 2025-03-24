@@ -99,10 +99,10 @@ pub fn apply<T: Clone + PartialEq + Semiring + Copy>(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Test programs
+// Test programs (algebraic interface)
 
 /// A test program, which copies its input and multiplies it by itself.
-/// e.g., the function
+/// i.e.. the function `x ⟼ x²`:
 ///
 /// ```
 /// fn square<T: Semiring>(x: T) {
@@ -114,8 +114,60 @@ fn square() -> Option<Term> {
     &arr(Copy) >> &arr(Mul)
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Test programs (imperative interface)
+
+mod imperative {
+    use super::{Arr, Obj};
+    use open_hypergraphs::lax::*;
+    type Term = open_hypergraphs::lax::OpenHypergraph<Obj, Arr>;
+
+    /// Creates a non-typed-annotated binary operation, and unpacks its variables.
+    fn binop(state: &mut Term, x: Arr) -> ((NodeId, NodeId), NodeId) {
+        let (_, (x, y)) = state.new_operation(x, vec![Obj, Obj], vec![Obj]);
+        ((x[0], x[1]), y[0])
+    }
+
+    /// Creates a multiply operation, and unpacks ...
+    pub fn mul(state: &mut Term) -> ((NodeId, NodeId), NodeId) {
+        binop(state, Arr::Mul)
+    }
+
+    pub fn copy(state: &mut Term) -> (NodeId, (NodeId, NodeId)) {
+        let (_, (x, y)) = state.new_operation(Arr::Copy, vec![Obj], vec![Obj, Obj]);
+        (x[0], (y[0], y[1]))
+    }
+
+    pub fn square() -> open_hypergraphs::prelude::OpenHypergraph<Obj, Arr> {
+        let mut state = OpenHypergraph::<Obj, Arr>::empty();
+
+        let (a, (x0, x1)) = copy(&mut state);
+        let ((y0, y1), b) = mul(&mut state);
+        state.unify(x0, y0);
+        state.unify(x1, y1);
+
+        // set interfaces
+        state.sources = vec![a];
+        state.targets = vec![b];
+
+        // build the (strict) open hypergraph
+        state.quotient();
+        state.to_open_hypergraph()
+    }
+}
+
 fn main() {
     let f = square().unwrap();
+
+    assert_eq!(f.source(), mktype(1));
+    assert_eq!(f.target(), mktype(1));
+
+    let inputs = VecArray(vec![3]);
+    let result = eval::<VecKind, Obj, Arr, usize>(&f, inputs, apply).expect("eval failed");
+
+    println!("3^2 = {:?}", result[0]);
+
+    let f = imperative::square();
 
     assert_eq!(f.source(), mktype(1));
     assert_eq!(f.target(), mktype(1));
