@@ -36,6 +36,7 @@
 //! - Terms in [first order logic](https://arxiv.org/pdf/2401.07055)
 //! - Programs in the [λ-calculus](https://en.wikipedia.org/wiki/Cartesian_closed_category)
 //! - [Circuits with feedback](https://arxiv.org/pdf/2201.10456)
+//! - [Interaction nets](https://dl.acm.org/doi/10.1006/inco.1997.2643)
 //!
 //! Open Hypergraphs have some unique advantages compared to tree-based representations of syntax.
 //! For example, they can represent operations with *multiple outputs*, and structures with
@@ -47,8 +48,8 @@
 //! ahead-of-time automatic differentiation by optic composition.
 //! You can read more about this in the papers
 //! ["Categorical Foundations of Gradient-Based Learning"](https://arxiv.org/abs/2103.01931)
-//! and ["Data-Parallel Algorithms for String Diagrams](https://arxiv.org/pdf/2305.01041).
-//! See the [Theory](#theory) section for more detail.
+//! and ["Data-Parallel Algorithms for String Diagrams"](https://arxiv.org/pdf/2305.01041).
+//! See the [Theory](#theory) section for more pointers.
 //!
 //! # Usage
 //!
@@ -147,14 +148,14 @@
 //! target of the `Sub` hyperedge and a source of the `Neg` hyperedge.
 //!
 //! It's also possible to have nodes which are neither sources nor targets of the open hypergraph
-//! *or* any hyperedge, but that isn't pictured here. See the [theory](#Theory) section for more
+//! *or* any hyperedge, but that isn't pictured here. See the [theory](#theory) section for more
 //! detail.
 //!
 //! # Formal Definition
 //!
 //! Formally, an open hypergraph is a triple of:
 //!
-//! 1. A [`crate::hypergraph::Hypergraph`] `h` with `N ∈ ℕ` nodes
+//! 1. A Hypergraph `h` with `N ∈ ℕ` nodes
 //! 2. An array `s` of length `A ∈ ℕ` whose elements `s_i ∈ {0..N-1}` are nodes
 //! 3. An array `t` of length `B ∈ ℕ` whose elements `t_i ∈ {0..N-1}` are nodes
 //!
@@ -186,7 +187,8 @@
 //! There are two problems here:
 //!
 //! 1. To handle multiple outputs, we had to include a tuple constructor "Pair" in our language.
-//! 2. The "sharing" of variables (x is used twice) is not evident from the tree structure.
+//! 2. The "sharing" of variables is not evident from the tree structure: x is used twice, but we
+//!    have to compare strings to "discover" that fact.
 //!
 //! In contrast, the open hypergraph:
 //!
