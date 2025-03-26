@@ -28,6 +28,10 @@ impl<O, A> OpenHypergraph<O, A> {
         self.hypergraph.new_node(w)
     }
 
+    pub fn new_edge(&mut self, x: A, interface: Hyperedge) -> EdgeId {
+        self.hypergraph.new_edge(x, interface)
+    }
+
     /// Create a new "operation" in the hypergraph.
     /// Concretely, `f.new_operation(x, s, t)` mutates `f` by adding:
     ///

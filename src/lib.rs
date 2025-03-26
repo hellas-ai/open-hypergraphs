@@ -1,105 +1,177 @@
-//! # Open Hypergraphs
+//! # Prelude
 //!
-//! An
+//! `open-hypergraphs` is a [GPU-accelerated](#data-parallelism) implementation of the
 //! [OpenHypergraph](crate::open_hypergraph::OpenHypergraph)
-//! is a [GPU-accelerated](#gpu-acceleration) datastructure for representing
-//! large networks (circuits) of operations having multiple inputs and outputs.
-//! For example:
+//! datastructure from the paper
+//! ["Data-Parallel Algorithms for String Diagrams"](https://arxiv.org/pdf/2305.01041).
+//! Open hypergraphs are used for representing, evaluating, and differentiating large networks of operations with multiple
+//! inputs and outputs.
+//!
+//! Here's a drawing of an open hypergraph with labeled nodes `●` and hyperedges `□`.
 //!
 //! ```text
-//!       ─────────────┐    ┌───┐    ┌───┐
-//!                    └────│   │    │   │────
-//!                         │ + │────│ Δ │
-//!           ┌───┐    ┌────│   │    │   │────
-//!       ────│ - │────┘    └───┘    └───┘
-//!           └───┘
+//!                  /───────────────────────────────────
+//!                 ╱
+//!     ───────────●
+//!               i8\      ┌─────┐
+//!                  \─────┤     │        ┌─────┐
+//!          2             │ Sub ├───●────┤ Neg ├───●───
+//!     ─────●─────────────┤     │  i8    └─────┘  i8
+//!         i8             └─────┘
 //! ```
 //!
-//! The above term represents the expression `(x + (-y), x + (-y))`, where `Δ : 1 → 2` is an
-//! explicit copying operation.
-//! Note that multiple outputs are "native" to the representation: in the textual description, the
-//! arithmetic expression is repeated twice, while copying is explicit in the open hypergraph representation.
+//! This open hypergraph represents a circuit with two inputs.
+//! Call the two inputs `x` and `y`, then
+//! this circuit computes `x` on its first output and
+//! `- (x - y)` on its second.
 //!
-//! # Theory & Example
+//! See the [datastructure](#datastructure) section for a formal definition.
 //!
-//! Open Hypergraphs are a representation of *cospans of hypergraphs* which correspond directly to
-//! morphisms of a symmetric monoidal category presented by generators and equations.
+//! # What are Open Hypergraphs For?
 //!
-//! Pragmatically, this means one can define a set of objects (e.g. types) and operations (e.g. functions),
-//! and represent terms over those generators.
+//! Open Hypergraphs are a general, differentiable and data-parallel datastructure for *syntax*.
+//! Here's a few examples of suitable uses:
 //!
-//! For example, we can define a simple expression language of arithmetic over integers and
-//! constrct the example term above as follows:
+//! - Differentiable array programs for deep learning in [catgrad](https://catgrad.com)
+//! - Terms in [first order logic](https://arxiv.org/pdf/2401.07055)
+//! - Programs in the [λ-calculus](https://en.wikipedia.org/wiki/Cartesian_closed_category)
+//! - [Circuits with feedback](https://arxiv.org/pdf/2201.10456)
+//!
+//! Differentiability of open hypergraphs (as used in [catgrad](https://catgrad.com))
+//! comes from the [data-parallel algorithm](crate::functor::optic::Optic) for generalised
+//! ahead-of-time automatic differentiation by optic composition.
+//! You can read more about this in the papers
+//! ["Categorical Foundations of Gradient-Based Learning"](https://arxiv.org/abs/2103.01931)
+//! and ["Data-Parallel Algorithms for String Diagrams](https://arxiv.org/pdf/2305.01041).
+//! See the [Theory](#theory) section for more detail.
+//!
+//! # Usage
+//!
+//! If you're new to the library, you should start with the [`crate::lax`] module.
+//! This provides a mutable, imperative, single-threaded interface to building open hypergraphs
+//! which should be familiar if you've used a graph library before.
+//!
+//! We can build the example open hypergraph above as follows:
 //!
 //! ```rust
-//! use open_hypergraphs::prelude::*;
+//! use open_hypergraphs::lax::*;
 //!
-//! #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-//! enum Operation {
-//!     Negate,
-//!     Add,
-//!     Copy,
-//! }
+//! pub enum NodeLabel { I8 };
+//! pub enum EdgeLabel { Sub, Neg };
 //!
-//! #[derive(PartialEq, Eq, Debug, Clone)]
-//! enum Object {
-//!     Int,
-//! }
+//! #[test]
+//! fn build() -> OpenHypergraph<NodeLabel, EdgeLabel> {
+//!     use NodeLabel::*;
+//!     use EdgeLabel::*;
 //!
-//! // Return the type (inputs and outputs) of the specified op
-//! fn op_type(op: Operation) -> (SemifiniteFunction<Object>, SemifiniteFunction<Object>) {
-//!     use Operation::*;
-//!     use Object::*;
+//!     // Create an empty OpenHypergraph.
+//!     let mut example = OpenHypergraph::<NodeLabel, EdgeLabel>::empty();
 //!
-//!     // Objects (or "types") in an open hypergraph are *lists* of generating types.
-//!     // 'int' is the singleton list Int
-//!     let int = SemifiniteFunction::new(VecArray(vec![Int]));
-//!     // ... 'int2' is the list `Int ● Int` - the `●` denotes *tensor product* in the category;
-//!     // you can think of `X₁ ● X₂ ● ... ● Xn` as a list of generating objects `[X₁, X₂, ..., Xn]`.
-//!     let int2 = SemifiniteFunction::new(VecArray(vec![Int, Int]));
+//!     // Create all 4 nodes
+//!     let x = example.new_node(I8);
+//!     let a = example.new_node(I8);
+//!     let y = example.new_node(I8);
+//!     let z = example.new_node(I8);
 //!
-//!     match op {
-//!         // `Negate : Int → Int` has 1 integer input and 1 integer output
-//!         Negate => (int.clone(), int),
-//!         // `Add : Int ● Int → Int` a binary operation
-//!         Add => (int2, int),
-//!         // `Copy : Int → Int ● Int` has a single integer input, but *two* outputs.
-//!         Copy => (int, int2),
-//!     }
-//! }
+//!     // Add the "Sub" hyperedge with source nodes `[x, y]` and targets `[a]`
+//!     let sub = example.new_edge(Sub, Hyperedge { sources: vec![x, y], targets: vec![a] });
 //!
-//! // Create the OpenHypergraph corresponding to a given op
-//! fn op(op: Operation) -> OpenHypergraph<Object, Operation> {
-//!     let (s, t) = op_type(op);
-//!     OpenHypergraph::singleton(op, s, t)
-//! }
+//!     // Add the 'Neg' hyperedge with sources `[a]` and targets `[z]`
+//!     let sub = example.new_edge(Neg, Hyperedge { sources: vec![a], targets: vec![z] });
 //!
-//! // Construct the example term ((x + (-y), x + (-y))
-//! fn example_term() -> OpenHypergraph<Object, Operation> {
-//!     use Operation::*;
-//!     use Object::*;
-//!     let int = SemifiniteFunction::new(VecArray(vec![Int]));
-//!     let id = OpenHypergraph::identity(int);
-//!     id.tensor(&op(Negate)).compose(&op(Add)).unwrap().compose(&op(Copy)).unwrap()
+//!     // set the sources and targets of the example
+//!     example.sources = vec![x, y];
+//!     example.targets = vec![z];
+//!
+//!     // return the example
+//!     example
 //! }
 //! ```
 //!
-//! # GPU Acceleration
+//! The [`crate::lax::var::Var`] struct is a helper on top of the imperative interface which
+//! reduces some boilerplate, especially when operators are involved.
+//! We can rewrite the above example as follows:
 //!
-//! The
-//! [OpenHypergraph](crate::open_hypergraph::OpenHypergraph) datastructure is a flat, array-based
-//! representation which works on both CPU and GPU.
+//! ```ignore
+//! pub fn example() {
+//!     let state = OpenHypergraph::empty();
+//!     let x = Var::new(state, I8);
+//!     let y = Var::new(state, I8);
+//!     let (z0, z1) = (x.clone(), -(x - y));
+//! }
+//! ```
 //!
-//! Algorithms and datastructures are all parametrised by a type `K` implementing
-//! [ArrayKind](crate::array::ArrayKind).
-//! This type is used to represent a kind `K : * → *` rather than a concrete type.
-//! For example, the kind of [`Vec`]-backed arrays is given by
-//! [VecKind](crate::array::vec::VecKind),
-//! and type aliases for this backend are exported in
-//! [the prelude](crate::prelude).
+//! See `examples/adder.rs` for a more complete example using this interface to build an n-bit full
+//! adder from half-adder circuits.
 //!
-//! To add a new array backend, create a new type implementing
-//! [ArrayKind](crate::array::ArrayKind).
+//! # Datastructure
+//!
+//! Before giving the formal definition, let's revisit the example above.
+//!
+//! ```text
+//!                  /───────────────────────────────────
+//!                0╱
+//!     ───────────●
+//!               i8\      ┌─────┐
+//!                  \─────┤     │   1    ┌─────┐   3
+//!          2             │ Sub ├───●────┤ Neg ├───●───
+//!     ─────●─────────────┤     │  i8    └─────┘  i8
+//!         i8             └─────┘
+//! ```
+//!
+//! There are 4 nodes in this open hypergraph, depicted as `●` with a label `i8` and a
+//! node ID in the set `{0..3}`.
+//! There are two hyperedges depicted as a boxes labeled `Sub` and `Neg`.
+//!
+//! Each hyperedge has an *ordered list* of sources and targets.
+//! For example, the `Sub` edge has sources `[0, 2]` and targets `[1]`,
+//! while `Neg` has sources `[1]` and targets `[3]`.
+//! Note: the order is important!
+//! Without it, we couldn't represent non-commutative operations like `Sub`.
+//!
+//! As well as the sources and targets for each *hyperedge*, the whole "open hypergraph" also has
+//! sources and targets.
+//! These are drawn as dangling wires on the left and right.
+//! In this example, the sources are `[0, 2]`, and the targets are `[0, 3]`.
+//!
+//! Observe that nodes can appear as *both* a source and a target (see e.g., node `0`), and
+//! that not every node needs to be either (see e.g., node `1`).
+//!
+//! # Formal Definition
+//!
+//! Formally, an open hypergraph is a triple of:
+//!
+//! 1. A [`crate::hypergraph::Hypergraph`] `h` with `N ∈ ℕ` nodes
+//! 2. An array `s` of length `A ∈ ℕ` whose elements `s_i ∈ {0..N-1}` are nodes
+//! 3. An array `t` of length `B ∈ ℕ` whose elements `t_i ∈ {0..N-1}` are nodes
+//!
+//! Concretely, the particular kind of hypergraph in an *open* hypergraph has:
+//!
+//! - A finite set of `N` nodes, labeled with an element from a set `Σ₀`
+//! - A finite set of `E` *hyperedges*, labeled from the set `Σ₁`
+//! - For each hyperedge `e ∈ E`,
+//!   - An ordered array of *source nodes*
+//!   - An ordered array of *target nodes*
+//!
+//! # Compared to Trees
+//!
+//! Open Hypergraphs have a unique advantage compared to tree-based syntax representations:
+//! hyperedges can represent operations with *multiple outputs*.
+//! This means that syntaxes involving e.g., variable names can be naturally captured: a variable becomes a *node* in the hypergraph.
+//!
+//! # Theory
+//!
+//! Describe relationship to category theory
+//!
+//! ## String Diagrams
+//!
+//! # Data-Parallelism
+//!
+//! Refer to paper
+//!
+//! # Differentiability
+//!
+//! TODO
 
 pub mod array;
 pub mod category;
