@@ -1,4 +1,4 @@
-//! # Prelude
+//! # Open Hypergraphs
 //!
 //! `open-hypergraphs` is a [GPU-accelerated](#data-parallelism) implementation of the
 //! [OpenHypergraph](crate::open_hypergraph::OpenHypergraph)
@@ -36,6 +36,11 @@
 //! - Terms in [first order logic](https://arxiv.org/pdf/2401.07055)
 //! - Programs in the [λ-calculus](https://en.wikipedia.org/wiki/Cartesian_closed_category)
 //! - [Circuits with feedback](https://arxiv.org/pdf/2201.10456)
+//!
+//! Open Hypergraphs have some unique advantages compared to tree-based representations of syntax.
+//! For example, they can represent operations with *multiple outputs*, and structures with
+//! *feedback*.
+//! See the [comparison to trees and graphs](#comparison-to-trees-and-graphs) for more detail.
 //!
 //! Differentiability of open hypergraphs (as used in [catgrad](https://catgrad.com))
 //! comes from the [data-parallel algorithm](crate::functor::optic::Optic) for generalised
@@ -134,8 +139,16 @@
 //! These are drawn as dangling wires on the left and right.
 //! In this example, the sources are `[0, 2]`, and the targets are `[0, 3]`.
 //!
-//! Observe that nodes can appear as *both* a source and a target (see e.g., node `0`), and
-//! that not every node needs to be either (see e.g., node `1`).
+//! Observe that there are no restrictions on how many times a node can appear as a source or
+//! target of both hyperedges and the open hypergraph as a whole.
+//! For example, node `0` is a source and target of the open hypergraph, *and* a source of the
+//! `Sub` edge.
+//! Another example: node `1` is not a source or target of the open hypergraph, although it *is* a
+//! target of the `Sub` hyperedge and a source of the `Neg` hyperedge.
+//!
+//! It's also possible to have nodes which are neither sources nor targets of the open hypergraph
+//! *or* any hyperedge, but that isn't pictured here. See the [theory](#Theory) section for more
+//! detail.
 //!
 //! # Formal Definition
 //!
@@ -153,25 +166,74 @@
 //!   - An ordered array of *source nodes*
 //!   - An ordered array of *target nodes*
 //!
-//! # Compared to Trees
+//! # Comparison to Trees and Graphs
 //!
-//! Open Hypergraphs have a unique advantage compared to tree-based syntax representations:
-//! hyperedges can represent operations with *multiple outputs*.
-//! This means that syntaxes involving e.g., variable names can be naturally captured: a variable becomes a *node* in the hypergraph.
+//! Let's compare the open hypergraph representation of the example term above against *tree* and
+//! *graph* representations.
+//!
+//! When considered as a tree, the term `(x, - (x - y))` can be drawn as follows:
+//!
+//! ```text
+//!         Pair
+//!        /    \
+//!       /      Neg
+//!      x        |
+//!              Sub
+//!             /   \
+//!            x     y
+//! ```
+//!
+//! There are two problems here:
+//!
+//! 1. To handle multiple outputs, we had to include a tuple constructor "Pair" in our language.
+//! 2. The "sharing" of variables (x is used twice) is not evident from the tree structure.
+//!
+//! In contrast, the open hypergraph:
+//!
+//! 1. Allows for terms with **multiple outputs**, without having to introduce a tuple type to the
+//!    language.
+//! 2. Encodes the **sharing** of variables naturally by allowing nodes to appear in multiple
+//!    sources and targets.
+//!
+//! Another common approach is to use a *graph* for syntax where nodes are operations, and an edge
+//! between two nodes indicates the *output* of the source node is the *input* of the target.
+//! Problems:
+//!
+//! 1. Nodes don't distinguish the order of edges, so argument order has to be tracked separately
+//! 2. There is no notion of input or output to the whole system.
+//!
+//! In contrast, the open hypergraph:
+//!
+//! 1. Naturally handles operations with multiple ordered inputs and outputs (as *hyperedges*)
+//! 2. Comes equipped with global source and target nodes
+//!
+//! Open Hypergraphs have general utility because they model any system which can be described in terms of symmetric monoidal
+//! categories.
+//! Some examples are listed [above](#what-are-open-hypergraphs-for);
+//! see the [Theory](#theory) section for more pointers to detail on the mathematical
+//! underpinnings.
 //!
 //! # Theory
 //!
-//! Describe relationship to category theory
+//! Formally, an `OpenHypergraph<Σ₀, Σ₁>` is an arrow of
+//! the free [symmetric monoidal category](https://en.wikipedia.org/wiki/Symmetric_monoidal_category)
+//! presented by the signature `(Σ₀, Σ₁)` plus "Special Frobenius" structure.
 //!
-//! ## String Diagrams
+//! This extra structure is sometimes useful (e.g. in autodiff), but can be removed by restricting
+//! the open hypergraph such that nodes always appear in exactly one source and target.
+//! This condition is called "monogamous acyclicity".
 //!
-//! # Data-Parallelism
+//! A complete mathematical explanation can be found in the papers
+//! [String Diagram Rewrite Theory I](https://arxiv.org/abs/2012.01847),
+//! [II](https://arxiv.org/abs/2104.14686),
+//! and
+//! [III](https://arxiv.org/abs/2109.06049),
+//! which also includes details on how to *rewrite* open hypergraphs.
 //!
-//! Refer to paper
-//!
-//! # Differentiability
-//!
-//! TODO
+//! The implementation in *this* library is based on the data-parallel algorithms described in the
+//! paper [Data Parallel Algorithms for String Diagrams](https://arxiv.org/pdf/2305.01041).
+//! In particular, the "generalised autodiff" algorithm can be found in sections 9 and 10 of that
+//! paper.
 
 pub mod array;
 pub mod category;
