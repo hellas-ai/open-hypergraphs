@@ -25,8 +25,8 @@ pub enum Gate {
 }
 
 impl var::HasVar for Gate {
-    fn var() -> Gate {
-        Gate::Copy
+    fn var() -> Self {
+        Self::Copy
     }
 }
 

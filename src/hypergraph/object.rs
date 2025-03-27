@@ -129,7 +129,7 @@ where
         let s = IndexedCoproduct::new(a.sources, inj0).expect("invalid Operations?");
         let t = IndexedCoproduct::new(b.sources, inj1).expect("invalid Operations?");
         let w = a.values + b.values;
-        Hypergraph { s, t, w, x }
+        Self { s, t, w, x }
     }
 }
 

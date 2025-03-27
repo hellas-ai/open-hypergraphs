@@ -77,7 +77,7 @@ where
     type IntoIter = IndexedCoproductSemifiniteFunctionIterator<K, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        IndexedCoproductSemifiniteFunctionIterator {
+        Self::IntoIter {
             pointers: self.sources.table.into().cumulative_sum(),
             values: self.values,
             index: K::I::zero(),

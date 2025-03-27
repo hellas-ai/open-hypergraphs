@@ -44,9 +44,9 @@ pub trait HasAdd<O, A> {
 }
 
 impl<O: Clone, A: HasVar + HasAdd<O, A>> Add for Var<O, A> {
-    type Output = Var<O, A>;
+    type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: Self) -> Self {
         // only difference between impls
         let (result_label, op) = A::add(self.label.clone(), rhs.label.clone());
         binop(self, rhs, result_label, op)
@@ -59,9 +59,9 @@ pub trait HasBitXor<O, A> {
 }
 
 impl<O: Clone, A: HasVar + HasBitXor<O, A>> BitXor for Var<O, A> {
-    type Output = Var<O, A>;
+    type Output = Self;
 
-    fn bitxor(self, rhs: Self) -> Self::Output {
+    fn bitxor(self, rhs: Self) -> Self {
         // only difference between impls
         let (result_label, op) = A::bitxor(self.label.clone(), rhs.label.clone());
         binop(self, rhs, result_label, op)
@@ -77,9 +77,9 @@ macro_rules! define_binary_op {
         }
 
         impl<O: Clone, A: HasVar + $has_trait_name<O, A>> $trait_name for Var<O, A> {
-            type Output = Var<O, A>;
+            type Output = Self;
 
-            fn $fn_name(self, rhs: Self) -> Self::Output {
+            fn $fn_name(self, rhs: Self) -> Self {
                 let (result_label, op) = A::$fn_name(self.label.clone(), rhs.label.clone());
                 binop(self, rhs, result_label, op)
             }
