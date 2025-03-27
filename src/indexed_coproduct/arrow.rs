@@ -171,10 +171,7 @@ where
     }
 
     // This could generalise to any type with a tensor product, but we only need it for finite functions
-    pub fn tensor(
-        &self,
-        other: &Self,
-    ) -> Self {
+    pub fn tensor(&self, other: &Self) -> Self {
         // build a new finite function for 'sources'. it consists of:
         //  - concatenated segment sizes
         //  - target equal to *total sum* (sum of targets)

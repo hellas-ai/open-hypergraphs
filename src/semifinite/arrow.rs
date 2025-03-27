@@ -37,7 +37,7 @@ where
 
     fn target(&self) -> Self::Object {
         match self {
-            SemifiniteArrow::Finite(f) => SemifiniteObject::Finite(f.target()),
+            Self::Finite(f) => SemifiniteObject::Finite(f.target()),
             _ => SemifiniteObject::Set(PhantomData),
         }
     }
@@ -45,24 +45,24 @@ where
     fn identity(a: Self::Object) -> Self {
         match a {
             SemifiniteObject::Finite(a) => FiniteFunction::identity(a).into(),
-            SemifiniteObject::Set(_) => SemifiniteArrow::Identity,
+            SemifiniteObject::Set(_) => Self::Identity,
         }
     }
 
     fn compose(&self, other: &Self) -> Option<Self> {
         // LHS must always be finite otherwise this is not composable.
-        if let SemifiniteArrow::Finite(f) = self {
-            match other {
-                SemifiniteArrow::Finite(g) => (f >> g).map(SemifiniteArrow::Finite),
-                SemifiniteArrow::Semifinite(g) => {
-                    let result: Option<SemifiniteFunction<K, T>> = compose_semifinite(f, g);
-                    result.map(SemifiniteArrow::Semifinite)
-                    //(f >> g).map(|x| SemifiniteArrow::Semifinite(x))
-                }
-                _ => None, // Identity is only for types!
+        let SemifiniteArrow::Finite(f) = self else {
+            return None;
+        };
+
+        match other {
+            Self::Finite(g) => (f >> g).map(Self::Finite),
+            Self::Semifinite(g) => {
+                let result: Option<SemifiniteFunction<K, T>> = compose_semifinite(f, g);
+                result.map(Self::Semifinite)
+                //(f >> g).map(|x| SemifiniteArrow::Semifinite(x))
             }
-        } else {
-            None
+            _ => None, // Identity is only for types!
         }
     }
 }
@@ -94,13 +94,13 @@ where
 
 impl<K: ArrayKind, T> From<FiniteFunction<K>> for SemifiniteArrow<K, T> {
     fn from(val: FiniteFunction<K>) -> Self {
-        SemifiniteArrow::Finite(val)
+        Self::Finite(val)
     }
 }
 
 impl<K: ArrayKind, T> From<SemifiniteFunction<K, T>> for SemifiniteArrow<K, T> {
     fn from(val: SemifiniteFunction<K, T>) -> Self {
-        SemifiniteArrow::Semifinite(val)
+        Self::Semifinite(val)
     }
 }
 

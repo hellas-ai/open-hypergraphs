@@ -42,7 +42,7 @@ pub struct Hypergraph<O, A> {
 impl<O, A> Hypergraph<O, A> {
     /// The empty Hypergraph with no nodes or edges.
     pub fn empty() -> Self {
-        Hypergraph {
+        Self {
             nodes: vec![],
             edges: vec![],
             adjacency: vec![],

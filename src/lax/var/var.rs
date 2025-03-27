@@ -24,7 +24,7 @@ pub struct Var<O, A> {
 impl<O: Clone, A: HasVar> Var<O, A> {
     pub fn new(state: Rc<RefCell<OpenHypergraph<O, A>>>, default_node_label: O) -> Self {
         let (edge_id, _) = state.borrow_mut().new_operation(A::var(), vec![], vec![]);
-        Var {
+        Self {
             state,
             edge_id,
             label: default_node_label,

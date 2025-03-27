@@ -16,7 +16,7 @@ impl<O, A> OpenHypergraph<O, A> {
     ///
     /// In categorical terms, this is the identity map at the unit object.
     pub fn empty() -> Self {
-        OpenHypergraph {
+        Self {
             sources: vec![],
             targets: vec![],
             hypergraph: Hypergraph::empty(),
