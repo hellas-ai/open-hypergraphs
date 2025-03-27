@@ -59,11 +59,11 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
         let mut result: Vec<T> = Vec::with_capacity(self.len() + other.len());
         result.extend_from_slice(self);
         result.extend_from_slice(other);
-        VecArray(result)
+        Self(result)
     }
 
     fn fill(x: T, n: usize) -> Self {
-        VecArray(vec![x; n])
+        Self(vec![x; n])
     }
 
     fn get(&self, i: usize) -> T {
@@ -87,7 +87,7 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     }
 
     fn gather(&self, idx: &[usize]) -> Self {
-        VecArray(idx.iter().map(|i| self.0[*i].clone()).collect())
+        Self(idx.iter().map(|i| self.0[*i].clone()).collect())
     }
 
     /// Scatter values over the specified indices `self[idx[i]] = v[i]`.
@@ -102,11 +102,11 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     /// let actual = v.scatter(idx.get_range(..), 3);
     /// assert_eq!(actual, expected);
     /// ```
-    fn scatter(&self, idx: &[usize], n: usize) -> VecArray<T> {
+    fn scatter(&self, idx: &[usize], n: usize) -> Self {
         // If self is empty, we return the empty array because there can be no valid indices
         if self.is_empty() {
             assert!(idx.is_empty());
-            return VecArray(vec![]);
+            return Self(vec![]);
         }
 
         // Otherwise, we fill the result with an arbitrary value ...
@@ -116,11 +116,11 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
         for (i, x) in self.iter().enumerate() {
             y[idx[i]] = x.clone();
         }
-        VecArray(y)
+        Self(y)
     }
 
     fn from_slice(slice: &[T]) -> Self {
-        VecArray(slice.into())
+        Self(slice.into())
     }
 
     fn scatter_assign_constant(&mut self, ixs: &VecArray<usize>, arg: T) {
@@ -144,12 +144,12 @@ impl Add<&VecArray<usize>> for usize {
     }
 }
 
-impl<T: Clone + Add<Output = T>> Add<VecArray<T>> for VecArray<T> {
-    type Output = VecArray<T>;
+impl<T: Clone + Add<Output = T>> Add for VecArray<T> {
+    type Output = Self;
 
-    fn add(self, rhs: VecArray<T>) -> VecArray<T> {
+    fn add(self, rhs: Self) -> Self {
         assert_eq!(self.len(), rhs.len());
-        VecArray(
+        Self(
             self.iter()
                 .zip(rhs.iter())
                 .map(|(x, y)| x.clone() + y.clone())
@@ -158,12 +158,12 @@ impl<T: Clone + Add<Output = T>> Add<VecArray<T>> for VecArray<T> {
     }
 }
 
-impl<T: Clone + Sub<Output = T>> Sub<VecArray<T>> for VecArray<T> {
-    type Output = VecArray<T>;
+impl<T: Clone + Sub<Output = T>> Sub for VecArray<T> {
+    type Output = Self;
 
-    fn sub(self, rhs: VecArray<T>) -> VecArray<T> {
+    fn sub(self, rhs: Self) -> Self {
         assert_eq!(self.len(), rhs.len());
-        VecArray(
+        Self(
             self.iter()
                 .zip(rhs.iter())
                 .map(|(x, y)| x.clone() - y.clone())
@@ -217,7 +217,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
             q.push(x / d);
             r.push(x % d);
         }
-        (VecArray(q), VecArray(r))
+        (Self(q), Self(r))
     }
 
     fn mul_constant_add(&self, c: usize, x: &Self) -> Self {
@@ -226,7 +226,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         for (s, x) in self.iter().zip(x.iter()) {
             r.push(s * c + x)
         }
-        VecArray(r)
+        Self(r)
     }
 
     /// ```rust
@@ -244,7 +244,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
             a += x;
         }
         v.push(a); // don't forget the total sum!
-        VecArray(v)
+        Self(v)
     }
 
     fn arange(start: &usize, stop: &usize) -> Self {
@@ -254,7 +254,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         for i in 0..n {
             v.push(start + i);
         }
-        VecArray(v)
+        Self(v)
     }
 
     /// ```rust
@@ -266,13 +266,13 @@ impl NaturalArray<VecKind> for VecArray<usize> {
     /// let expected = VecArray::<usize>(vec![5, 6, 6, 8, 8, 8]);
     /// assert_eq!(actual, expected);
     /// ```
-    fn repeat(&self, x: &[usize]) -> VecArray<usize> {
+    fn repeat(&self, x: &[usize]) -> Self {
         assert_eq!(self.len(), x.len());
         let mut v: Vec<usize> = Vec::new();
         for (k, xi) in self.iter().zip(x) {
             v.extend(std::iter::repeat(xi).take(*k))
         }
-        VecArray(v)
+        Self(v)
     }
 
     fn connected_components(
@@ -281,28 +281,28 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         n: usize,
     ) -> (Self, <VecKind as ArrayKind>::I) {
         let (cc_ix, c) = connected_components(sources, targets, n);
-        (VecArray(cc_ix), c)
+        (Self(cc_ix), c)
     }
 
-    fn bincount(&self, size: usize) -> VecArray<usize> {
+    fn bincount(&self, size: usize) -> Self {
         let mut counts = vec![0; size];
         for &idx in self.iter() {
             counts[idx] += 1;
         }
-        VecArray(counts)
+        Self(counts)
     }
 
-    fn zero(&self) -> VecArray<usize> {
+    fn zero(&self) -> Self {
         let mut zero_indices = Vec::with_capacity(self.len());
         for (i, &val) in self.iter().enumerate() {
             if val == 0 {
                 zero_indices.push(i);
             }
         }
-        VecArray(zero_indices)
+        Self(zero_indices)
     }
 
-    fn sparse_bincount(&self) -> (VecArray<usize>, VecArray<usize>) {
+    fn sparse_bincount(&self) -> (Self, Self) {
         use std::collections::HashMap;
 
         // Count occurrences using a HashMap
@@ -318,10 +318,10 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         // Gather counts in the same order as unique indices
         let counts: Vec<_> = unique_indices.iter().map(|&idx| counts_map[&idx]).collect();
 
-        (VecArray(unique_indices), VecArray(counts))
+        (Self(unique_indices), Self(counts))
     }
 
-    fn scatter_sub_assign(&mut self, ixs: &VecArray<usize>, rhs: &VecArray<usize>) {
+    fn scatter_sub_assign(&mut self, ixs: &Self, rhs: &Self) {
         for i in 0..ixs.len() {
             self[ixs[i]] -= rhs[i];
         }
