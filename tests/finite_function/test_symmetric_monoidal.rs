@@ -1,8 +1,9 @@
-use open_hypergraphs::category::*;
-use open_hypergraphs::{array::vec::*, finite_function::*};
+use open_hypergraphs::{array::vec::*, category::*, finite_function::*};
 
-use super::strategy::{arrow_strategy, objects_strategy};
-use proptest::{prelude::Strategy, prop_assert_eq, proptest};
+use {
+    super::strategy::{arrow_strategy, objects_strategy},
+    proptest::{prelude::Strategy, prop_assert_eq, proptest},
+};
 
 proptest! {
 

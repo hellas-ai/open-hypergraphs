@@ -1,8 +1,6 @@
-use crate::lax::hypergraph::*;
-use crate::lax::open_hypergraph::*;
+use crate::lax::{hypergraph::*, open_hypergraph::*};
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 // Given a set of operation labels (i.e., edge labels),
 // distinguish one as the type of "Vars".

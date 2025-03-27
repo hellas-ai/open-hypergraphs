@@ -1,5 +1,7 @@
-use crate::array::vec::{VecArray, VecKind};
-use crate::finite_function::*;
+use crate::{
+    array::vec::{VecArray, VecKind},
+    finite_function::*,
+};
 
 use core::fmt::Debug;
 
@@ -165,9 +167,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {
 fn make_hypergraph<O: Clone, A: Clone>(
     h: &Hypergraph<O, A>,
 ) -> crate::hypergraph::Hypergraph<VecKind, O, A> {
-    use crate::finite_function::*;
-    use crate::indexed_coproduct::*;
-    use crate::semifinite::*;
+    use crate::{finite_function::*, indexed_coproduct::*, semifinite::*};
 
     let s = {
         let mut lengths = Vec::<usize>::with_capacity(h.edges.len());

@@ -1,7 +1,8 @@
 //! The operations which an array type must support to implement open hypergraphs
-use core::fmt::Debug;
-use core::ops::{Add, Sub};
-use core::ops::{Bound, Range, RangeBounds};
+use core::{
+    fmt::Debug,
+    ops::{Add, Bound, Range, RangeBounds, Sub},
+};
 
 use num_traits::{One, Zero};
 

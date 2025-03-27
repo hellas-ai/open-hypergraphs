@@ -1,15 +1,19 @@
 use core::fmt::Debug;
 
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::hypergraph::{arrow::*, *};
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{
+    array::vec::*,
+    category::*,
+    finite_function::*,
+    hypergraph::{arrow::*, *},
+    indexed_coproduct::*,
+    semifinite::*,
+};
 
-use proptest::collection::vec;
-use proptest::prelude::*;
-use proptest::strategy::{BoxedStrategy, Strategy};
+use proptest::{
+    collection::vec,
+    prelude::*,
+    strategy::{BoxedStrategy, Strategy},
+};
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Clone)]

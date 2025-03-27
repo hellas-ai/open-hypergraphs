@@ -1,7 +1,9 @@
 //! [`Vec<T>`]-backed arrays
-use super::connected_components::connected_components;
-use crate::array::*;
-use core::ops::{Add, Deref, DerefMut, Index, RangeBounds, Sub};
+use {
+    super::connected_components::connected_components,
+    crate::array::*,
+    core::ops::{Add, Deref, DerefMut, Index, RangeBounds, Sub},
+};
 
 /// Arrays backed by a [`Vec<T>`].
 #[derive(PartialEq, Eq, Clone, Debug)]

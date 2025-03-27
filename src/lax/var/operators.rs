@@ -1,5 +1,7 @@
-use super::var::*;
-use std::ops::{Add, BitAnd, BitOr, BitXor};
+use {
+    super::var::*,
+    std::ops::{Add, BitAnd, BitOr, BitXor},
+};
 
 // helper function to create binary ops
 fn binop<O: Clone, A: HasVar>(lhs: Var<O, A>, rhs: Var<O, A>, result_label: O, op: A) -> Var<O, A> {

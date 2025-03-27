@@ -1,12 +1,12 @@
 //! [`IndexedCoproduct`] as collections of [`FiniteFunction`]s.
 //! NOTE: the implementations here are not optimized.
-use crate::array::*;
 #[allow(unused_imports)] // for docs
 use crate::finite_function::*;
-use crate::indexed_coproduct::*;
-use crate::semifinite::*;
-use core::iter::IntoIterator;
-use num_traits::{One, Zero};
+use {
+    crate::{array::*, indexed_coproduct::*, semifinite::*},
+    core::iter::IntoIterator,
+    num_traits::{One, Zero},
+};
 
 /// Iterator for IndexedCoproduct that yields each element
 pub struct IndexedCoproductSemifiniteFunctionIterator<K: ArrayKind, T> {

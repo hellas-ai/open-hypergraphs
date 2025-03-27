@@ -1,11 +1,12 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::semifinite::*;
+use crate::{array::*, category::*, finite_function::*, semifinite::*};
 
-use core::fmt::Debug;
-use core::ops::{Add, Shr};
-use num_traits::{One, Zero};
+use {
+    core::{
+        fmt::Debug,
+        ops::{Add, Shr},
+    },
+    num_traits::{One, Zero},
+};
 
 // The minimum set of operations some arrows must have in order to define an [`IndexedCoproduct`]
 // over them.

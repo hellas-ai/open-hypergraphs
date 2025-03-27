@@ -1,9 +1,6 @@
-use open_hypergraphs::array::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::open_hypergraph::*;
+use open_hypergraphs::{array::*, category::*, open_hypergraph::*};
 
-use crate::hypergraph::equality::assert_hypergraph_equality_invariants;
-use core::fmt::Debug;
+use {crate::hypergraph::equality::assert_hypergraph_equality_invariants, core::fmt::Debug};
 
 pub fn assert_open_hypergraph_equality_invariants<K: ArrayKind, O, A>(
     f: &OpenHypergraph<K, O, A>,

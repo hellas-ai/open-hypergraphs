@@ -1,10 +1,12 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::FiniteFunction;
+use crate::{array::*, category::*, finite_function::FiniteFunction};
 
-use core::fmt::Debug;
-use core::ops::{Add, Shr};
-use num_traits::{One, Zero};
+use {
+    core::{
+        fmt::Debug,
+        ops::{Add, Shr},
+    },
+    num_traits::{One, Zero},
+};
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
 /// This is really just an array!

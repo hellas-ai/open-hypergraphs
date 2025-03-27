@@ -1,6 +1,10 @@
-use super::object::Hypergraph;
-use crate::array::{Array, ArrayKind};
-use crate::finite_function::FiniteFunction;
+use {
+    super::object::Hypergraph,
+    crate::{
+        array::{Array, ArrayKind},
+        finite_function::FiniteFunction,
+    },
+};
 
 use core::fmt::Debug;
 

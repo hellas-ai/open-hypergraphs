@@ -1,13 +1,16 @@
-use crate::array::{Array, ArrayKind, NaturalArray};
-use crate::category::*;
-use crate::finite_function::{coequalizer_universal, FiniteFunction};
-use crate::indexed_coproduct::*;
-use crate::operations::Operations;
-use crate::semifinite::*;
+use crate::{
+    array::{Array, ArrayKind, NaturalArray},
+    category::*,
+    finite_function::{coequalizer_universal, FiniteFunction},
+    indexed_coproduct::*,
+    operations::Operations,
+    semifinite::*,
+};
 
-use core::fmt::Debug;
-use core::ops::Add;
-use num_traits::Zero;
+use {
+    core::{fmt::Debug, ops::Add},
+    num_traits::Zero,
+};
 
 #[derive(Debug)]
 pub enum InvalidHypergraph<K: ArrayKind> {

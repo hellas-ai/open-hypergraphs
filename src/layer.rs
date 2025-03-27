@@ -1,10 +1,6 @@
 //! A [Coffman-Graham](https://en.wikipedia.org/wiki/Coffman%E2%80%93Graham_algorithm)-inspired
 //! layering algorithm.
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::indexed_coproduct::*;
-use crate::open_hypergraph::*;
+use crate::{array::*, category::*, finite_function::*, indexed_coproduct::*, open_hypergraph::*};
 
 use num_traits::{One, Zero};
 

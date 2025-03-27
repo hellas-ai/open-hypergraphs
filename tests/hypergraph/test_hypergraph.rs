@@ -1,5 +1,4 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::hypergraph::*;
+use open_hypergraphs::{array::vec::*, hypergraph::*};
 
 use super::strategy::{DiscreteSpan, Labels};
 

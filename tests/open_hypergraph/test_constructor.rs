@@ -1,10 +1,8 @@
-use open_hypergraphs::category::*;
-use open_hypergraphs::open_hypergraph::*;
+use open_hypergraphs::{category::*, open_hypergraph::*};
 
 //use super::strategy;
 //use crate::open_hypergraph::equality::assert_open_hypergraph_equality_invariants;
-use crate::operations::strategy::*;
-use crate::theory::meaningless::*;
+use crate::{operations::strategy::*, theory::meaningless::*};
 
 use proptest::proptest;
 

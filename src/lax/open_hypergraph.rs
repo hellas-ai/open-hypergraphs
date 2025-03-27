@@ -85,9 +85,9 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::prelude::OpenHypergraph`] by
     /// quotienting.
     pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
-        use crate::array::vec::VecArray;
-        use crate::finite_function::FiniteFunction;
-        use crate::open_hypergraph::OpenHypergraph;
+        use crate::{
+            array::vec::VecArray, finite_function::FiniteFunction, open_hypergraph::OpenHypergraph,
+        };
 
         self.quotient();
 

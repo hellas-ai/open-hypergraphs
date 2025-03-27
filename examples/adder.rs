@@ -7,8 +7,7 @@
 //!   logically-and values in the hypergraph.
 //! - An example of an n-bit ripple carry adder
 //!
-use open_hypergraphs::lax::var;
-use open_hypergraphs::lax::*;
+use open_hypergraphs::lax::{var, *};
 
 // There is a single generating object in the category: the bit.
 #[derive(PartialEq, Clone, Debug)]
@@ -49,8 +48,7 @@ impl var::HasBitOr<Bit, Gate> for Gate {
     }
 }
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 type Term = OpenHypergraph<Bit, Gate>;
 type Builder = Rc<RefCell<Term>>;

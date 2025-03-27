@@ -1,6 +1,7 @@
-use super::traits::*;
-use crate::array::*;
-use crate::finite_function::*;
+use {
+    super::traits::*,
+    crate::{array::*, finite_function::*},
+};
 
 /// Categories with [hypergraph structure](https://ncatlab.org/nlab/show/hypergraph+category).
 /// We call this `Spider` to avoid confusion with the [crate::hypergraph::Hypergraph] struct.

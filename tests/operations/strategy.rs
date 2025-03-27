@@ -1,9 +1,6 @@
 use core::fmt::Debug;
 
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::operations::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{array::vec::*, indexed_coproduct::*, operations::*, semifinite::*};
 
 use crate::hypergraph::strategy::{arb_indexed_coproduct_finite, arb_semifinite};
 

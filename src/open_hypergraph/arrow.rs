@@ -1,13 +1,19 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::hypergraph::{Hypergraph, InvalidHypergraph};
-use crate::operations::*;
-use crate::semifinite::*;
+use crate::{
+    array::*,
+    category::*,
+    finite_function::*,
+    hypergraph::{Hypergraph, InvalidHypergraph},
+    operations::*,
+    semifinite::*,
+};
 
-use core::fmt::Debug;
-use core::ops::{BitOr, Shr};
-use num_traits::Zero;
+use {
+    core::{
+        fmt::Debug,
+        ops::{BitOr, Shr},
+    },
+    num_traits::Zero,
+};
 
 impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     fn from(value: InvalidHypergraph<K>) -> Self {

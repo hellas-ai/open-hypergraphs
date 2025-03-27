@@ -1,10 +1,9 @@
-use super::types::*;
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
+use {
+    super::types::*,
+    crate::{array::*, category::*, finite_function::*},
+};
 
-use core::marker::PhantomData;
-use num_traits::Zero;
+use {core::marker::PhantomData, num_traits::Zero};
 
 /// Arrows in the category of semifinite functions
 pub enum SemifiniteArrow<K: ArrayKind, T> {

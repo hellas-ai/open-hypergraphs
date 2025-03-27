@@ -1,15 +1,11 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::indexed_coproduct::*;
-use crate::open_hypergraph::*;
-use crate::operations::*;
-use crate::semifinite::*;
+use crate::{
+    array::*, category::*, finite_function::*, indexed_coproduct::*, open_hypergraph::*,
+    operations::*, semifinite::*,
+};
 
 use super::spider::*;
 
-use core::fmt::Debug;
-use num_traits::One;
+use {core::fmt::Debug, num_traits::One};
 
 /// An optic is composed of forward and reverse functors along with a residual object
 pub trait Optic<K: ArrayKind + Debug, O1, A1, O2, A2>

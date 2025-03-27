@@ -1,9 +1,10 @@
-use open_hypergraphs::eval::eval;
-use open_hypergraphs::prelude::*;
+use open_hypergraphs::{eval::eval, prelude::*};
 
-use core::ops::{Add, Mul};
-use num_traits::{One, Zero};
-use std::iter::{Product, Sum};
+use {
+    core::ops::{Add, Mul},
+    num_traits::{One, Zero},
+    std::iter::{Product, Sum},
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Define the theory of polynomial circuits
@@ -118,8 +119,10 @@ fn square() -> Option<Term> {
 // Test programs (imperative interface)
 
 mod imperative {
-    use super::{Arr, Obj};
-    use open_hypergraphs::lax::*;
+    use {
+        super::{Arr, Obj},
+        open_hypergraphs::lax::*,
+    };
     type Term = open_hypergraphs::lax::OpenHypergraph<Obj, Arr>;
 
     /// Creates a non-typed-annotated binary operation, and unpacks its variables.

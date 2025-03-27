@@ -1,9 +1,12 @@
-use crate::array::*;
-use crate::category::*;
+use crate::{array::*, category::*};
 
-use core::fmt::Debug;
-use core::ops::{Add, BitOr, Shr};
-use num_traits::{One, Zero};
+use {
+    core::{
+        fmt::Debug,
+        ops::{Add, BitOr, Shr},
+    },
+    num_traits::{One, Zero},
+};
 
 /// A finite function is an array of indices in a range `{0..N}` for some `N ∈ Nat`
 #[derive(Eq)]
