@@ -199,7 +199,7 @@ pub struct DiscreteSpan<O: Debug, A: Debug> {
 
 impl<O: PartialEq + Clone + Debug, A: PartialEq + Clone + Debug> DiscreteSpan<O, A> {
     pub fn validate(self) -> Self {
-        let DiscreteSpan { ref l, ref r, .. } = self;
+        let Self { ref l, ref r, .. } = self;
 
         // 0: Check that targets of l and r have the correct number of wires, operations
         assert_eq!(l.w.target(), l.target.w.len());

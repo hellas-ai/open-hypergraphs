@@ -111,7 +111,7 @@ where
     }
 
     pub fn coproduct(&self, other: &Self) -> Self {
-        Hypergraph {
+        Self {
             s: self.s.tensor(&other.s),
             t: self.t.tensor(&other.t),
             w: self.w.coproduct(&other.w),

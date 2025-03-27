@@ -101,7 +101,7 @@ where
     pub fn singleton(values: F) -> Self {
         let n = values.len();
         let sources = FiniteFunction::constant(K::I::one(), n, K::I::zero());
-        IndexedCoproduct { sources, values }
+        Self { sources, values }
     }
 
     /// Construct a segmented array with `values.len()` segments, each containing a single element.
@@ -113,7 +113,7 @@ where
             FiniteFunction::new(K::Index::fill(K::I::one(), n.clone()), n + K::I::one()).unwrap();
 
         //let sources = FiniteFunction::terminal(n.clone()).inject1(n);
-        IndexedCoproduct::new(sources, values).expect("by construction")
+        Self::new(sources, values).expect("by construction")
     }
 
     pub fn len(&self) -> K::I {

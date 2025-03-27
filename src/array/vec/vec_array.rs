@@ -48,7 +48,7 @@ impl<T> DerefMut for VecArray<T> {
 
 impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     fn empty() -> Self {
-        VecArray(Vec::default())
+        Self(Vec::default())
     }
 
     fn len(&self) -> usize {
