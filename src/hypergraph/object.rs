@@ -40,7 +40,7 @@ where
         t: IndexedCoproduct<K, FiniteFunction<K>>,
         w: SemifiniteFunction<K, O>,
         x: SemifiniteFunction<K, A>,
-    ) -> Result<Hypergraph<K, O, A>, InvalidHypergraph<K>> {
+    ) -> Result<Self, InvalidHypergraph<K>> {
         Self { s, t, w, x }.validate()
     }
 
@@ -81,8 +81,8 @@ where
 
     // TODO: This is the unit object - put inside category interface?
     /// Construct the empty hypergraph with no nodes and no hyperedges.
-    pub fn empty() -> Hypergraph<K, O, A> {
-        Hypergraph {
+    pub fn empty() -> Self {
+        Self {
             s: IndexedCoproduct::initial(K::I::zero()),
             t: IndexedCoproduct::initial(K::I::zero()),
             w: SemifiniteFunction::zero(),
@@ -91,8 +91,8 @@ where
     }
 
     /// The discrete hypergraph, consisting of hypernodes labeled in `O`.
-    pub fn discrete(w: SemifiniteFunction<K, O>) -> Hypergraph<K, O, A> {
-        Hypergraph {
+    pub fn discrete(w: SemifiniteFunction<K, O>) -> Self {
+        Self {
             s: IndexedCoproduct::initial(w.len()),
             t: IndexedCoproduct::initial(w.len()),
             w,
@@ -104,13 +104,13 @@ where
         self.s.is_empty() && self.t.is_empty() && self.x.0.is_empty()
     }
 
-    pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
+    pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Self> {
         // TODO: wrap coequalizers in a newtype!
         let s = self.s.map_values(q)?;
         let t = self.t.map_values(q)?;
         let w = SemifiniteFunction(coequalizer_universal(q, &self.w.0)?);
         let x = self.x.clone();
-        Some(Hypergraph { s, t, w, x })
+        Some(Self { s, t, w, x })
     }
 
     pub fn coproduct(&self, other: &Self) -> Self {
@@ -122,7 +122,7 @@ where
         }
     }
 
-    pub fn tensor_operations(Operations { x, a, b }: Operations<K, O, A>) -> Hypergraph<K, O, A> {
+    pub fn tensor_operations(Operations { x, a, b }: Operations<K, O, A>) -> Self {
         // NOTE: the validity of the result assumes validity of `operations`.
         let inj0 = FiniteFunction::inj0(a.values.len(), b.values.len());
         let inj1 = FiniteFunction::inj1(a.values.len(), b.values.len());

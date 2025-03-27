@@ -38,7 +38,7 @@ proptest! {
     #[test]
     fn test_composition_wire_count(v in arb_composite_open_hypergraph(2)) {
         let [f, g] = v.as_slice() else { panic!("arb_composite_open_hypergraph returned unexpected size result") };
-        let h = (f.compose(g)).unwrap();
+        let h = f.compose(g).unwrap();
 
         assert_eq!(h.source(), f.source());
         assert_eq!(h.target(), g.target());

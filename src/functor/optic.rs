@@ -138,9 +138,11 @@ where
     K::Type<O>: Array<K, O> + Debug,
     K::Type<A>: Array<K, A> + Debug,
 {
-    if a.len() != b.len() {
-        panic!("Can't interleave types of unequal lengths");
-    }
+    assert_eq!(
+        a.len(),
+        b.len(),
+        "Can't interleave types of unequal lengths"
+    );
 
     let ab = a
         .coproduct(b)
