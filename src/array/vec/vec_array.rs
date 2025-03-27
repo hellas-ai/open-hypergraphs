@@ -270,7 +270,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
     /// ```
     fn repeat(&self, x: &[usize]) -> Self {
         assert_eq!(self.len(), x.len());
-        let mut v: Vec<usize> = Vec::new();
+        let mut v: Vec<usize> = vec![];
         for (k, xi) in self.iter().zip(x) {
             v.extend(std::iter::repeat(xi).take(*k))
         }

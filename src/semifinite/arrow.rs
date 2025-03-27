@@ -50,15 +50,14 @@ where
 
     fn compose(&self, other: &Self) -> Option<Self> {
         // LHS must always be finite otherwise this is not composable.
-        let SemifiniteArrow::Finite(f) = self else {
+        let Self::Finite(f) = self else {
             return None;
         };
 
         match other {
             Self::Finite(g) => (f >> g).map(Self::Finite),
             Self::Semifinite(g) => {
-                let result: Option<SemifiniteFunction<K, T>> = compose_semifinite(f, g);
-                result.map(Self::Semifinite)
+                compose_semifinite(f, g).map(Self::Semifinite)
                 //(f >> g).map(|x| SemifiniteArrow::Semifinite(x))
             }
             _ => None, // Identity is only for types!

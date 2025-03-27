@@ -268,13 +268,12 @@ impl<K: ArrayKind> Arrow for FiniteFunction<K> {
     }
 
     fn compose(&self, other: &Self) -> Option<Self> {
-        if self.target == other.source() {
-            let table = other.table.gather(self.table.get_range(..));
-            let target = other.target.clone();
-            Some(Self { table, target })
-        } else {
-            None
+        if self.target != other.source() {
+            return None;
         }
+        let table = other.table.gather(self.table.get_range(..));
+        let target = other.target.clone();
+        Some(Self { table, target })
     }
 }
 
