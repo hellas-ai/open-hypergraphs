@@ -130,7 +130,7 @@ where
     }
 }
 
-impl<K: ArrayKind, O, A> Add<&Hypergraph<K, O, A>> for &Hypergraph<K, O, A>
+impl<K: ArrayKind, O, A> Add for &Hypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
@@ -138,7 +138,7 @@ where
 {
     type Output = Hypergraph<K, O, A>;
 
-    fn add(self, rhs: &Hypergraph<K, O, A>) -> Self::Output {
+    fn add(self, rhs: Self) -> Self::Output {
         self.coproduct(rhs)
     }
 }
