@@ -28,8 +28,8 @@ where
     fn source(&self) -> Self::Object {
         //SemifiniteObject::Finite(self.0.len())
         match self {
-            SemifiniteArrow::Finite(f) => SemifiniteObject::Finite(f.source()),
-            SemifiniteArrow::Semifinite(f) => SemifiniteObject::Finite(f.0.len()),
+            Self::Finite(f) => SemifiniteObject::Finite(f.source()),
+            Self::Semifinite(f) => SemifiniteObject::Finite(f.0.len()),
             _ => SemifiniteObject::Set(PhantomData),
         }
     }
