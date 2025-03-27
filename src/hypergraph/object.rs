@@ -38,8 +38,7 @@ where
         w: SemifiniteFunction<K, O>,
         x: SemifiniteFunction<K, A>,
     ) -> Result<Hypergraph<K, O, A>, InvalidHypergraph<K>> {
-        let h = Hypergraph { s, t, w, x };
-        h.validate()
+        Self { s, t, w, x }.validate()
     }
 
     /// A hypergraph is valid when for both sources and targets segmented arrays:

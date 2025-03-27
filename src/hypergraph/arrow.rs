@@ -36,7 +36,7 @@ where
         w: FiniteFunction<K>,
         x: FiniteFunction<K>,
     ) -> Result<Self, InvalidHypergraphArrow> {
-        HypergraphArrow {
+        Self {
             source,
             target,
             w,

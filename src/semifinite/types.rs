@@ -32,12 +32,12 @@ where
     }
 
     // An array of length 1, containing the element x.
-    pub fn singleton(x: T) -> SemifiniteFunction<K, T> {
-        SemifiniteFunction(K::Type::<T>::fill(x, K::I::one()))
+    pub fn singleton(x: T) -> Self {
+        Self(K::Type::<T>::fill(x, K::I::one()))
     }
 
     pub fn coproduct(&self, other: &Self) -> Self {
-        SemifiniteFunction(self.0.concatenate(&other.0))
+        Self(self.0.concatenate(&other.0))
     }
 }
 
@@ -93,7 +93,7 @@ impl<K: ArrayKind, T> Add<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
 where
     K::Type<T>: Array<K, T>,
 {
-    type Output = SemifiniteFunction<K, T>;
+    type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         self.coproduct(&rhs)
@@ -105,7 +105,7 @@ where
     K::Type<T>: Array<K, T>,
 {
     fn zero() -> Self {
-        SemifiniteFunction(K::Type::<T>::empty())
+        Self(K::Type::<T>::empty())
     }
 
     fn is_zero(&self) -> bool {

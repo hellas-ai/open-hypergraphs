@@ -167,21 +167,21 @@ where
     pub fn initial(target: K::I) -> Self {
         let sources = FiniteFunction::initial(K::I::one());
         let values = FiniteFunction::initial(target);
-        IndexedCoproduct { sources, values }
+        Self { sources, values }
     }
 
     // This could generalise to any type with a tensor product, but we only need it for finite functions
     pub fn tensor(
         &self,
-        other: &IndexedCoproduct<K, FiniteFunction<K>>,
-    ) -> IndexedCoproduct<K, FiniteFunction<K>> {
+        other: &Self,
+    ) -> Self {
         // build a new finite function for 'sources'. it consists of:
         //  - concatenated segment sizes
         //  - target equal to *total sum* (sum of targets)
         let table = self.sources.table.concatenate(&other.sources.table);
         let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
 
-        IndexedCoproduct {
+        Self {
             sources: FiniteFunction { table, target },
             values: &self.values | &other.values,
         }
@@ -250,7 +250,7 @@ where
         let values = &other.sources.injections(&self.values).unwrap() >> &other.values;
         let values = values.unwrap();
 
-        IndexedCoproduct::from_semifinite(SemifiniteFunction(sources_table.into()), values).unwrap()
+        Self::from_semifinite(SemifiniteFunction(sources_table.into()), values).unwrap()
     }
 }
 
@@ -272,7 +272,7 @@ where
         let target = (self.sources.target.clone() + other.sources.target.clone()) - K::I::one();
 
         // NOTE: this might fail if the two underlying FiniteFunctions do not share a codomain.
-        Some(IndexedCoproduct {
+        Some(Self {
             sources: FiniteFunction { table, target },
             values: (&self.values + &other.values)?,
         })
@@ -294,7 +294,7 @@ where
     pub fn map_indexes(&self, x: &FiniteFunction<K>) -> Option<Self> {
         let sources = x.compose(&self.sources)?;
         let values = self.indexed_values(x)?;
-        IndexedCoproduct::from_semifinite(SemifiniteFunction(sources.table.into()), values)
+        Self::from_semifinite(SemifiniteFunction(sources.table.into()), values)
     }
 
     /// Like [`Self::map_indexes`] but only returns the values array.
