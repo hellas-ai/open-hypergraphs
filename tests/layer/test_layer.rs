@@ -1,9 +1,11 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::layer::{converse, indegree, layer, operation_adjacency};
-use open_hypergraphs::open_hypergraph::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{
+    array::vec::*,
+    finite_function::*,
+    indexed_coproduct::*,
+    layer::{converse, indegree, layer, operation_adjacency},
+    open_hypergraph::*,
+    semifinite::*,
+};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Arr {
@@ -22,8 +24,7 @@ pub enum Obj {
 
 #[test]
 fn test_layer_singleton() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A, A]));
     let y = SemifiniteFunction(VecArray(vec![A]));
@@ -35,8 +36,7 @@ fn test_layer_singleton() {
 
 #[test]
 fn test_layer_f_f_op() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A, A]));
     let y = SemifiniteFunction(VecArray(vec![A]));
@@ -49,8 +49,7 @@ fn test_layer_f_f_op() {
 
 #[test]
 fn test_layer_g_tensor_g_f() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A, A]));
     let y = SemifiniteFunction(VecArray(vec![A]));
@@ -65,8 +64,7 @@ fn test_layer_g_tensor_g_f() {
 
 #[test]
 fn test_layer_fh_tensor_gh() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A]));
 
@@ -83,8 +81,7 @@ fn test_layer_fh_tensor_gh() {
 
 #[test]
 fn test_layer_f_op_f() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A, A]));
     let y = SemifiniteFunction(VecArray(vec![A]));
@@ -99,8 +96,7 @@ fn test_layer_f_op_f() {
 
 #[test]
 fn test_indegree() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A, A]));
     let y = SemifiniteFunction(VecArray(vec![A]));
@@ -177,8 +173,7 @@ fn test_converse() {
 
 #[test]
 fn test_operation_adjacency() {
-    use Arr::*;
-    use Obj::*;
+    use {Arr::*, Obj::*};
 
     let x = SemifiniteFunction(VecArray(vec![A, A]));
     let y = SemifiniteFunction(VecArray(vec![A]));

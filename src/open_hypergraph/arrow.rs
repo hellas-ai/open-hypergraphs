@@ -1,17 +1,23 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::hypergraph::{Hypergraph, InvalidHypergraph};
-use crate::operations::*;
-use crate::semifinite::*;
+use crate::{
+    array::*,
+    category::*,
+    finite_function::*,
+    hypergraph::{Hypergraph, InvalidHypergraph},
+    operations::*,
+    semifinite::*,
+};
 
-use core::fmt::Debug;
-use core::ops::{BitOr, Shr};
-use num_traits::Zero;
+use {
+    core::{
+        fmt::Debug,
+        ops::{BitOr, Shr},
+    },
+    num_traits::Zero,
+};
 
 impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     fn from(value: InvalidHypergraph<K>) -> Self {
-        InvalidOpenHypergraph::InvalidHypergraph(value)
+        Self::InvalidHypergraph(value)
     }
 }
 
@@ -112,7 +118,7 @@ where
         let s = FiniteFunction::<K>::identity(w.0.len());
         let t = FiniteFunction::<K>::identity(w.0.len());
         let h = Hypergraph::<K, O, A>::discrete(w);
-        OpenHypergraph { s, t, h }
+        Self { s, t, h }
     }
 
     fn compose(&self, other: &Self) -> Option<Self> {
@@ -150,7 +156,7 @@ where
     }
 
     fn tensor(&self, other: &Self) -> Self {
-        OpenHypergraph {
+        Self {
             s: &self.s | &other.s,
             t: &self.t | &other.t,
             h: &self.h + &other.h,
@@ -171,7 +177,7 @@ where
         // NOTE: because the *source* map is twist, the internal labelling of wires
         // is `b + a` instead of `a + b`. This matters!
         let h = Hypergraph::discrete(b + a);
-        OpenHypergraph { s, t, h }
+        Self { s, t, h }
     }
 }
 
@@ -182,7 +188,7 @@ where
     K::Type<A>: Array<K, A>,
 {
     fn dagger(&self) -> Self {
-        OpenHypergraph {
+        Self {
             s: self.t.clone(),
             t: self.s.clone(),
             h: self.h.clone(),

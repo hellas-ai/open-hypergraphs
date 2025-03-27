@@ -1,10 +1,10 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::open_hypergraph::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{array::vec::*, open_hypergraph::*, semifinite::*};
 
-use core::ops::{Add, Mul};
-use num_traits::{One, Zero};
-use std::iter::{Product, Sum};
+use {
+    core::ops::{Add, Mul},
+    num_traits::{One, Zero},
+    std::iter::{Product, Sum},
+};
 
 pub trait Semiring: Sized + Add + Zero + Sum + Mul + One + Product + Copy {}
 impl Semiring for usize {}

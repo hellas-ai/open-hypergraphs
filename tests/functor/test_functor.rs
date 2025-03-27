@@ -1,8 +1,6 @@
-use open_hypergraphs::category::*;
-use open_hypergraphs::functor::*;
+use open_hypergraphs::{category::*, functor::*};
 
-use crate::open_hypergraph::equality::*;
-use crate::theory::meaningless::*;
+use crate::{open_hypergraph::equality::*, theory::meaningless::*};
 
 use proptest::proptest;
 

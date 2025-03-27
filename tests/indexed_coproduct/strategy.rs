@@ -1,9 +1,9 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::indexed_coproduct::*;
+use open_hypergraphs::{array::vec::*, finite_function::*, indexed_coproduct::*};
 
-use crate::hypergraph::strategy::*;
-use proptest::prelude::{BoxedStrategy, Strategy};
+use {
+    crate::hypergraph::strategy::*,
+    proptest::prelude::{BoxedStrategy, Strategy},
+};
 
 const MAX_SIZE: usize = 10;
 

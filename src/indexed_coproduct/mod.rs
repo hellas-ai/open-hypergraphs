@@ -3,6 +3,4 @@ mod arrow;
 mod iterator;
 pub mod semifinite_iterator;
 
-pub use arrow::*;
-pub use iterator::*;
-pub use semifinite_iterator::*;
+pub use {arrow::*, iterator::*, semifinite_iterator::*};

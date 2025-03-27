@@ -90,8 +90,10 @@ pub fn to_dense(sparse: &[usize]) -> (Vec<usize>, usize) {
 
 #[cfg(test)]
 mod test {
-    use proptest::prelude::{Just, Strategy};
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{
+        prelude::{Just, Strategy},
+        prop_assert_eq, proptest,
+    };
 
     use super::{connected_components, to_dense};
 

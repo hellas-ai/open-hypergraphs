@@ -1,15 +1,19 @@
 use core::fmt::Debug;
 
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::hypergraph::{arrow::*, *};
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{
+    array::vec::*,
+    category::*,
+    finite_function::*,
+    hypergraph::{arrow::*, *},
+    indexed_coproduct::*,
+    semifinite::*,
+};
 
-use proptest::collection::vec;
-use proptest::prelude::*;
-use proptest::strategy::{BoxedStrategy, Strategy};
+use proptest::{
+    collection::vec,
+    prelude::*,
+    strategy::{BoxedStrategy, Strategy},
+};
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Clone)]
@@ -199,7 +203,7 @@ pub struct DiscreteSpan<O: Debug, A: Debug> {
 
 impl<O: PartialEq + Clone + Debug, A: PartialEq + Clone + Debug> DiscreteSpan<O, A> {
     pub fn validate(self) -> Self {
-        let DiscreteSpan { ref l, ref r, .. } = self;
+        let Self { ref l, ref r, .. } = self;
 
         // 0: Check that targets of l and r have the correct number of wires, operations
         assert_eq!(l.w.target(), l.target.w.len());

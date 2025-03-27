@@ -1,8 +1,9 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{array::vec::*, semifinite::*};
 
-use super::strategy::*;
-use proptest::{prop_assert_ne, proptest};
+use {
+    super::strategy::*,
+    proptest::{prop_assert_ne, proptest},
+};
 
 #[test]
 fn test_coproduct() {

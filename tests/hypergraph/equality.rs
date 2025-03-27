@@ -1,7 +1,7 @@
-use core::fmt::Debug;
-use open_hypergraphs::array::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::hypergraph::*;
+use {
+    core::fmt::Debug,
+    open_hypergraphs::{array::*, finite_function::*, hypergraph::*},
+};
 
 pub fn assert_hypergraph_equality_invariants<K: ArrayKind, O, A>(
     h: &Hypergraph<K, O, A>,

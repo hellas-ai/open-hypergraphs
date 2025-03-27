@@ -256,8 +256,7 @@ pub mod lax;
 
 pub mod prelude {
     //! Type alises for Open Hypergraphs using the [`VecKind`] array backend.
-    pub use crate::array::vec::*;
-    pub use crate::category::*;
+    pub use crate::{array::vec::*, category::*};
 
     pub type OpenHypergraph<Obj, Arr> = crate::open_hypergraph::OpenHypergraph<VecKind, Obj, Arr>;
     pub type Hypergraph<Obj, Arr> = crate::hypergraph::Hypergraph<VecKind, Obj, Arr>;

@@ -73,7 +73,6 @@
 pub mod hypergraph;
 pub mod open_hypergraph;
 
-pub use hypergraph::*;
-pub use open_hypergraph::*;
+pub use {hypergraph::*, open_hypergraph::*};
 
 pub mod var;

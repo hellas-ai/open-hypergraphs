@@ -1,9 +1,12 @@
-use open_hypergraphs::category::*;
-use open_hypergraphs::open_hypergraph::*;
+use open_hypergraphs::{category::*, open_hypergraph::*};
 
-use super::strategy;
-use crate::open_hypergraph::equality::assert_open_hypergraph_equality_invariants;
-use crate::theory::meaningless::*;
+use {
+    super::strategy,
+    crate::{
+        open_hypergraph::equality::assert_open_hypergraph_equality_invariants,
+        theory::meaningless::*,
+    },
+};
 
 use proptest::proptest;
 
@@ -35,7 +38,7 @@ proptest! {
     #[test]
     fn test_composition_wire_count(v in arb_composite_open_hypergraph(2)) {
         let [f, g] = v.as_slice() else { panic!("arb_composite_open_hypergraph returned unexpected size result") };
-        let h = (f.compose(g)).unwrap();
+        let h = f.compose(g).unwrap();
 
         assert_eq!(h.source(), f.source());
         assert_eq!(h.target(), g.target());

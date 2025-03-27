@@ -1,14 +1,9 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::functor::*;
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::open_hypergraph::*;
-use open_hypergraphs::operations::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{
+    array::vec::*, category::*, finite_function::*, functor::*, indexed_coproduct::*,
+    open_hypergraph::*, operations::*, semifinite::*,
+};
 
-use core::fmt::Debug;
-use num_traits::Zero;
+use {core::fmt::Debug, num_traits::Zero};
 
 // A test theory where every arrow label is arbitrarily polymorphic (and therefore has a dagger).
 
@@ -95,8 +90,7 @@ fn test_dagger_optic_identity() {
 
 #[test]
 fn test_dagger_optic_singleton() {
-    use Ob::*;
-    use Op::*;
+    use {Ob::*, Op::*};
 
     let x = SemifiniteFunction::<VecKind, Ob>(VecArray(vec![A, B]));
     let y = SemifiniteFunction::<VecKind, Ob>(VecArray(vec![C]));
@@ -117,8 +111,7 @@ fn test_dagger_optic_singleton() {
     assert_eq!(ff.target(), f_y.values);
 }
 
-use crate::theory::meaningless::*;
-use proptest::proptest;
+use {crate::theory::meaningless::*, proptest::proptest};
 
 proptest! {
     #[test]

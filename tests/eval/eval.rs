@@ -1,8 +1,4 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::eval::*;
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::{array::vec::*, category::*, eval::*, indexed_coproduct::*, semifinite::*};
 
 use crate::theory::polycirc::*;
 
