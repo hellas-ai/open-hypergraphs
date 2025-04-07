@@ -63,21 +63,8 @@ type Term = OpenHypergraph<Bit, Gate>;
 type Builder = Rc<RefCell<Term>>;
 type Var = var::Var<Bit, Gate>;
 
-// TODO: helper for 0 → 1 operations.
-// This is hard to get right with borrow_mut!
 fn zero(state: Builder) -> Var {
-    // zero operation edge_id
-    let z = {
-        let mut term = state.borrow_mut();
-        term.new_operation(Gate::Zero, vec![], vec![Bit]).1 .1[0]
-    };
-
-    // the var itself
-    let v = Var::new(state.clone(), Bit);
-    let v_source = v.new_source();
-
-    state.borrow_mut().unify(z, v_source);
-    v
+    var::operation(&state, &[], Bit, Gate::Zero)
 }
 
 fn full_adder(a: Var, b: Var, cin: Var) -> (Var, Var) {
