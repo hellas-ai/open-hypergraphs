@@ -10,20 +10,28 @@
 //! Here's a drawing of an open hypergraph with labeled nodes `●` and hyperedges `□`.
 //!
 //! ```text
-//!                  /───────────────────────────────────
-//!                 ╱
-//!     ───────────●
-//!               i8\      ┌─────┐
-//!                  \─────┤     │        ┌─────┐
-//!          2             │ Sub ├───●────┤ Neg ├───●───
-//!     ─────●─────────────┤     │  i8    └─────┘  i8
-//!         i8             └─────┘
+//!                    /───────────────────────────────────   x
+//!                   ╱
+//!   x   ───────────●
+//!                 i8\      ┌─────┐
+//!                    \─────┤     │        ┌─────┐
+//!            2             │ Sub ├───●────┤ Neg ├───●───    -(x - y)
+//!   y   ─────●─────────────┤     │  i8    └─────┘  i8
+//!           i8             └─────┘
 //! ```
 //!
-//! This open hypergraph represents a circuit with two inputs.
-//! Call the two inputs `x` and `y`, then
-//! this circuit computes `x` on its first output and
-//! `- (x - y)` on its second.
+//! This open hypergraph represents a circuit with two inputs, `x` and `y`.
+//! this circuit computes `x` on its first output and `- (x - y)` on its second.
+//! (The input/output labels `x`, `y`, and `-(x - y)` are only illustrative, and not part of the
+//! datastructure.)
+//!
+//! <div class="warning">
+//! Note carefully: in contrast to typical graph-based syntax representations,
+//! operations correspond to hyperedges,
+//! and values correspond to nodes!
+//! This is why nodes are labeled with types like i8 and hyperedges with operations like
+//! Sub.
+//! </div>
 //!
 //! See the [datastructure](#datastructure) section for a formal definition.
 //!
@@ -46,7 +54,7 @@
 //! Differentiability of open hypergraphs (as used in [catgrad](https://catgrad.com))
 //! comes from the [data-parallel algorithm](crate::functor::optic::Optic) for generalised
 //! ahead-of-time automatic differentiation by optic composition.
-//! You can read more about this in the papers
+//! This algorithm is actually more general than just differentiability: read more in the papers
 //! ["Categorical Foundations of Gradient-Based Learning"](https://arxiv.org/abs/2103.01931)
 //! and ["Data-Parallel Algorithms for String Diagrams"](https://arxiv.org/pdf/2305.01041).
 //! See the [Theory](#theory) section for more pointers.
@@ -80,10 +88,10 @@
 //!     let z = example.new_node(I8);
 //!
 //!     // Add the "Sub" hyperedge with source nodes `[x, y]` and targets `[a]`
-//!     let sub = example.new_edge(Sub, Hyperedge { sources: vec![x, y], targets: vec![a] });
+//!     example.new_edge(Sub, Hyperedge { sources: vec![x, y], targets: vec![a] });
 //!
 //!     // Add the 'Neg' hyperedge with sources `[a]` and targets `[z]`
-//!     let sub = example.new_edge(Neg, Hyperedge { sources: vec![a], targets: vec![z] });
+//!     example.new_edge(Neg, Hyperedge { sources: vec![a], targets: vec![z] });
 //!
 //!     // set the sources and targets of the example
 //!     example.sources = vec![x, y];
@@ -140,8 +148,11 @@
 //! These are drawn as dangling wires on the left and right.
 //! In this example, the sources are `[0, 2]`, and the targets are `[0, 3]`.
 //!
-//! Observe that there are no restrictions on how many times a node can appear as a source or
-//! target of both hyperedges and the open hypergraph as a whole.
+//! <div class="warning">
+//! There are no restrictions on how many times a node can appear as a source or target of both
+//! hyperedges and the open hypergraph as a whole.
+//! </div>
+//!
 //! For example, node `0` is a source and target of the open hypergraph, *and* a source of the
 //! `Sub` edge.
 //! Another example: node `1` is not a source or target of the open hypergraph, although it *is* a
@@ -159,7 +170,8 @@
 //! 2. An array `s` of length `A ∈ ℕ` whose elements `s_i ∈ {0..N-1}` are nodes
 //! 3. An array `t` of length `B ∈ ℕ` whose elements `t_i ∈ {0..N-1}` are nodes
 //!
-//! Concretely, the particular kind of hypergraph in an *open* hypergraph has:
+//! Many different kinds of [Hypergraph](https://en.wikipedia.org/wiki/Hypergraph) exist,
+//! but an *open* hypergraph uses a specific kind of directed hypergraph, which has:
 //!
 //! - A finite set of `N` nodes, labeled with an element from a set `Σ₀`
 //! - A finite set of `E` *hyperedges*, labeled from the set `Σ₁`
@@ -187,6 +199,8 @@
 //! There are two problems here:
 //!
 //! 1. To handle multiple outputs, we had to include a tuple constructor "Pair" in our language.
+//!    This means we'd also need to add other functions to deal with pairs, "polluting" the base
+//!    language.
 //! 2. The "sharing" of variables is not evident from the tree structure: x is used twice, but we
 //!    have to compare strings to "discover" that fact.
 //!
@@ -234,8 +248,8 @@
 //!
 //! The implementation in *this* library is based on the data-parallel algorithms described in the
 //! paper [Data Parallel Algorithms for String Diagrams](https://arxiv.org/pdf/2305.01041).
-//! In particular, the "generalised autodiff" algorithm can be found in sections 9 and 10 of that
-//! paper.
+//! In particular, the "generalised autodiff" algorithm can be found in Section 10 ("Optic
+//! Composition using Frobenius Structure") of that paper.
 
 pub mod array;
 pub mod category;
