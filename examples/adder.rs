@@ -17,6 +17,7 @@ pub struct Bit;
 // The generating operations are logic gates
 #[derive(PartialEq, Clone, Debug)]
 pub enum Gate {
+    Not,
     Xor,
     Zero, // 0 → 1
     Or,
@@ -46,6 +47,12 @@ impl var::HasBitAnd<Bit, Gate> for Gate {
 impl var::HasBitOr<Bit, Gate> for Gate {
     fn bitor(_: Bit, _: Bit) -> (Bit, Gate) {
         (Bit, Gate::Or)
+    }
+}
+
+impl var::HasNot<Bit, Gate> for Gate {
+    fn not(_: Bit) -> (Bit, Gate) {
+        (Bit, Gate::Not)
     }
 }
 

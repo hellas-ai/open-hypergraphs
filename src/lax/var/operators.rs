@@ -85,15 +85,34 @@ macro_rules! define_binary_op {
     };
 }
 
+// Macro to reduce boilerplate for unary operators
+macro_rules! define_unary_op {
+    ($trait_name:ident, $fn_name:ident, $has_trait_name:ident) => {
+        #[doc = r" Vars support this unary operator when the underlying signature has the appropriate operation."]
+        pub trait $has_trait_name<O, A> {
+            fn $fn_name(operand_type: O) -> (O, A);
+        }
+
+        impl<O: Clone, A: HasVar + $has_trait_name<O, A>> $trait_name for Var<O, A> {
+            type Output = Var<O, A>;
+
+            fn $fn_name(self) -> Self::Output {
+                let (result_label, op) = A::$fn_name(self.label.clone());
+                operation(&self.state.clone(), &[self], result_label, op)
+            }
+        }
+    };
+}
+
 //define_binary_op!(BitXor, bitand, HasBitXor); // hand-written
 define_binary_op!(BitAnd, bitand, HasBitAnd);
 define_binary_op!(BitOr, bitor, HasBitOr);
 define_binary_op!(Shl, shl, HasShl);
 define_binary_op!(Shr, shr, HasShr);
-//TODO: Not
+define_unary_op!(Not, not, HasNot);
 
 //define_binary_op!(Add, add, HasAdd); // hand-written
 define_binary_op!(Mul, mul, HasMul);
 define_binary_op!(Sub, sub, HasSub);
 define_binary_op!(Div, div, HasDiv);
-// TODO: neg
+define_unary_op!(Neg, neg, HasNeg);
