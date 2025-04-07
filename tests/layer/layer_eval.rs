@@ -22,11 +22,6 @@ fn to_slices(c: &IndexedCoproduct<VecKind, FiniteFunction<VecKind>>) -> Vec<Vec<
     result
 }
 
-fn layer_function_to_layers(f: FiniteFunction<VecKind>) -> Vec<Vec<usize>> {
-    let c = converse(&IndexedCoproduct::elements(f));
-    to_slices(&c)
-}
-
 fn apply<T: Semiring + Copy>(op: &Arr, args: &Vec<T>) -> Vec<T> {
     use Arr::*;
     match op {
@@ -44,13 +39,13 @@ fn eval<T: Semiring + PartialEq + Clone + Default + Debug>(
     inputs: Vec<T>,
 ) -> Option<Vec<T>> {
     // Get layering
-    let (order, unvisited) = layer(f);
-    let layering = &layer_function_to_layers(order);
+    let (layering, unvisited) = layered_operations(f);
 
     if unvisited.0.iter().any(|x| *x == 1) {
         None
     } else {
-        let (_, outputs) = eval_layers(f, inputs, layering);
+        let op_layers: Vec<Vec<usize>> = layering.into_iter().map(|x| x.0).collect();
+        let (_, outputs) = eval_layers(f, inputs, &op_layers);
         Some(outputs)
     }
 }
