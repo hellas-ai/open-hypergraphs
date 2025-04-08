@@ -1,5 +1,6 @@
 //! Cospans of Hypergraphs.
 use super::hypergraph::*;
+use crate::array::vec::VecKind;
 
 /// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
@@ -20,6 +21,17 @@ impl<O, A> OpenHypergraph<O, A> {
             sources: vec![],
             targets: vec![],
             hypergraph: Hypergraph::empty(),
+        }
+    }
+
+    pub fn from_strict(f: crate::open_hypergraph::OpenHypergraph<VecKind, O, A>) -> Self {
+        let sources = f.s.table.0.into_iter().map(NodeId).collect();
+        let targets = f.t.table.0.into_iter().map(NodeId).collect();
+        let hypergraph = Hypergraph::from_strict(f.h);
+        OpenHypergraph {
+            sources,
+            targets,
+            hypergraph,
         }
     }
 
