@@ -33,13 +33,14 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
             return None;
         }
 
+        let n = other.hypergraph.nodes.len();
         let mut f = self.tensor(other);
-        for (u, v) in self.targets.iter().zip(other.targets.iter()) {
-            f.unify(*u, *v);
+        for (u, v) in self.targets.iter().zip(other.sources.iter()) {
+            f.unify(*u, NodeId(v.0 + n));
         }
 
         f.sources = f.sources[..self.sources.len()].to_vec();
-        f.targets = f.targets[self.sources.len()..].to_vec();
+        f.targets = f.targets[self.targets.len()..].to_vec();
 
         Some(f)
     }
@@ -64,10 +65,10 @@ impl<O: Clone + PartialEq, A: Clone> Monoidal for OpenHypergraph<O, A> {
             .collect();
 
         let targets = self
-            .sources
+            .targets
             .iter()
             .cloned()
-            .chain(other.sources.iter().map(|&i| NodeId(i.0 + n)))
+            .chain(other.targets.iter().map(|&i| NodeId(i.0 + n)))
             .collect();
 
         OpenHypergraph {
