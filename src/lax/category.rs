@@ -109,3 +109,21 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Spider<VecKind> for OpenHypergr
         Some(OpenHypergraph::from_strict(f))
     }
 }
+
+use core::ops::{BitOr, Shr};
+
+impl<O: Clone + PartialEq, A: Clone> Shr<&OpenHypergraph<O, A>> for &OpenHypergraph<O, A> {
+    type Output = Option<OpenHypergraph<O, A>>;
+
+    fn shr(self, rhs: &OpenHypergraph<O, A>) -> Self::Output {
+        self.compose(rhs)
+    }
+}
+
+impl<O: Clone + PartialEq, A: Clone> BitOr<&OpenHypergraph<O, A>> for &OpenHypergraph<O, A> {
+    type Output = OpenHypergraph<O, A>;
+
+    fn bitor(self, rhs: &OpenHypergraph<O, A>) -> Self::Output {
+        self.tensor(rhs)
+    }
+}
