@@ -95,7 +95,7 @@
 //!
 //!     // set the sources and targets of the example
 //!     example.sources = vec![x, y];
-//!     example.targets = vec![z];
+//!     example.targets = vec![x, z];
 //!
 //!     // return the example
 //!     example

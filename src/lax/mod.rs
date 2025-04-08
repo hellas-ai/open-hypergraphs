@@ -45,7 +45,8 @@
 //!     // we use the stateful builder interface to add nodes and edges to the hypergraph
 //!     let mut state = OpenHypergraph::empty();
 //!
-//!     // create a `Copy : 1 → 2` operation
+//!     // create a `Copy : 1 → 2` operation using the `new_operation` method.
+//!     // This creates nodes for each type in the input and output, and returns their `NodeId`s.
 //!     let (_, (_, x)) = state.new_operation(Op::Copy, vec![A], vec![A, A]) else {
 //!         // OpenHypergraph::new_operation will always turn as many sources/targets as appear in
 //!         // the provided source/target types, respectively.
