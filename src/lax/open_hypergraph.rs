@@ -63,6 +63,15 @@ impl<O, A> OpenHypergraph<O, A> {
         self.hypergraph.new_operation(x, source_type, target_type)
     }
 
+    /// An [`OpenHypergraph`] consisting of a single operation.
+    pub fn singleton(x: A, source_type: Vec<O>, target_type: Vec<O>) -> Self {
+        let mut f = Self::empty();
+        let (_, (s, t)) = f.new_operation(x, source_type, target_type);
+        f.sources = s;
+        f.targets = t;
+        f
+    }
+
     /// Compute an open hypergraph by calling `to_hypergraph` on the internal `Hypergraph`.
     pub fn unify(&mut self, v: NodeId, w: NodeId) {
         self.hypergraph.unify(v, w);

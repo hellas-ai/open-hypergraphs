@@ -29,6 +29,14 @@ fn square() -> Option<Term> {
     Some(term.to_open_hypergraph())
 }
 
+fn one_plus_one() -> Option<Term> {
+    use Arr::*;
+    let lhs = &lax_arr(One) | &lax_arr(One);
+    let rhs = lax_arr(Add);
+    let term = (&lhs >> &rhs)?;
+    Some(term.to_open_hypergraph())
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 
@@ -44,6 +52,39 @@ fn test_square() {
 
     // 3**2
     assert_eq!(result, VecArray(vec![9]));
+}
+
+#[test]
+fn test_one_plus_one() {
+    let f = one_plus_one().unwrap();
+
+    assert_eq!(f.source(), mktype(0));
+    assert_eq!(f.target(), mktype(1));
+
+    let inputs = VecArray(vec![]);
+    let result = eval::<VecKind, Obj, Arr, usize>(&f, inputs, apply).expect("eval failed");
+
+    // 3**2
+    assert_eq!(result, VecArray(vec![2]));
+}
+
+#[test]
+fn test_one_plus_one_algebraic() {
+    use Arr::*;
+    let one = LaxTerm::singleton(One, vec![], vec![Obj]);
+    let lhs = &one | &one;
+    let rhs = LaxTerm::singleton(Add, vec![Obj, Obj], vec![Obj]);
+
+    let f = (&lhs >> &rhs).unwrap().to_open_hypergraph();
+
+    assert_eq!(f.source(), mktype(0));
+    assert_eq!(f.target(), mktype(1));
+
+    let inputs = VecArray(vec![]);
+    let result = eval::<VecKind, Obj, Arr, usize>(&f, inputs, apply).expect("eval failed");
+
+    // 3**2
+    assert_eq!(result, VecArray(vec![2]));
 }
 
 #[test]

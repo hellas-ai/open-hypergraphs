@@ -8,6 +8,7 @@ use crate::open_hypergraph::*;
 use crate::semifinite::*;
 
 use num_traits::Zero;
+use std::default::Default;
 
 // Given a "layering function" `f : N → K` which maps each operation `n ∈ N` into some layer `k ∈
 // K`,
@@ -25,7 +26,7 @@ where
 /// Evaluate an acyclic open hypergraph `f` thought of as a function using some specified input
 /// values `s`, and a function `apply` which maps a list of operations and their inputs to their
 /// outputs.
-pub fn eval<K: ArrayKind, O, A, T>(
+pub fn eval<K: ArrayKind, O, A, T: Default>(
     f: &OpenHypergraph<K, O, A>,
     s: K::Type<T>,
     apply: impl Fn(
@@ -54,7 +55,7 @@ where
 }
 
 // Evaluate an acyclic open hypergraph using a specified order of operations.
-fn eval_order<K: ArrayKind, O, A, T>(
+fn eval_order<K: ArrayKind, O, A, T: Default>(
     // The term to evaluate
     f: &OpenHypergraph<K, O, A>,
     // Source wire inputs
@@ -74,8 +75,12 @@ where
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
-    // Create memory prefilled with input data
-    let mut mem = SemifiniteFunction::new(s.scatter(f.s.table.get_range(..), f.h.w.len()));
+    // Create memory prefilled with default data
+    let mut mem: SemifiniteFunction<K, T> =
+        SemifiniteFunction::new(K::Type::<T>::fill(T::default(), f.h.w.len()));
+
+    // Overwrite input locations with values in s.
+    mem.0.scatter_assign(&f.s.table, s);
 
     for op_ix in order {
         // Compute *labels* of operations to pass to `apply`.

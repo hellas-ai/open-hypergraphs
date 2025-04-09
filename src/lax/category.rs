@@ -33,7 +33,7 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
             return None;
         }
 
-        let n = other.hypergraph.nodes.len();
+        let n = self.hypergraph.nodes.len();
         let mut f = self.tensor(other);
         for (u, v) in self.targets.iter().zip(other.sources.iter()) {
             f.unify(*u, NodeId(v.0 + n));
