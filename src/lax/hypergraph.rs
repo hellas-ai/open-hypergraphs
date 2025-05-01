@@ -52,6 +52,29 @@ impl<O, A> Hypergraph<O, A> {
         }
     }
 
+    pub fn from_strict(h: crate::hypergraph::Hypergraph<VecKind, O, A>) -> Self {
+        let mut adjacency = Vec::with_capacity(h.x.0.len());
+        for (sources, targets) in h.s.into_iter().zip(h.t.into_iter()) {
+            adjacency.push(Hyperedge {
+                sources: sources.table.iter().map(|i| NodeId(*i)).collect(),
+                targets: targets.table.iter().map(|i| NodeId(*i)).collect(),
+            })
+        }
+
+        Hypergraph {
+            nodes: h.w.0 .0,
+            edges: h.x.0 .0,
+            adjacency,
+            quotient: (vec![], vec![]),
+        }
+    }
+
+    pub fn discrete(nodes: Vec<O>) -> Self {
+        let mut h = Self::empty();
+        h.nodes = nodes;
+        h
+    }
+
     /// Add a single node labeled `w` to the [`Hypergraph`]
     pub fn new_node(&mut self, w: O) -> NodeId {
         let index = self.nodes.len();
@@ -160,6 +183,49 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {
 
         s.coequalizer(&t)
             .expect("coequalizer must exist for any graph")
+    }
+}
+
+pub(crate) fn finite_function_coproduct(
+    v1: &[NodeId],
+    v2: &[NodeId],
+    target: usize,
+) -> Vec<NodeId> {
+    v1.iter()
+        .cloned()
+        .chain(v2.iter().map(|&s| NodeId(s.0 + target)))
+        .collect()
+}
+
+pub(crate) fn concat<T: Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
+    v1.iter().cloned().chain(v2.iter().cloned()).collect()
+}
+
+impl<O: Clone, A: Clone> Hypergraph<O, A> {
+    pub(crate) fn coproduct(&self, other: &Hypergraph<O, A>) -> Hypergraph<O, A> {
+        let n = self.nodes.len();
+
+        let adjacency = self
+            .adjacency
+            .iter()
+            .cloned()
+            .chain(other.adjacency.iter().map(|edge| Hyperedge {
+                sources: edge.sources.iter().map(|&s| NodeId(s.0 + n)).collect(),
+                targets: edge.targets.iter().map(|&t| NodeId(t.0 + n)).collect(),
+            }))
+            .collect();
+
+        let quotient = (
+            finite_function_coproduct(&self.quotient.0, &other.quotient.0, n),
+            finite_function_coproduct(&self.quotient.1, &other.quotient.1, n),
+        );
+
+        Hypergraph {
+            nodes: concat(&self.nodes, &other.nodes),
+            edges: concat(&self.edges, &other.edges),
+            adjacency,
+            quotient,
+        }
     }
 }
 

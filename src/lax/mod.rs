@@ -45,7 +45,8 @@
 //!     // we use the stateful builder interface to add nodes and edges to the hypergraph
 //!     let mut state = OpenHypergraph::empty();
 //!
-//!     // create a `Copy : 1 → 2` operation
+//!     // create a `Copy : 1 → 2` operation using the `new_operation` method.
+//!     // This creates nodes for each type in the input and output, and returns their `NodeId`s.
 //!     let (_, (_, x)) = state.new_operation(Op::Copy, vec![A], vec![A, A]) else {
 //!         // OpenHypergraph::new_operation will always turn as many sources/targets as appear in
 //!         // the provided source/target types, respectively.
@@ -70,6 +71,7 @@
 //! when composing two operations as in the former diagram, we can have distinct types for
 //! connected nodes, e.g., x0 and y0. this allows both *checking* (of e.g. equality) and
 //! *inference*: inequal types might be *unified* into a single type.
+pub mod category;
 pub mod hypergraph;
 pub mod open_hypergraph;
 
