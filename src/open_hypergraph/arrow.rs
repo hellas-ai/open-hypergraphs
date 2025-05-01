@@ -80,11 +80,7 @@ where
         }
     }
 
-    pub fn singleton(
-        x: A,
-        a: SemifiniteFunction<K, O>,
-        b: SemifiniteFunction<K, O>,
-    ) -> Self {
+    pub fn singleton(x: A, a: SemifiniteFunction<K, O>, b: SemifiniteFunction<K, O>) -> Self {
         Self::tensor_operations(Operations::singleton(x, a, b))
     }
 

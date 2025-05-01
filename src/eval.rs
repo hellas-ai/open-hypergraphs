@@ -9,8 +9,7 @@ use crate::{
     semifinite::*,
 };
 
-use num_traits::Zero;
-use std::default::Default;
+use {num_traits::Zero, std::default::Default};
 
 // Given a "layering function" `f : N → K` which maps each operation `n ∈ N` into some layer `k ∈
 // K`,

@@ -1,7 +1,5 @@
 //! Cospans of Hypergraphs.
-use crate::array::vec::VecKind;
-use crate::category::*;
-use crate::lax::*;
+use crate::{array::vec::VecKind, category::*, lax::*};
 
 impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
     type Object = Vec<O>;
@@ -79,8 +77,7 @@ impl<O: Clone + PartialEq, A: Clone> Monoidal for OpenHypergraph<O, A> {
     }
 }
 
-use crate::array::vec::VecArray;
-use crate::semifinite::*;
+use crate::{array::vec::VecArray, semifinite::*};
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> SymmetricMonoidal for OpenHypergraph<O, A> {
     fn twist(a: Self::Object, b: Self::Object) -> Self {

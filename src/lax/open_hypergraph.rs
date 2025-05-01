@@ -1,6 +1,5 @@
 //! Cospans of Hypergraphs.
-use super::hypergraph::*;
-use crate::array::vec::VecKind;
+use {super::hypergraph::*, crate::array::vec::VecKind};
 
 /// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
