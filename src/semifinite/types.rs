@@ -62,11 +62,11 @@ where
 }
 
 // NOTE: we can't derive PartialEq because it will introduce an unnecessary `T: PartialEq` bound
-impl<K: ArrayKind, T> PartialEq<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
+impl<K: ArrayKind, T> PartialEq<Self> for SemifiniteFunction<K, T>
 where
     K::Type<T>: PartialEq,
 {
-    fn eq(&self, other: &SemifiniteFunction<K, T>) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<K: ArrayKind, T> Add<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
+impl<K: ArrayKind, T> Add<Self> for SemifiniteFunction<K, T>
 where
     K::Type<T>: Array<K, T>,
 {

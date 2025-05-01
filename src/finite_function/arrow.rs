@@ -85,7 +85,7 @@ impl<K: ArrayKind> FiniteFunction<K> {
     /// # let i0 = FiniteFunction::<VecKind>::inj0(f.target(), b);
     /// assert_eq!(Some(f.inject0(b)), &f >> &i0);
     /// ```
-    pub fn inject0(&self, b: K::I) -> FiniteFunction<K> {
+    pub fn inject0(&self, b: K::I) -> Self {
         Self {
             table: self.table.clone(),
             target: b + self.target(),
@@ -132,7 +132,7 @@ impl<K: ArrayKind> FiniteFunction<K> {
     {
         let table = coequalizer_universal(self, f.table.as_ref())?.into();
         let target = f.target();
-        Some(FiniteFunction { table, target })
+        Some(Self { table, target })
     }
 
     /// `transpose(a, b)` is the "transposition permutation" for an `a → b` matrix stored in

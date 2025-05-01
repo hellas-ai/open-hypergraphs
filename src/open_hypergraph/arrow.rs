@@ -56,7 +56,7 @@ where
         t: FiniteFunction<K>,
         h: Hypergraph<K, O, A>,
     ) -> Result<Self, InvalidOpenHypergraph<K>> {
-        let f = OpenHypergraph { s, t, h };
+        let f = Self { s, t, h };
         f.validate()
     }
 
@@ -72,7 +72,7 @@ where
         } else if t_target != w_source {
             Err(InvalidOpenHypergraph::CospanTargetType(t_target, w_source))
         } else {
-            Ok(OpenHypergraph {
+            Ok(Self {
                 s: self.s,
                 t: self.t,
                 h,
@@ -84,15 +84,15 @@ where
         x: A,
         a: SemifiniteFunction<K, O>,
         b: SemifiniteFunction<K, O>,
-    ) -> OpenHypergraph<K, O, A> {
+    ) -> Self {
         Self::tensor_operations(Operations::singleton(x, a, b))
     }
 
-    pub fn tensor_operations(operations: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
+    pub fn tensor_operations(operations: Operations<K, O, A>) -> Self {
         let h = Hypergraph::tensor_operations(operations);
         let t = h.t.values.clone();
         let s = h.s.values.clone();
-        OpenHypergraph { s, t, h }
+        Self { s, t, h }
     }
 }
 
@@ -141,7 +141,7 @@ where
         // NOTE: this should never fail for a valid open hypergraph
         let h = self.tensor(other).h.coequalize_vertices(&q).unwrap();
 
-        Some(OpenHypergraph { s, t, h })
+        Some(Self { s, t, h })
     }
 }
 
@@ -201,7 +201,7 @@ where
         }
 
         let h = Hypergraph::discrete(w);
-        Some(OpenHypergraph { s, t, h })
+        Some(Self { s, t, h })
     }
 }
 

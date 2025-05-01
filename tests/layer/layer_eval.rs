@@ -49,7 +49,7 @@ fn eval<T: Semiring + PartialEq + Clone + Default + Debug>(
     let (order, unvisited) = layer(f);
     let layering = &layer_function_to_layers(order);
 
-    if unvisited.0.iter().any(|x| *x == 1) {
+    if unvisited.0.contains(&1) {
         None
     } else {
         let (_, outputs) = eval_layers(f, inputs, layering);

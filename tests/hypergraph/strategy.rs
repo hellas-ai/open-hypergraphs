@@ -246,7 +246,7 @@ pub type LabeledCospan<T> = (
 
 pub fn arb_cospan_type() -> BoxedStrategy<(FiniteFunctionType, FiniteFunctionType)> {
     let max_size = 10;
-    let s = arb_finite_function_type(max_size.clone(), None, None);
+    let s = arb_finite_function_type(max_size, None, None);
     s.prop_flat_map(move |s| {
         let target = s.target;
         (

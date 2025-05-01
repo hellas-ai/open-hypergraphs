@@ -70,12 +70,12 @@ where
     /// Create a new IndexedCoproduct from a FiniteFunction whose target is the sum of its
     /// elements. This condition is checked by summing the array.
     pub fn new(sources: FiniteFunction<K>, values: F) -> Option<Self> {
-        IndexedCoproduct { sources, values }.validate()
+        Self { sources, values }.validate()
     }
 
     pub fn from_semifinite(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
         let sources = FiniteFunction::new(sources.0.into(), values.len() + K::I::one())?;
-        IndexedCoproduct { sources, values }.validate()
+        Self { sources, values }.validate()
     }
 
     fn validate(self) -> Option<Self> {

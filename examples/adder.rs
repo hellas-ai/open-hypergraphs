@@ -30,21 +30,21 @@ impl var::HasVar for Gate {
     }
 }
 
-impl var::HasBitXor<Bit, Gate> for Gate {
-    fn bitxor(_: Bit, _: Bit) -> (Bit, Gate) {
-        (Bit, Gate::Xor)
+impl var::HasBitXor<Bit, Self> for Gate {
+    fn bitxor(_: Bit, _: Bit) -> (Bit, Self) {
+        (Bit, Self::Xor)
     }
 }
 
-impl var::HasBitAnd<Bit, Gate> for Gate {
-    fn bitand(_: Bit, _: Bit) -> (Bit, Gate) {
-        (Bit, Gate::And)
+impl var::HasBitAnd<Bit, Self> for Gate {
+    fn bitand(_: Bit, _: Bit) -> (Bit, Self) {
+        (Bit, Self::And)
     }
 }
 
-impl var::HasBitOr<Bit, Gate> for Gate {
-    fn bitor(_: Bit, _: Bit) -> (Bit, Gate) {
-        (Bit, Gate::Or)
+impl var::HasBitOr<Bit, Self> for Gate {
+    fn bitor(_: Bit, _: Bit) -> (Bit, Self) {
+        (Bit, Self::Or)
     }
 }
 

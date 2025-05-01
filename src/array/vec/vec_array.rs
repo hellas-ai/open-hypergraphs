@@ -138,10 +138,10 @@ impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
     }
 }
 
-impl Add<&VecArray<usize>> for usize {
-    type Output = VecArray<usize>;
+impl Add<&VecArray<Self>> for usize {
+    type Output = VecArray<Self>;
 
-    fn add(self, rhs: &VecArray<usize>) -> Self::Output {
+    fn add(self, rhs: &VecArray<Self>) -> Self::Output {
         VecArray(rhs.iter().map(|x| x + self).collect())
     }
 }
@@ -272,7 +272,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         assert_eq!(self.len(), x.len());
         let mut v: Vec<usize> = vec![];
         for (k, xi) in self.iter().zip(x) {
-            v.extend(std::iter::repeat(xi).take(*k))
+            v.extend(std::iter::repeat_n(xi, *k))
         }
         Self(v)
     }
