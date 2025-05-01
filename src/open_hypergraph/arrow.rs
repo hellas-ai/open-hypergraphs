@@ -1,17 +1,23 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::hypergraph::{Hypergraph, InvalidHypergraph};
-use crate::operations::*;
-use crate::semifinite::*;
+use crate::{
+    array::*,
+    category::*,
+    finite_function::*,
+    hypergraph::{Hypergraph, InvalidHypergraph},
+    operations::*,
+    semifinite::*,
+};
 
-use core::fmt::Debug;
-use core::ops::{BitOr, Shr};
-use num_traits::Zero;
+use {
+    core::{
+        fmt::Debug,
+        ops::{BitOr, Shr},
+    },
+    num_traits::Zero,
+};
 
 impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     fn from(value: InvalidHypergraph<K>) -> Self {
-        InvalidOpenHypergraph::InvalidHypergraph(value)
+        Self::InvalidHypergraph(value)
     }
 }
 
@@ -50,7 +56,7 @@ where
         t: FiniteFunction<K>,
         h: Hypergraph<K, O, A>,
     ) -> Result<Self, InvalidOpenHypergraph<K>> {
-        let f = OpenHypergraph { s, t, h };
+        let f = Self { s, t, h };
         f.validate()
     }
 
@@ -66,7 +72,7 @@ where
         } else if t_target != w_source {
             Err(InvalidOpenHypergraph::CospanTargetType(t_target, w_source))
         } else {
-            Ok(OpenHypergraph {
+            Ok(Self {
                 s: self.s,
                 t: self.t,
                 h,
@@ -74,19 +80,15 @@ where
         }
     }
 
-    pub fn singleton(
-        x: A,
-        a: SemifiniteFunction<K, O>,
-        b: SemifiniteFunction<K, O>,
-    ) -> OpenHypergraph<K, O, A> {
+    pub fn singleton(x: A, a: SemifiniteFunction<K, O>, b: SemifiniteFunction<K, O>) -> Self {
         Self::tensor_operations(Operations::singleton(x, a, b))
     }
 
-    pub fn tensor_operations(operations: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
+    pub fn tensor_operations(operations: Operations<K, O, A>) -> Self {
         let h = Hypergraph::tensor_operations(operations);
         let t = h.t.values.clone();
         let s = h.s.values.clone();
-        OpenHypergraph { s, t, h }
+        Self { s, t, h }
     }
 }
 
@@ -112,7 +114,7 @@ where
         let s = FiniteFunction::<K>::identity(w.0.len());
         let t = FiniteFunction::<K>::identity(w.0.len());
         let h = Hypergraph::<K, O, A>::discrete(w);
-        OpenHypergraph { s, t, h }
+        Self { s, t, h }
     }
 
     fn compose(&self, other: &Self) -> Option<Self> {
@@ -135,7 +137,7 @@ where
         // NOTE: this should never fail for a valid open hypergraph
         let h = self.tensor(other).h.coequalize_vertices(&q).unwrap();
 
-        Some(OpenHypergraph { s, t, h })
+        Some(Self { s, t, h })
     }
 }
 
@@ -150,7 +152,7 @@ where
     }
 
     fn tensor(&self, other: &Self) -> Self {
-        OpenHypergraph {
+        Self {
             s: &self.s | &other.s,
             t: &self.t | &other.t,
             h: &self.h + &other.h,
@@ -171,7 +173,7 @@ where
         // NOTE: because the *source* map is twist, the internal labelling of wires
         // is `b + a` instead of `a + b`. This matters!
         let h = Hypergraph::discrete(b + a);
-        OpenHypergraph { s, t, h }
+        Self { s, t, h }
     }
 }
 
@@ -182,7 +184,7 @@ where
     K::Type<A>: Array<K, A>,
 {
     fn dagger(&self) -> Self {
-        OpenHypergraph {
+        Self {
             s: self.t.clone(),
             t: self.s.clone(),
             h: self.h.clone(),
@@ -195,7 +197,7 @@ where
         }
 
         let h = Hypergraph::discrete(w);
-        Some(OpenHypergraph { s, t, h })
+        Some(Self { s, t, h })
     }
 }
 

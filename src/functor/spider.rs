@@ -1,11 +1,8 @@
 //! Symmetric Monoidal Hypergraph Functors on Open Hypergraphs
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::*;
-use crate::indexed_coproduct::*;
-use crate::open_hypergraph::*;
-use crate::operations::*;
-use crate::semifinite::*;
+use crate::{
+    array::*, category::*, finite_function::*, indexed_coproduct::*, open_hypergraph::*,
+    operations::*, semifinite::*,
+};
 
 /// Strict symmetric monoidal hypergraph functors
 pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {

@@ -1,10 +1,12 @@
-use crate::array::*;
-use crate::category::*;
-use crate::finite_function::FiniteFunction;
+use crate::{array::*, category::*, finite_function::FiniteFunction};
 
-use core::fmt::Debug;
-use core::ops::{Add, Shr};
-use num_traits::{One, Zero};
+use {
+    core::{
+        fmt::Debug,
+        ops::{Add, Shr},
+    },
+    num_traits::{One, Zero},
+};
 
 /// A function whose *source* is finite, but whose *target* may be non-finite.
 /// This is really just an array!
@@ -32,12 +34,12 @@ where
     }
 
     // An array of length 1, containing the element x.
-    pub fn singleton(x: T) -> SemifiniteFunction<K, T> {
-        SemifiniteFunction(K::Type::<T>::fill(x, K::I::one()))
+    pub fn singleton(x: T) -> Self {
+        Self(K::Type::<T>::fill(x, K::I::one()))
     }
 
     pub fn coproduct(&self, other: &Self) -> Self {
-        SemifiniteFunction(self.0.concatenate(&other.0))
+        Self(self.0.concatenate(&other.0))
     }
 }
 
@@ -60,11 +62,11 @@ where
 }
 
 // NOTE: we can't derive PartialEq because it will introduce an unnecessary `T: PartialEq` bound
-impl<K: ArrayKind, T> PartialEq<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
+impl<K: ArrayKind, T> PartialEq<Self> for SemifiniteFunction<K, T>
 where
     K::Type<T>: PartialEq,
 {
-    fn eq(&self, other: &SemifiniteFunction<K, T>) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
@@ -89,11 +91,11 @@ where
     }
 }
 
-impl<K: ArrayKind, T> Add<SemifiniteFunction<K, T>> for SemifiniteFunction<K, T>
+impl<K: ArrayKind, T> Add<Self> for SemifiniteFunction<K, T>
 where
     K::Type<T>: Array<K, T>,
 {
-    type Output = SemifiniteFunction<K, T>;
+    type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         self.coproduct(&rhs)
@@ -105,7 +107,7 @@ where
     K::Type<T>: Array<K, T>,
 {
     fn zero() -> Self {
-        SemifiniteFunction(K::Type::<T>::empty())
+        Self(K::Type::<T>::empty())
     }
 
     fn is_zero(&self) -> bool {

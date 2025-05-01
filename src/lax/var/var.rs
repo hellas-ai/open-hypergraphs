@@ -1,8 +1,6 @@
-use crate::lax::hypergraph::*;
-use crate::lax::open_hypergraph::*;
+use crate::lax::{hypergraph::*, open_hypergraph::*};
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 // Given a set of operation labels (i.e., edge labels),
 // distinguish one as the type of "Vars".
@@ -24,7 +22,7 @@ pub struct Var<O, A> {
 impl<O: Clone, A: HasVar> Var<O, A> {
     pub fn new(state: Rc<RefCell<OpenHypergraph<O, A>>>, default_node_label: O) -> Self {
         let (edge_id, _) = state.borrow_mut().new_operation(A::var(), vec![], vec![]);
-        Var {
+        Self {
             state,
             edge_id,
             label: default_node_label,

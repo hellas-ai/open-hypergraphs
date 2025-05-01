@@ -1,5 +1,7 @@
-use crate::array::vec::{VecArray, VecKind};
-use crate::finite_function::*;
+use crate::{
+    array::vec::{VecArray, VecKind},
+    finite_function::*,
+};
 
 use core::fmt::Debug;
 
@@ -42,7 +44,7 @@ pub struct Hypergraph<O, A> {
 impl<O, A> Hypergraph<O, A> {
     /// The empty Hypergraph with no nodes or edges.
     pub fn empty() -> Self {
-        Hypergraph {
+        Self {
             nodes: vec![],
             edges: vec![],
             adjacency: vec![],
@@ -59,7 +61,7 @@ impl<O, A> Hypergraph<O, A> {
             })
         }
 
-        Hypergraph {
+        Self {
             nodes: h.w.0 .0,
             edges: h.x.0 .0,
             adjacency,
@@ -200,7 +202,7 @@ pub(crate) fn concat<T: Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
 }
 
 impl<O: Clone, A: Clone> Hypergraph<O, A> {
-    pub(crate) fn coproduct(&self, other: &Hypergraph<O, A>) -> Hypergraph<O, A> {
+    pub(crate) fn coproduct(&self, other: &Self) -> Self {
         let n = self.nodes.len();
 
         let adjacency = self
@@ -218,7 +220,7 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
             finite_function_coproduct(&self.quotient.1, &other.quotient.1, n),
         );
 
-        Hypergraph {
+        Self {
             nodes: concat(&self.nodes, &other.nodes),
             edges: concat(&self.edges, &other.edges),
             adjacency,
@@ -231,9 +233,7 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
 fn make_hypergraph<O: Clone, A: Clone>(
     h: &Hypergraph<O, A>,
 ) -> crate::hypergraph::Hypergraph<VecKind, O, A> {
-    use crate::finite_function::*;
-    use crate::indexed_coproduct::*;
-    use crate::semifinite::*;
+    use crate::{finite_function::*, indexed_coproduct::*, semifinite::*};
 
     let s = {
         let mut lengths = Vec::<usize>::with_capacity(h.edges.len());

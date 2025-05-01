@@ -1,8 +1,10 @@
-use open_hypergraphs::array::{vec::*, *};
-use open_hypergraphs::category::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::layer::*;
+use open_hypergraphs::{
+    array::{vec::*, *},
+    category::*,
+    finite_function::*,
+    indexed_coproduct::*,
+    layer::*,
+};
 
 use core::fmt::Debug;
 
@@ -41,7 +43,7 @@ fn eval<T: Semiring + PartialEq + Clone + Default + Debug>(
     // Get layering
     let (layering, unvisited) = layered_operations(f);
 
-    if unvisited.0.iter().any(|x| *x == 1) {
+    if unvisited.0.contains(&1) {
         None
     } else {
         let op_layers: Vec<Vec<usize>> = layering.into_iter().map(|x| x.0).collect();

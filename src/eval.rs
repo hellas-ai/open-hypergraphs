@@ -1,14 +1,15 @@
 //! An array-backend-agnostic evaluator
 //!
-use crate::array::*;
-use crate::finite_function::*;
-use crate::indexed_coproduct::*;
-use crate::layer::{converse, layer};
-use crate::open_hypergraph::*;
-use crate::semifinite::*;
+use crate::{
+    array::*,
+    finite_function::*,
+    indexed_coproduct::*,
+    layer::{converse, layer},
+    open_hypergraph::*,
+    semifinite::*,
+};
 
-use num_traits::Zero;
-use std::default::Default;
+use {num_traits::Zero, std::default::Default};
 
 // Given a "layering function" `f : N → K` which maps each operation `n ∈ N` into some layer `k ∈
 // K`,

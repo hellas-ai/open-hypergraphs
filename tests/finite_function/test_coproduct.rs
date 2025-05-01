@@ -1,7 +1,8 @@
-use super::strategy::{arrow_strategy, objects_strategy};
-use open_hypergraphs::category::*;
-use open_hypergraphs::{array::vec::*, finite_function::*};
-use proptest::{prop_assert_eq, proptest};
+use {
+    super::strategy::{arrow_strategy, objects_strategy},
+    open_hypergraphs::{array::vec::*, category::*, finite_function::*},
+    proptest::{prop_assert_eq, proptest},
+};
 
 proptest! {
     #[test]

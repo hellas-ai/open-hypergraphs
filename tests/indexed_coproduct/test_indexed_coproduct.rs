@@ -1,11 +1,10 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::indexed_coproduct::*;
+use open_hypergraphs::{array::vec::*, category::*, finite_function::*, indexed_coproduct::*};
 
-use super::strategy::*;
-use crate::hypergraph::strategy::*;
-use proptest::{prelude::*, proptest};
+use {
+    super::strategy::*,
+    crate::hypergraph::strategy::*,
+    proptest::{prelude::*, proptest},
+};
 
 static MAX_SIZE: usize = 10;
 

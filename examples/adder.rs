@@ -7,8 +7,7 @@
 //!   logically-and values in the hypergraph.
 //! - An example of an n-bit ripple carry adder
 //!
-use open_hypergraphs::lax::var;
-use open_hypergraphs::lax::*;
+use open_hypergraphs::lax::{var, *};
 
 // There is a single generating object in the category: the bit.
 #[derive(PartialEq, Clone, Debug)]
@@ -27,37 +26,35 @@ pub enum Gate {
 }
 
 impl var::HasVar for Gate {
-    fn var() -> Gate {
-        Gate::Copy
+    fn var() -> Self {
+        Self::Copy
     }
 }
 
-impl var::HasBitXor<Bit, Gate> for Gate {
-    fn bitxor(_: Bit, _: Bit) -> (Bit, Gate) {
-        (Bit, Gate::Xor)
+impl var::HasBitXor<Bit, Self> for Gate {
+    fn bitxor(_: Bit, _: Bit) -> (Bit, Self) {
+        (Bit, Self::Xor)
     }
 }
 
-impl var::HasBitAnd<Bit, Gate> for Gate {
-    fn bitand(_: Bit, _: Bit) -> (Bit, Gate) {
-        (Bit, Gate::And)
+impl var::HasBitAnd<Bit, Self> for Gate {
+    fn bitand(_: Bit, _: Bit) -> (Bit, Self) {
+        (Bit, Self::And)
     }
 }
 
-impl var::HasBitOr<Bit, Gate> for Gate {
-    fn bitor(_: Bit, _: Bit) -> (Bit, Gate) {
-        (Bit, Gate::Or)
+impl var::HasBitOr<Bit, Self> for Gate {
+    fn bitor(_: Bit, _: Bit) -> (Bit, Self) {
+        (Bit, Self::Or)
     }
 }
 
-impl var::HasNot<Bit, Gate> for Gate {
-    fn not(_: Bit) -> (Bit, Gate) {
-        (Bit, Gate::Not)
+use std::{cell::RefCell, rc::Rc};
+impl var::HasNot<Bit, Self> for Gate {
+    fn not(_: Bit) -> (Bit, Self) {
+        (Bit, Self::Not)
     }
 }
-
-use std::cell::RefCell;
-use std::rc::Rc;
 
 type Term = OpenHypergraph<Bit, Gate>;
 type Builder = Rc<RefCell<Term>>;

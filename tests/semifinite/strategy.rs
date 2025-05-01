@@ -1,6 +1,8 @@
-use crate::finite_function::strategy::arrow_type_strategy;
-use open_hypergraphs::{array::vec::*, semifinite::*};
-use proptest::prelude::{Arbitrary, Strategy};
+use {
+    crate::finite_function::strategy::arrow_type_strategy,
+    open_hypergraphs::{array::vec::*, semifinite::*},
+    proptest::prelude::{Arbitrary, Strategy},
+};
 
 pub(crate) fn semifinite_strategy<T: Arbitrary>(
     source: Option<usize>,

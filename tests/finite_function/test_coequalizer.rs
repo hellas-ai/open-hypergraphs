@@ -1,5 +1,4 @@
-use open_hypergraphs::category::*;
-use open_hypergraphs::{array::vec::*, finite_function::*};
+use open_hypergraphs::{array::vec::*, category::*, finite_function::*};
 
 use super::strategy::{
     arrow_strategy, coequalizer_and_permutation_strategy, parallel_arrows_strategy,

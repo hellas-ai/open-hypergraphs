@@ -1,6 +1,5 @@
 //! Cospans of Hypergraphs.
-use super::hypergraph::*;
-use crate::array::vec::VecKind;
+use {super::hypergraph::*, crate::array::vec::VecKind};
 
 /// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
@@ -17,7 +16,7 @@ impl<O, A> OpenHypergraph<O, A> {
     ///
     /// In categorical terms, this is the identity map at the unit object.
     pub fn empty() -> Self {
-        OpenHypergraph {
+        Self {
             sources: vec![],
             targets: vec![],
             hypergraph: Hypergraph::empty(),
@@ -28,7 +27,7 @@ impl<O, A> OpenHypergraph<O, A> {
         let sources = f.s.table.0.into_iter().map(NodeId).collect();
         let targets = f.t.table.0.into_iter().map(NodeId).collect();
         let hypergraph = Hypergraph::from_strict(f.h);
-        OpenHypergraph {
+        Self {
             sources,
             targets,
             hypergraph,
@@ -106,9 +105,9 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::prelude::OpenHypergraph`] by
     /// quotienting.
     pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
-        use crate::array::vec::VecArray;
-        use crate::finite_function::FiniteFunction;
-        use crate::open_hypergraph::OpenHypergraph;
+        use crate::{
+            array::vec::VecArray, finite_function::FiniteFunction, open_hypergraph::OpenHypergraph,
+        };
 
         self.quotient();
 

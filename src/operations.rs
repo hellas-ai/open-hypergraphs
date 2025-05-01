@@ -1,7 +1,5 @@
 //! Tensorings of operations
-use crate::array::*;
-use crate::indexed_coproduct::*;
-use crate::semifinite::*;
+use crate::{array::*, indexed_coproduct::*, semifinite::*};
 
 /// Column-oriented storage of operations and their types.
 #[non_exhaustive] // force construction via new
@@ -24,7 +22,7 @@ where
         a: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
         b: IndexedCoproduct<K, SemifiniteFunction<K, O>>,
     ) -> Option<Self> {
-        (Operations { x, a, b }).validate()
+        Self { x, a, b }.validate()
     }
 
     /// Ensure this list of operations has a source and target type for each operation label.
