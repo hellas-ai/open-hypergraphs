@@ -61,7 +61,7 @@ impl<O, A> Hypergraph<O, A> {
             })
         }
 
-        Hypergraph {
+        Self {
             nodes: h.w.0 .0,
             edges: h.x.0 .0,
             adjacency,
@@ -202,7 +202,7 @@ pub(crate) fn concat<T: Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
 }
 
 impl<O: Clone, A: Clone> Hypergraph<O, A> {
-    pub(crate) fn coproduct(&self, other: &Hypergraph<O, A>) -> Hypergraph<O, A> {
+    pub(crate) fn coproduct(&self, other: &Self) -> Self {
         let n = self.nodes.len();
 
         let adjacency = self
@@ -220,7 +220,7 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
             finite_function_coproduct(&self.quotient.1, &other.quotient.1, n),
         );
 
-        Hypergraph {
+        Self {
             nodes: concat(&self.nodes, &other.nodes),
             edges: concat(&self.edges, &other.edges),
             adjacency,

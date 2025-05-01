@@ -27,7 +27,7 @@ impl<O, A> OpenHypergraph<O, A> {
         let sources = f.s.table.0.into_iter().map(NodeId).collect();
         let targets = f.t.table.0.into_iter().map(NodeId).collect();
         let hypergraph = Hypergraph::from_strict(f.h);
-        OpenHypergraph {
+        Self {
             sources,
             targets,
             hypergraph,

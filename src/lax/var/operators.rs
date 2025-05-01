@@ -4,7 +4,6 @@ use {
     std::ops::{Add, BitAnd, BitOr, BitXor},
 };
 
-use super::var::*;
 
 use std::{cell::RefCell, ops::*, rc::Rc};
 

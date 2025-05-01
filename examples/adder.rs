@@ -50,9 +50,9 @@ impl var::HasBitOr<Bit, Self> for Gate {
 }
 
 use std::{cell::RefCell, rc::Rc};
-impl var::HasNot<Bit, Gate> for Gate {
-    fn not(_: Bit) -> (Bit, Gate) {
-        (Bit, Gate::Not)
+impl var::HasNot<Bit, Self> for Gate {
+    fn not(_: Bit) -> (Bit, Self) {
+        (Bit, Self::Not)
     }
 }
 

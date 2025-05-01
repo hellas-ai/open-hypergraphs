@@ -19,7 +19,7 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
     }
 
     fn identity(a: Self::Object) -> Self {
-        let mut f = OpenHypergraph::empty();
+        let mut f = Self::empty();
         let node_ids: Vec<NodeId> = a.iter().map(|o| f.new_node(o.clone())).collect();
         f.sources = node_ids.clone();
         f.targets = node_ids.clone();
@@ -69,7 +69,7 @@ impl<O: Clone + PartialEq, A: Clone> Monoidal for OpenHypergraph<O, A> {
             .chain(other.targets.iter().map(|&i| NodeId(i.0 + n)))
             .collect();
 
-        OpenHypergraph {
+        Self {
             sources,
             targets,
             hypergraph,
@@ -85,7 +85,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> SymmetricMonoidal for OpenHyper
             SemifiniteFunction(VecArray(a)),
             SemifiniteFunction(VecArray(b)),
         );
-        OpenHypergraph::from_strict(f)
+        Self::from_strict(f)
     }
 }
 
@@ -104,7 +104,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Spider<VecKind> for OpenHypergr
     ) -> Option<Self> {
         let w = SemifiniteFunction(VecArray(w));
         let f = crate::open_hypergraph::OpenHypergraph::spider(s, t, w)?;
-        Some(OpenHypergraph::from_strict(f))
+        Some(Self::from_strict(f))
     }
 }
 
