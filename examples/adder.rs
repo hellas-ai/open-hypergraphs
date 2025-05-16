@@ -64,7 +64,7 @@ type Builder = Rc<RefCell<Term>>;
 type Var = var::Var<Bit, Gate>;
 
 fn zero(state: Builder) -> Var {
-    var::operation(&state, &[], Bit, Gate::Zero)
+    var::fn_operation(&state, &[], Bit, Gate::Zero)
 }
 
 fn full_adder(a: Var, b: Var, cin: Var) -> (Var, Var) {
