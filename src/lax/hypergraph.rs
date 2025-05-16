@@ -50,7 +50,7 @@ impl<O, A> Hypergraph<O, A> {
         }
     }
 
-    pub fn from_strict(h: crate::hypergraph::Hypergraph<VecKind, O, A>) -> Self {
+    pub fn from_strict(h: crate::strict::hypergraph::Hypergraph<VecKind, O, A>) -> Self {
         let mut adjacency = Vec::with_capacity(h.x.0.len());
         for (sources, targets) in h.s.into_iter().zip(h.t.into_iter()) {
             adjacency.push(Hyperedge {
@@ -227,10 +227,10 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
     }
 }
 
-/// Create a [`crate::hypergraph::Hypergraph`] by forgetting about the quotient map.
+/// Create a [`crate::strict::hypergraph::Hypergraph`] by forgetting about the quotient map.
 fn make_hypergraph<O: Clone, A: Clone>(
     h: &Hypergraph<O, A>,
-) -> crate::hypergraph::Hypergraph<VecKind, O, A> {
+) -> crate::strict::hypergraph::Hypergraph<VecKind, O, A> {
     use crate::finite_function::*;
     use crate::indexed_coproduct::*;
     use crate::semifinite::*;
@@ -266,5 +266,5 @@ fn make_hypergraph<O: Clone, A: Clone>(
     let w = SemifiniteFunction(VecArray(h.nodes.clone()));
     let x = SemifiniteFunction(VecArray(h.edges.clone()));
 
-    crate::hypergraph::Hypergraph { s, t, w, x }
+    crate::strict::hypergraph::Hypergraph { s, t, w, x }
 }

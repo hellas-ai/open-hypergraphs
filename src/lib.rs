@@ -258,23 +258,21 @@ pub mod indexed_coproduct;
 pub mod operations;
 pub mod semifinite;
 
-pub mod hypergraph;
-pub mod open_hypergraph;
-
-pub mod eval;
-pub mod functor;
-pub mod layer;
+/// Strict open hypergraphs
+pub mod strict;
 
 // imperative interface to building open hypergraphs
 pub mod lax;
 
+// TODO: remove prelude. use lax instead.
 pub mod prelude {
     //! Type alises for Open Hypergraphs using the [`VecKind`] array backend.
     pub use crate::array::vec::*;
     pub use crate::category::*;
 
-    pub type OpenHypergraph<Obj, Arr> = crate::open_hypergraph::OpenHypergraph<VecKind, Obj, Arr>;
-    pub type Hypergraph<Obj, Arr> = crate::hypergraph::Hypergraph<VecKind, Obj, Arr>;
+    pub type OpenHypergraph<Obj, Arr> =
+        crate::strict::open_hypergraph::OpenHypergraph<VecKind, Obj, Arr>;
+    pub type Hypergraph<Obj, Arr> = crate::strict::hypergraph::Hypergraph<VecKind, Obj, Arr>;
     pub type FiniteFunction = crate::finite_function::FiniteFunction<VecKind>;
     pub type SemifiniteFunction<T> = crate::semifinite::SemifiniteFunction<VecKind, T>;
     pub type IndexedCoproduct<F> = crate::indexed_coproduct::IndexedCoproduct<VecKind, F>;

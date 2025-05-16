@@ -3,9 +3,10 @@
 use crate::array::*;
 use crate::finite_function::*;
 use crate::indexed_coproduct::*;
-use crate::layer::{converse, layer};
-use crate::open_hypergraph::*;
 use crate::semifinite::*;
+
+use crate::strict::layer::{converse, layer};
+use crate::strict::open_hypergraph::*;
 
 use num_traits::Zero;
 use std::default::Default;

@@ -3,9 +3,10 @@ use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
 use crate::indexed_coproduct::*;
-use crate::open_hypergraph::*;
 use crate::operations::*;
 use crate::semifinite::*;
+
+use crate::strict::open_hypergraph::*;
 
 /// Strict symmetric monoidal hypergraph functors
 pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {

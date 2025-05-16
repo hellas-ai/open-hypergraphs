@@ -2,9 +2,10 @@ use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
 use crate::indexed_coproduct::*;
-use crate::open_hypergraph::*;
 use crate::operations::*;
 use crate::semifinite::*;
+
+use crate::strict::open_hypergraph::*;
 
 use super::spider::*;
 

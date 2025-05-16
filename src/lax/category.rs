@@ -84,7 +84,7 @@ use crate::semifinite::*;
 
 impl<O: Clone + PartialEq, A: Clone + PartialEq> SymmetricMonoidal for OpenHypergraph<O, A> {
     fn twist(a: Self::Object, b: Self::Object) -> Self {
-        let f = crate::open_hypergraph::OpenHypergraph::twist(
+        let f = crate::strict::open_hypergraph::OpenHypergraph::twist(
             SemifiniteFunction(VecArray(a)),
             SemifiniteFunction(VecArray(b)),
         );
@@ -106,7 +106,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Spider<VecKind> for OpenHypergr
         w: Self::Object,
     ) -> Option<Self> {
         let w = SemifiniteFunction(VecArray(w));
-        let f = crate::open_hypergraph::OpenHypergraph::spider(s, t, w)?;
+        let f = crate::strict::open_hypergraph::OpenHypergraph::spider(s, t, w)?;
         Some(OpenHypergraph::from_strict(f))
     }
 }

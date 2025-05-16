@@ -24,7 +24,7 @@ impl<O, A> OpenHypergraph<O, A> {
         }
     }
 
-    pub fn from_strict(f: crate::open_hypergraph::OpenHypergraph<VecKind, O, A>) -> Self {
+    pub fn from_strict(f: crate::strict::open_hypergraph::OpenHypergraph<VecKind, O, A>) -> Self {
         let sources = f.s.table.0.into_iter().map(NodeId).collect();
         let targets = f.t.table.0.into_iter().map(NodeId).collect();
         let hypergraph = Hypergraph::from_strict(f.h);
@@ -108,7 +108,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
     pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
         use crate::array::vec::VecArray;
         use crate::finite_function::FiniteFunction;
-        use crate::open_hypergraph::OpenHypergraph;
+        use crate::strict::open_hypergraph::OpenHypergraph;
 
         self.quotient();
 

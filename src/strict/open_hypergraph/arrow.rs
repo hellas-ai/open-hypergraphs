@@ -1,9 +1,9 @@
 use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
-use crate::hypergraph::{Hypergraph, InvalidHypergraph};
 use crate::operations::*;
 use crate::semifinite::*;
+use crate::strict::hypergraph::{Hypergraph, InvalidHypergraph};
 
 use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
