@@ -125,7 +125,7 @@ fn n_bit_adder(n: usize) -> Term {
 fn xor() -> Term {
     let state = Rc::new(RefCell::new(Term::empty()));
 
-    // Block contents make sure we don't
+    // Block contents make sure all acquired Rc references are dropped.
     {
         let xs = vec![Var::new(state.clone(), Bit); 2];
         let y = xs[0].clone() ^ xs[1].clone();
