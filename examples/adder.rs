@@ -99,18 +99,19 @@ fn ripple_carry_adder(state: Builder, a: &[Var], b: &[Var]) -> (Vec<Var>, Var) {
 }
 
 // build a ripple_carry_adder and set its inputs/outputs
-fn n_bit_adder() -> Term {
+fn n_bit_adder(n: usize) -> Term {
     let state = Rc::new(RefCell::new(Term::empty()));
 
     {
-        let n = 10;
-
-        // inputs
-        let xs = vec![Var::new(state.clone(), Bit); 2 * n];
-        let (zs, _cout) = ripple_carry_adder(state.clone(), &xs[..n], &xs[n..]);
+        // inputs: two n-bit numbers.
+        let xs = (0..2 * n)
+            .map(|_| Var::new(state.clone(), Bit))
+            .collect::<Vec<_>>();
+        let (zs, cout) = ripple_carry_adder(state.clone(), &xs[..n], &xs[n..]);
 
         let sources: Vec<NodeId> = xs.into_iter().map(|x| x.new_source()).collect();
-        let targets: Vec<NodeId> = zs.into_iter().map(|x| x.new_target()).collect();
+        let mut targets: Vec<NodeId> = zs.into_iter().map(|x| x.new_target()).collect();
+        targets.push(cout.new_target());
 
         let mut term = state.borrow_mut();
         term.sources = sources;
@@ -138,6 +139,6 @@ fn xor() -> Term {
 
 fn main() {
     let _xor_term = xor();
-    let adder_term = n_bit_adder();
+    let adder_term = n_bit_adder(8);
     println!("{:?}", adder_term);
 }

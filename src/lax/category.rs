@@ -1,4 +1,4 @@
-//! Cospans of Hypergraphs.
+//! Implement [`crate::category`] traits for [`crate::lax::OpenHypergraph`]
 use crate::array::vec::VecKind;
 use crate::category::*;
 use crate::lax::*;
