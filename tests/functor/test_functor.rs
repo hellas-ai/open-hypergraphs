@@ -1,5 +1,5 @@
 use open_hypergraphs::category::*;
-use open_hypergraphs::functor::*;
+use open_hypergraphs::strict::functor::*;
 
 use crate::open_hypergraph::equality::*;
 use crate::theory::meaningless::*;

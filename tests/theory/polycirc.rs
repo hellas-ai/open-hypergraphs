@@ -1,6 +1,6 @@
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::open_hypergraph::*;
 use open_hypergraphs::semifinite::*;
+use open_hypergraphs::strict::open_hypergraph::*;
 
 use core::ops::{Add, Mul};
 use num_traits::{One, Zero};

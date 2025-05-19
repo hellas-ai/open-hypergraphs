@@ -1,5 +1,5 @@
 use open_hypergraphs::category::*;
-use open_hypergraphs::open_hypergraph::*;
+use open_hypergraphs::strict::open_hypergraph::*;
 
 use crate::open_hypergraph::equality::assert_open_hypergraph_equality_invariants;
 use crate::theory::meaningless::*;

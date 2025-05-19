@@ -1,6 +1,6 @@
 use open_hypergraphs::array::*;
 use open_hypergraphs::category::*;
-use open_hypergraphs::open_hypergraph::*;
+use open_hypergraphs::strict::open_hypergraph::*;
 
 use crate::hypergraph::equality::assert_hypergraph_equality_invariants;
 use core::fmt::Debug;

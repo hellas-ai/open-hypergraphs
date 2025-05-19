@@ -1,5 +1,5 @@
-use open_hypergraphs::eval::eval;
 use open_hypergraphs::prelude::*;
+use open_hypergraphs::strict::eval::eval;
 
 use core::ops::{Add, Mul};
 use num_traits::{One, Zero};

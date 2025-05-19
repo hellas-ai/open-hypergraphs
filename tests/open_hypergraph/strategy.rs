@@ -1,8 +1,8 @@
 use open_hypergraphs::array::vec::*;
 use open_hypergraphs::category::*;
-use open_hypergraphs::hypergraph::Hypergraph;
-use open_hypergraphs::open_hypergraph::OpenHypergraph;
 use open_hypergraphs::semifinite::*;
+use open_hypergraphs::strict::hypergraph::Hypergraph;
+use open_hypergraphs::strict::open_hypergraph::OpenHypergraph;
 
 use crate::hypergraph::strategy::{
     arb_finite_function, arb_finite_function_type, arb_hypergraph, arb_inclusion, arb_semifinite,

@@ -2,7 +2,7 @@ use open_hypergraphs::array::{vec::*, *};
 use open_hypergraphs::category::*;
 use open_hypergraphs::finite_function::*;
 use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::layer::*;
+use open_hypergraphs::strict::layer::*;
 
 use core::fmt::Debug;
 

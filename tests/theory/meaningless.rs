@@ -3,8 +3,8 @@
 // Generating operations are unsigned 8-bit integers of arbitrary type.
 
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::hypergraph::{arrow::*, *};
-use open_hypergraphs::open_hypergraph::*;
+use open_hypergraphs::strict::hypergraph::{arrow::*, *};
+use open_hypergraphs::strict::open_hypergraph::*;
 
 use crate::hypergraph::strategy::{DiscreteSpan, Labels};
 use proptest::strategy::{BoxedStrategy, Strategy};

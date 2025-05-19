@@ -1,11 +1,11 @@
 use open_hypergraphs::array::vec::*;
 use open_hypergraphs::category::*;
 use open_hypergraphs::finite_function::*;
-use open_hypergraphs::functor::*;
 use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::open_hypergraph::*;
 use open_hypergraphs::operations::*;
 use open_hypergraphs::semifinite::*;
+use open_hypergraphs::strict::functor::*;
+use open_hypergraphs::strict::open_hypergraph::*;
 
 use core::fmt::Debug;
 use num_traits::Zero;
