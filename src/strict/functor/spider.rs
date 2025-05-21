@@ -11,59 +11,24 @@ use crate::strict::open_hypergraph::*;
 /// Strict symmetric monoidal hypergraph functors
 pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {
     /// Action on objects
-    fn map_object(a: &SemifiniteFunction<K, O1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
+    fn map_object(
+        &self,
+        a: &SemifiniteFunction<K, O1>,
+    ) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
 
     /// Action on arrows
-    fn map_arrow(a: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
+    /// This is generally easier to implement in terms of a functors' action on a tensoring of [`Operations`].
+    /// Use [`functor_map_arrow`] for that.
+    fn map_arrow(&self, a: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
 }
 
-/// The identity functor, which implements [`Functor`] for any signature.
-pub struct Identity;
-
-impl<K: ArrayKind, O, A> Functor<K, O, A, O, A> for Identity
-where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
-    K::Type<A>: Array<K, A>,
-{
-    fn map_object(a: &SemifiniteFunction<K, O>) -> IndexedCoproduct<K, SemifiniteFunction<K, O>> {
-        IndexedCoproduct::elements(a.clone())
-    }
-
-    fn map_arrow(f: &OpenHypergraph<K, O, A>) -> OpenHypergraph<K, O, A> {
-        f.clone()
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Spider Functors
-
-pub fn to_operations<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> Operations<K, O, A>
-where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
-    K::Type<A>: Array<K, A>,
-{
-    Operations {
-        x: f.h.x.clone(),
-        a: f.h.s.map_semifinite(&f.h.w).unwrap(),
-        b: f.h.t.map_semifinite(&f.h.w).unwrap(),
-    }
-}
-
-fn map_half_spider<K: ArrayKind, O>(
-    w: &IndexedCoproduct<K, SemifiniteFunction<K, O>>,
-    f: &FiniteFunction<K>,
-) -> FiniteFunction<K> {
-    w.sources.injections(f).unwrap()
-}
-
-/// A [`SpiderFunctor`] is a [`Functor`] implemented in terms of its action on a tensoring of
-/// [`Operations`].
-/// This is (generally) easier to implement than [`Functor`] directly.
-///
-// NOTE: [`SpiderFunctor`] does not imply Functor because of the orphan instances rule.
-pub trait SpiderFunctor<K: ArrayKind, O1, A1, O2, A2>: Sized
+/// Define a functor (a mapping on [`OpenHypergraph`]s) by its action on [`Operations`].
+/// This is typically easier than implementing `map_arrow` directly.
+pub fn define_map_arrow<K: ArrayKind, O1, A1, O2, A2, F: Functor<K, O1, A1, O2, A2>>(
+    functor: &F,
+    f: &OpenHypergraph<K, O1, A1>,
+    map_operations: impl Fn(Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>,
+) -> OpenHypergraph<K, O2, A2>
 where
     K::Type<K::I>: NaturalArray<K>,
 
@@ -73,29 +38,19 @@ where
     K::Type<O2>: Array<K, O2>,
     K::Type<A2>: Array<K, A2>,
 {
-    /// Action on objects
-    fn map_object(a: &SemifiniteFunction<K, O1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
+    // Compute the tensoring of operations
+    // Fx = F(x₀) ● F(x₁) ● ... ● F(x_n)
+    let fx = map_operations(to_operations(f));
 
-    /// Often, it's easier to map a list of operations f, g, h into their tensoring F(f) ● F(g) ●
-    /// F(h).
-    /// This efficiently generalises to the implementation of map_arrow.
-    fn map_operations(ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
+    // Compute the tensoring of objects
+    // Fw = F(w₀) ● F(w₁) ● ... ● ... F(w_n)
+    let fw = functor.map_object(&f.h.w);
 
-    fn map_arrow(f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
-        // Compute the tensoring of operations
-        // Fx = F(x₀) ● F(x₁) ● ... ● F(x_n)
-        let fx = Self::map_operations(to_operations(f));
-
-        // Compute the tensoring of objects
-        // Fw = F(w₀) ● F(w₁) ● ... ● ... F(w_n)
-        let fw = Self::map_object(&f.h.w);
-
-        spider_map_arrow::<K, O1, A1, O2, A2>(f, fw, fx)
-    }
+    spider_map_arrow::<K, O1, A1, O2, A2>(f, fw, fx)
 }
 
-// NOTE: this implementation is factored outside the trait impl so we can use it in the Optic
-// functor implementation as well.
+// Given an arrow `f`, and a functor's action on its objects `fw` and operations `fx`,
+// return the value of the functor applied to `f`.
 pub(crate) fn spider_map_arrow<K: ArrayKind, O1, A1, O2, A2>(
     f: &OpenHypergraph<K, O1, A1>,
     fw: IndexedCoproduct<K, SemifiniteFunction<K, O2>>,
@@ -146,18 +101,22 @@ where
     sx.compose(&i.tensor(&fx)).unwrap().compose(&yt).unwrap()
 }
 
-impl<K: ArrayKind, O, A> SpiderFunctor<K, O, A, O, A> for Identity
+pub(crate) fn to_operations<K: ArrayKind, O, A>(f: &OpenHypergraph<K, O, A>) -> Operations<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
     K::Type<O>: Array<K, O>,
     K::Type<A>: Array<K, A>,
 {
-    fn map_object(a: &SemifiniteFunction<K, O>) -> IndexedCoproduct<K, SemifiniteFunction<K, O>> {
-        // same action on objects
-        <Self as Functor<K, O, A, O, A>>::map_object(a)
+    Operations {
+        x: f.h.x.clone(),
+        a: f.h.s.map_semifinite(&f.h.w).unwrap(),
+        b: f.h.t.map_semifinite(&f.h.w).unwrap(),
     }
+}
 
-    fn map_operations(ops: Operations<K, O, A>) -> OpenHypergraph<K, O, A> {
-        OpenHypergraph::tensor_operations(ops)
-    }
+pub(crate) fn map_half_spider<K: ArrayKind, O>(
+    w: &IndexedCoproduct<K, SemifiniteFunction<K, O>>,
+    f: &FiniteFunction<K>,
+) -> FiniteFunction<K> {
+    w.sources.injections(f).unwrap()
 }
