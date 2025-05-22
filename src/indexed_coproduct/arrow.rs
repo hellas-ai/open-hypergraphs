@@ -72,6 +72,8 @@ where
         IndexedCoproduct { sources, values }.validate()
     }
 
+    /// Create a [`IndexedCoproduct`] from an *array* of sources by computing their sum to create a
+    /// [`FiniteFunction`].
     pub fn from_semifinite(sources: SemifiniteFunction<K, K::I>, values: F) -> Option<Self> {
         let sources = FiniteFunction::new(sources.0.into(), values.len() + K::I::one())?;
         IndexedCoproduct { sources, values }.validate()
