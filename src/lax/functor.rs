@@ -119,3 +119,21 @@ impl<
         strict::functor::define_map_arrow(self, f)
     }
 }
+
+/// The identity functor for lax open hypergraphs.
+#[derive(Clone)]
+pub struct Identity;
+
+impl<O: PartialEq + Clone, A: Clone + PartialEq> Functor<O, A, O, A> for Identity {
+    fn map_object(&self, o: &O) -> impl ExactSizeIterator<Item = O> {
+        std::iter::once(o.clone())
+    }
+
+    fn map_operation(&self, a: &A, source: &[O], target: &[O]) -> crate::lax::OpenHypergraph<O, A> {
+        OpenHypergraph::singleton(a.clone(), source.to_vec(), target.to_vec())
+    }
+
+    fn map_arrow(&self, f: &crate::lax::OpenHypergraph<O, A>) -> crate::lax::OpenHypergraph<O, A> {
+        define_map_arrow(self, f)
+    }
+}

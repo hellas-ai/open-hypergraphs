@@ -41,5 +41,7 @@
 mod operators;
 mod var;
 
+pub mod forget;
+
 pub use operators::*;
 pub use var::*;

@@ -17,7 +17,7 @@ impl<O, A> Hypergraph<O, A> {
         self.adjacency
             .extend(rhs.adjacency.into_iter().map(|edge| Hyperedge {
                 sources: add_offset(n, edge.sources.iter()).collect(),
-                targets: add_offset(n, edge.sources.iter()).collect(),
+                targets: add_offset(n, edge.targets.iter()).collect(),
             }));
 
         self.quotient.0.extend(add_offset(n, rhs.quotient.0.iter()));
