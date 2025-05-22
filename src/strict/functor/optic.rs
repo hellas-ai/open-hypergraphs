@@ -12,6 +12,9 @@ use super::spider::*;
 use core::fmt::Debug;
 use num_traits::One;
 
+type ResidualFn<K, O1, A1, O2> =
+    dyn Fn(&Operations<K, O1, A1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
+
 /// An optic is composed of forward and reverse functors along with a residual object
 pub struct Optic<
     F: Functor<K, O1, A1, O2, A2>,
@@ -22,10 +25,35 @@ pub struct Optic<
     O2,
     A2,
 > {
-    fwd: F,
-    rev: R,
-    residual: Box<dyn Fn(&Operations<K, O1, A1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>>,
+    pub fwd: F,
+    pub rev: R,
+    pub residual: Box<ResidualFn<K, O1, A1, O2>>,
     _phantom: std::marker::PhantomData<A2>,
+}
+
+impl<
+        F: Functor<K, O1, A1, O2, A2>,
+        R: Functor<K, O1, A1, O2, A2>,
+        K: ArrayKind,
+        O1,
+        A1,
+        O2,
+        A2,
+    > Optic<F, R, K, O1, A1, O2, A2>
+{
+    pub fn new(
+        fwd: F,
+        rev: R,
+        residual: Box<ResidualFn<K, O1, A1, O2>>,
+    ) -> Optic<F, R, K, O1, A1, O2, A2> {
+        let _phantom = std::marker::PhantomData;
+        Optic {
+            fwd,
+            rev,
+            residual,
+            _phantom,
+        }
+    }
 }
 
 impl<F, R, K: ArrayKind + Debug, O1, A1, O2, A2> Functor<K, O1, A1, O2, A2>

@@ -6,6 +6,8 @@ pub mod functor;
 pub mod layer;
 
 pub use crate::array::*;
+pub use crate::category::*;
+pub use crate::finite_function::FiniteFunction;
 pub use crate::indexed_coproduct::IndexedCoproduct;
 pub use crate::semifinite::SemifiniteFunction;
 pub use open_hypergraph::*;

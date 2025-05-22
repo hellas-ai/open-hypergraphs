@@ -1,11 +1,8 @@
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::indexed_coproduct::*;
 use open_hypergraphs::operations::*;
-use open_hypergraphs::semifinite::*;
+use open_hypergraphs::strict::functor::identity::Identity;
 use open_hypergraphs::strict::functor::*;
-use open_hypergraphs::strict::open_hypergraph::*;
+use open_hypergraphs::strict::*;
 
 use core::fmt::Debug;
 use num_traits::Zero;
@@ -31,39 +28,40 @@ enum Op {
 // The reverse map is the dagger functor: which just swaps source and target type of each operation.
 struct Dagger;
 
-impl<O: PartialEq + Clone, A: PartialEq + Clone> SpiderFunctor<VecKind, O, A, O, A> for Dagger {
+impl<O: PartialEq + Clone, A: PartialEq + Clone> Functor<VecKind, O, A, O, A> for Dagger {
     // Dagger is identity on objects...
     fn map_object(
+        &self,
         a: &SemifiniteFunction<VecKind, O>,
     ) -> IndexedCoproduct<VecKind, SemifiniteFunction<VecKind, O>> {
         IndexedCoproduct::elements(a.clone())
     }
 
     // ... and swaps source/target type of each operation.
-    fn map_operations(ops: Operations<VecKind, O, A>) -> OpenHypergraph<VecKind, O, A> {
+    fn map_operations(&self, ops: Operations<VecKind, O, A>) -> OpenHypergraph<VecKind, O, A> {
         OpenHypergraph::tensor_operations(
             Operations::new(ops.x, ops.b, ops.a).expect("safe by construction"),
         )
     }
+
+    fn map_arrow(&self, f: &OpenHypergraph<VecKind, O, A>) -> OpenHypergraph<VecKind, O, A> {
+        define_map_arrow(self, f)
+    }
 }
 
-struct DaggerOptic;
-
-impl<O: PartialEq + Clone + Debug, A: PartialEq + Clone + Debug> Optic<VecKind, O, A, O, A>
-    for DaggerOptic
-{
-    type F = Identity;
-    type R = Dagger;
-
-    fn residual(
-        ops: &Operations<VecKind, O, A>,
-    ) -> IndexedCoproduct<VecKind, SemifiniteFunction<VecKind, O>> {
-        // The residual object for each operation is the unit object;
-        // so we map each operation to the empty array.
-        let sources = FiniteFunction::terminal(ops.len());
-        let values = SemifiniteFunction::zero();
-        IndexedCoproduct::new(sources, values).unwrap()
-    }
+fn dagger_optic<O: Clone + PartialEq + Debug, A: Clone + PartialEq + Debug>(
+) -> Optic<Identity, Dagger, VecKind, O, A, O, A> {
+    Optic::new(
+        Identity,
+        Dagger,
+        Box::new(|ops: &Operations<VecKind, O, A>| {
+            // The residual object for each operation is the unit object;
+            // so we map each operation to the empty array.
+            let sources = FiniteFunction::terminal(ops.len());
+            let values = SemifiniteFunction::zero();
+            IndexedCoproduct::new(sources, values).unwrap()
+        }),
+    )
 }
 
 #[test]
@@ -72,7 +70,8 @@ fn test_dagger_optic_identity() {
     let w = SemifiniteFunction::<VecKind, Ob>(VecArray(vec![A, B]));
     let id = OpenHypergraph::<VecKind, Ob, Op>::identity(w.clone());
 
-    let fw = <DaggerOptic as Optic<VecKind, Ob, Op, Ob, Op>>::map_object(&w);
+    let dagger_optic = dagger_optic();
+    let fw = dagger_optic.map_object(&w);
 
     // Check that for each "sublist" in the indexed coproduct fw, there is a single generating
     // object in w.
@@ -88,7 +87,7 @@ fn test_dagger_optic_identity() {
     let t = FiniteFunction::transpose(w.len(), 2);
     assert_eq!((&t >> &fw.values).unwrap().0, VecArray(vec![A, B, A, B]));
 
-    let ff = DaggerOptic::map_arrow(&id);
+    let ff = dagger_optic.map_arrow(&id);
     assert_eq!(ff.source(), SemifiniteFunction(VecArray(vec![A, A, B, B])));
     assert_eq!(ff.target(), SemifiniteFunction(VecArray(vec![A, A, B, B])));
 }
@@ -100,19 +99,20 @@ fn test_dagger_optic_singleton() {
 
     let x = SemifiniteFunction::<VecKind, Ob>(VecArray(vec![A, B]));
     let y = SemifiniteFunction::<VecKind, Ob>(VecArray(vec![C]));
+    let dagger_optic = dagger_optic();
 
     let f = OpenHypergraph::singleton(F, x.clone(), y.clone());
 
     // transposing interleaves the F/R objects
-    let f_x = <DaggerOptic as Optic<VecKind, Ob, Op, Ob, Op>>::map_object(&x);
+    let f_x = dagger_optic.map_object(&x);
     let t_x = FiniteFunction::transpose(x.len(), 2);
     assert_eq!((&t_x >> &f_x.values).unwrap(), (&x + &x).unwrap());
 
-    let f_y = <DaggerOptic as Optic<VecKind, Ob, Op, Ob, Op>>::map_object(&y);
+    let f_y = dagger_optic.map_object(&y);
     let t_y = FiniteFunction::transpose(y.len(), 2);
     assert_eq!((&t_y >> &f_y.values).unwrap(), (&y + &y).unwrap());
 
-    let ff = DaggerOptic::map_arrow(&f);
+    let ff = dagger_optic.map_arrow(&f);
     assert_eq!(ff.source(), f_x.values);
     assert_eq!(ff.target(), f_y.values);
 }
@@ -123,14 +123,16 @@ use proptest::proptest;
 proptest! {
     #[test]
     fn test_dagger_optic_type(f in arb_open_hypergraph()) {
-        let ff = <DaggerOptic as Optic<VecKind, Obj, Arr, Obj, Arr>>::map_arrow(&f);
+        let dagger_optic = dagger_optic::<Obj, Arr>();
+        let ff = dagger_optic.map_arrow(&f);
 
-        // this is horrifyingly bad. hopefully user code will not have to look like this...
-        let f_a = <<DaggerOptic as Optic<VecKind, Obj, Arr, Obj, Arr>>::F as SpiderFunctor::<VecKind, Obj, Arr, Obj, Arr>>::map_object(&f.source());
-        let r_a = <<DaggerOptic as Optic<VecKind, Obj, Arr, Obj, Arr>>::R as SpiderFunctor::<VecKind, Obj, Arr, Obj, Arr>>::map_object(&f.source());
+        // TODO: is there a nicer way to annotate the types here?
+        // Only the `Arr` types are not inferable.
+        let f_a = <_ as Functor<_, _, Arr, _, Arr>>::map_object(&dagger_optic.fwd, &f.source());
+        let r_a = <_ as Functor<_, _, Arr, _, Arr>>::map_object(&dagger_optic.rev, &f.source());
 
-        let f_b = <<DaggerOptic as Optic<VecKind, Obj, Arr, Obj, Arr>>::F as SpiderFunctor::<VecKind, Obj, Arr, Obj, Arr>>::map_object(&f.target());
-        let r_b = <<DaggerOptic as Optic<VecKind, Obj, Arr, Obj, Arr>>::R as SpiderFunctor::<VecKind, Obj, Arr, Obj, Arr>>::map_object(&f.target());
+        let f_b = <_ as Functor<_, _, Arr, _, Arr>>::map_object(&dagger_optic.fwd, &f.target());
+        let r_b = <_ as Functor<_, _, Arr, _, Arr>>::map_object(&dagger_optic.rev, &f.target());
 
         assert_eq!(f_a.len(), r_a.len());
         assert_eq!(f_b.len(), r_b.len());
