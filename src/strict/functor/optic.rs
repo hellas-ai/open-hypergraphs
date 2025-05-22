@@ -13,25 +13,39 @@ use core::fmt::Debug;
 use num_traits::One;
 
 /// An optic is composed of forward and reverse functors along with a residual object
-pub trait Optic<K: ArrayKind + Debug, O1, A1, O2, A2>
+pub struct Optic<
+    F: Functor<K, O1, A1, O2, A2>,
+    R: Functor<K, O1, A1, O2, A2>,
+    K: ArrayKind,
+    O1,
+    A1,
+    O2,
+    A2,
+> {
+    fwd: F,
+    rev: R,
+    residual: Box<dyn Fn(&Operations<K, O1, A1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>>,
+    _phantom: std::marker::PhantomData<A2>,
+}
+
+impl<F, R, K: ArrayKind + Debug, O1, A1, O2, A2> Functor<K, O1, A1, O2, A2>
+    for Optic<F, R, K, O1, A1, O2, A2>
 where
+    F: Functor<K, O1, A1, O2, A2>,
+    R: Functor<K, O1, A1, O2, A2>,
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O1>: Array<K, O1> + Debug,
-    K::Type<A1>: Array<K, A1> + Debug,
+    K::Type<O1>: Array<K, O1>,
+    K::Type<A1>: Array<K, A1>,
     K::Type<O2>: Array<K, O2> + Debug,
-    K::Type<A2>: Array<K, A2> + Debug,
+    K::Type<A2>: Array<K, A2>,
 {
-    type F: SpiderFunctor<K, O1, A1, O2, A2>;
-    type R: SpiderFunctor<K, O1, A1, O2, A2>;
-
-    /// Compute the residual object M for operations
-    // TODO: replace with operations?
-    fn residual(ops: &Operations<K, O1, A1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
-
-    fn map_object(a: &SemifiniteFunction<K, O1>) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>> {
+    fn map_object(
+        &self,
+        a: &SemifiniteFunction<K, O1>,
+    ) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>> {
         // Each object A is mapped to F(A) ● R(A)
-        let fa = Self::F::map_object(a);
-        let ra = Self::R::map_object(a);
+        let fa = self.fwd.map_object(a);
+        let ra = self.rev.map_object(a);
 
         assert_eq!(fa.len(), ra.len());
         let n = fa.len();
@@ -51,18 +65,18 @@ where
         IndexedCoproduct::new(sources, values).unwrap()
     }
 
-    fn map_operations(ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
+    fn map_operations(&self, ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
         // Forward and reverse maps
-        let fwd = Self::F::map_operations(ops.clone());
-        let rev = Self::R::map_operations(ops.clone());
+        let fwd = self.fwd.map_operations(ops.clone());
+        let rev = self.rev.map_operations(ops.clone());
 
         // Get mapped objects
-        let fa = Self::F::map_object(&ops.a.values);
-        let fb = Self::F::map_object(&ops.b.values);
-        let ra = Self::R::map_object(&ops.a.values);
-        let rb = Self::R::map_object(&ops.b.values);
+        let fa = self.fwd.map_object(&ops.a.values);
+        let fb = self.fwd.map_object(&ops.b.values);
+        let ra = self.rev.map_object(&ops.a.values);
+        let rb = self.rev.map_object(&ops.b.values);
 
-        let m = Self::residual(&ops);
+        let m = (self.residual)(&ops);
 
         // Create interleavings
         let fwd_interleave = interleave_blocks(&ops.b.flatmap_sources(&fb), &m).dagger();
@@ -89,49 +103,45 @@ where
         lhs.compose(&d).unwrap().compose(&rhs).unwrap()
     }
 
-    fn map_arrow(f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
-        // Compute the tensoring of operations
-        // Fx = F(x₀) ● F(x₁) ● ... ● F(x_n)
-        let fx = Self::map_operations(to_operations(f));
-
-        // Compute the tensoring of objects
-        // Fw = F(w₀) ● F(w₁) ● ... ● ... F(w_n)
-        let fw = Self::map_object(&f.h.w);
-
-        spider_map_arrow::<K, O1, A1, O2, A2>(f, fw, fx)
+    fn map_arrow(&self, f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2> {
+        define_map_arrow(self, f)
     }
 }
 
-pub fn adapt<K: ArrayKind + Debug, O1, A1, O2, A2, T: Optic<K, O1, A1, O2, A2>>(
-    c: &OpenHypergraph<K, O2, A2>,
-    a: &SemifiniteFunction<K, O1>,
-    b: &SemifiniteFunction<K, O1>,
-) -> OpenHypergraph<K, O2, A2>
+impl<F, R, K: ArrayKind + Debug, O1, A1, O2, A2> Optic<F, R, K, O1, A1, O2, A2>
 where
-    K::Index: Debug,
+    F: Functor<K, O1, A1, O2, A2>,
+    R: Functor<K, O1, A1, O2, A2>,
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O1>: Array<K, O1> + Debug,
-    K::Type<A1>: Array<K, A1> + Debug,
+    K::Type<O1>: Array<K, O1>,
+    K::Type<A1>: Array<K, A1>,
     K::Type<O2>: Array<K, O2> + Debug,
-    K::Type<A2>: Array<K, A2> + Debug,
+    K::Type<A2>: Array<K, A2>,
 {
-    let fa = T::F::map_object(a);
-    let fb = T::F::map_object(b);
-    let ra = T::R::map_object(a);
-    let rb = T::R::map_object(b);
+    pub fn adapt(
+        &self,
+        c: &OpenHypergraph<K, O2, A2>,
+        a: &SemifiniteFunction<K, O1>,
+        b: &SemifiniteFunction<K, O1>,
+    ) -> OpenHypergraph<K, O2, A2> {
+        let fa = self.fwd.map_object(a);
+        let fb = self.fwd.map_object(b);
+        let ra = self.rev.map_object(a);
+        let rb = self.rev.map_object(b);
 
-    // Uninterleave to get d : FA●RA → FB●RB
-    let lhs = interleave_blocks(&fa, &ra);
-    let rhs = interleave_blocks(&fb, &rb).dagger();
-    let d = lhs.compose(c).unwrap().compose(&rhs).unwrap();
+        // Uninterleave to get d : FA●RA → FB●RB
+        let lhs = interleave_blocks(&fa, &ra);
+        let rhs = interleave_blocks(&fb, &rb).dagger();
+        let d = lhs.compose(c).unwrap().compose(&rhs).unwrap();
 
-    // Verify source/target
-    // NOTE: unwrap() because coproduct of semifinite functions always succeeds.
-    debug_assert_eq!(d.source(), fa.coproduct(&ra).unwrap().values);
-    debug_assert_eq!(d.target(), fb.coproduct(&rb).unwrap().values);
+        // Verify source/target
+        // NOTE: unwrap() because coproduct of semifinite functions always succeeds.
+        debug_assert_eq!(d.source(), fa.coproduct(&ra).unwrap().values);
+        debug_assert_eq!(d.target(), fb.coproduct(&rb).unwrap().values);
 
-    // Partial dagger to get d : FA●RB → FB●RA
-    partial_dagger(&d, &fa, &fb, &rb, &ra)
+        // Partial dagger to get d : FA●RB → FB●RA
+        partial_dagger(&d, &fa, &fb, &rb, &ra)
+    }
 }
 
 fn interleave_blocks<K: ArrayKind, O, A>(
@@ -140,8 +150,8 @@ fn interleave_blocks<K: ArrayKind, O, A>(
 ) -> OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O> + Debug,
-    K::Type<A>: Array<K, A> + Debug,
+    K::Type<O>: Array<K, O>,
+    K::Type<A>: Array<K, A>,
 {
     if a.len() != b.len() {
         panic!("Can't interleave types of unequal lengths");

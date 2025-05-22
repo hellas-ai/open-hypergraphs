@@ -18,6 +18,13 @@ where
     }
 
     fn map_arrow(&self, f: &OpenHypergraph<K, O, A>) -> OpenHypergraph<K, O, A> {
-        define_map_arrow(self, f, |ops| OpenHypergraph::tensor_operations(ops))
+        define_map_arrow(self, f)
+    }
+
+    fn map_operations(
+        &self,
+        ops: crate::operations::Operations<K, O, A>,
+    ) -> OpenHypergraph<K, O, A> {
+        OpenHypergraph::tensor_operations(ops)
     }
 }

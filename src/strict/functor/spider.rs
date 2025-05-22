@@ -16,10 +16,14 @@ pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {
         a: &SemifiniteFunction<K, O1>,
     ) -> IndexedCoproduct<K, SemifiniteFunction<K, O2>>;
 
-    /// Action on arrows
-    /// This is generally easier to implement in terms of a functors' action on a tensoring of [`Operations`].
-    /// Use [`functor_map_arrow`] for that.
-    fn map_arrow(&self, a: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
+    /// Action on *tensoring of operations*, i.e., compute `F(f₀) ● F(f₁) ● .. ● F(fn)` for
+    /// generators `f_i`.
+    fn map_operations(&self, ops: Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
+
+    /// Action on arrows.
+    /// If you have implemented `map_operations`, you can implement this simply as
+    /// `define_map_arrow(self, f)`.
+    fn map_arrow(&self, f: &OpenHypergraph<K, O1, A1>) -> OpenHypergraph<K, O2, A2>;
 }
 
 /// Define a functor (a mapping on [`OpenHypergraph`]s) by its action on [`Operations`].
@@ -27,7 +31,9 @@ pub trait Functor<K: ArrayKind, O1, A1, O2, A2> {
 pub fn define_map_arrow<K: ArrayKind, O1, A1, O2, A2, F: Functor<K, O1, A1, O2, A2>>(
     functor: &F,
     f: &OpenHypergraph<K, O1, A1>,
-    map_operations: impl Fn(Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>,
+    // previously passed map_operations as an argument, but we since added it to the Functor trait
+    // since it's a useful special case.
+    //map_operations: impl Fn(Operations<K, O1, A1>) -> OpenHypergraph<K, O2, A2>,
 ) -> OpenHypergraph<K, O2, A2>
 where
     K::Type<K::I>: NaturalArray<K>,
@@ -40,7 +46,8 @@ where
 {
     // Compute the tensoring of operations
     // Fx = F(x₀) ● F(x₁) ● ... ● F(x_n)
-    let fx = map_operations(to_operations(f));
+    //let fx = map_operations(to_operations(f));
+    let fx = functor.map_operations(to_operations(f));
 
     // Compute the tensoring of objects
     // Fw = F(w₀) ● F(w₁) ● ... ● ... F(w_n)
