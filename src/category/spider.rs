@@ -3,7 +3,7 @@ use crate::array::*;
 use crate::finite_function::*;
 
 /// Categories with [hypergraph structure](https://ncatlab.org/nlab/show/hypergraph+category).
-/// We call this `Spider` to avoid confusion with the [crate::hypergraph::Hypergraph] struct.
+/// We call this `Spider` to avoid confusion with the [crate::strict::Hypergraph] struct.
 pub trait Spider<K: ArrayKind>: Arrow {
     /// Given an `Arrow` with type `f : A → B`,
     /// construct its dagger `f† : B → A`

@@ -26,7 +26,7 @@
 //! ```
 //!
 //! Calling [`OpenHypergraph::quotient`] on this datastructure recovers the strict
-//! [`crate::open_hypergraph::OpenHypergraph`] by identifying `x0` with `y0` and `x1` with `y1`.
+//! [`crate::strict::OpenHypergraph`] by identifying `x0` with `y0` and `x1` with `y1`.
 //!
 //! The lax [`OpenHypergraph`] can be constructed with the following Rust code.
 //!

@@ -1,5 +1,5 @@
-use open_hypergraphs::prelude::*;
 use open_hypergraphs::strict::eval::eval;
+use open_hypergraphs::strict::vec::*;
 
 use core::ops::{Add, Mul};
 use num_traits::{One, Zero};
@@ -138,7 +138,7 @@ mod imperative {
         (x[0], (y[0], y[1]))
     }
 
-    pub fn square() -> open_hypergraphs::prelude::OpenHypergraph<Obj, Arr> {
+    pub fn square() -> open_hypergraphs::strict::vec::OpenHypergraph<Obj, Arr> {
         let mut state = OpenHypergraph::<Obj, Arr>::empty();
 
         let (a, (x0, x1)) = copy(&mut state);

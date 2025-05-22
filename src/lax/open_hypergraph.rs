@@ -103,9 +103,9 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
             .for_each(|x| *x = NodeId(q.table[x.0]));
     }
 
-    /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::prelude::OpenHypergraph`] by
+    /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::strict::OpenHypergraph`] by
     /// quotienting.
-    pub fn to_open_hypergraph(mut self) -> crate::prelude::OpenHypergraph<O, A> {
+    pub fn to_open_hypergraph(mut self) -> crate::strict::OpenHypergraph<VecKind, O, A> {
         use crate::array::vec::VecArray;
         use crate::finite_function::FiniteFunction;
         use crate::strict::open_hypergraph::OpenHypergraph;

@@ -161,7 +161,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {
         q // return the coequalizer used to quotient the hypergraph
     }
 
-    pub fn to_hypergraph(&self) -> crate::prelude::Hypergraph<O, A> {
+    pub fn to_hypergraph(&self) -> crate::strict::Hypergraph<VecKind, O, A> {
         make_hypergraph(self)
     }
 

@@ -1,7 +1,7 @@
 //! # Open Hypergraphs
 //!
 //! `open-hypergraphs` is a [GPU-accelerated](#data-parallelism) implementation of the
-//! [OpenHypergraph](crate::open_hypergraph::OpenHypergraph)
+//! [OpenHypergraph](crate::strict::OpenHypergraph)
 //! datastructure from the paper
 //! ["Data-Parallel Algorithms for String Diagrams"](https://arxiv.org/pdf/2305.01041).
 //! Open hypergraphs are used for representing, evaluating, and differentiating large networks of operations with multiple
@@ -52,7 +52,7 @@
 //! See the [comparison to trees and graphs](#comparison-to-trees-and-graphs) for more detail.
 //!
 //! Differentiability of open hypergraphs (as used in [catgrad](https://catgrad.com))
-//! comes from the [data-parallel algorithm](crate::functor::optic::Optic) for generalised
+//! comes from the [data-parallel algorithm](crate::strict::functor::optic::Optic) for generalised
 //! ahead-of-time automatic differentiation by optic composition.
 //! This algorithm is actually more general than just differentiability: read more in the papers
 //! ["Categorical Foundations of Gradient-Based Learning"](https://arxiv.org/abs/2103.01931)
@@ -263,17 +263,3 @@ pub mod strict;
 
 // imperative interface to building open hypergraphs
 pub mod lax;
-
-// TODO: remove prelude. use lax instead.
-pub mod prelude {
-    //! Type alises for Open Hypergraphs using the [`VecKind`] array backend.
-    pub use crate::array::vec::*;
-    pub use crate::category::*;
-
-    pub type OpenHypergraph<Obj, Arr> =
-        crate::strict::open_hypergraph::OpenHypergraph<VecKind, Obj, Arr>;
-    pub type Hypergraph<Obj, Arr> = crate::strict::hypergraph::Hypergraph<VecKind, Obj, Arr>;
-    pub type FiniteFunction = crate::finite_function::FiniteFunction<VecKind>;
-    pub type SemifiniteFunction<T> = crate::semifinite::SemifiniteFunction<VecKind, T>;
-    pub type IndexedCoproduct<F> = crate::indexed_coproduct::IndexedCoproduct<VecKind, F>;
-}

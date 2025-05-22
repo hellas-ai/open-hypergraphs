@@ -10,7 +10,7 @@ use crate::eval::eval::apply;
 pub type LaxTerm = lax::OpenHypergraph<Obj, Arr>;
 
 fn lax_arr(op: Arr) -> LaxTerm {
-    use open_hypergraphs::prelude::OpenHypergraph;
+    use open_hypergraphs::strict::OpenHypergraph;
     let (a, b) = arr_type(&op);
     let f = OpenHypergraph::singleton(op, mktype(a), mktype(b));
     lax::OpenHypergraph::from_strict(f)
