@@ -100,41 +100,25 @@ fn ripple_carry_adder(state: Builder, a: &[Var], b: &[Var]) -> (Vec<Var>, Var) {
 
 // build a ripple_carry_adder and set its inputs/outputs
 fn n_bit_adder(n: usize) -> Term {
-    let state = Rc::new(RefCell::new(Term::empty()));
-
-    {
+    var::build(|state| {
         // inputs: two n-bit numbers.
         let xs = (0..2 * n)
             .map(|_| Var::new(state.clone(), Bit))
             .collect::<Vec<_>>();
-        let (zs, cout) = ripple_carry_adder(state.clone(), &xs[..n], &xs[n..]);
-
-        let sources: Vec<NodeId> = xs.into_iter().map(|x| x.new_source()).collect();
-        let mut targets: Vec<NodeId> = zs.into_iter().map(|x| x.new_target()).collect();
-        targets.push(cout.new_target());
-
-        let mut term = state.borrow_mut();
-        term.sources = sources;
-        term.targets = targets;
-    }
-
-    println!("reference count: {:?}", Rc::strong_count(&state));
-    Rc::try_unwrap(state).unwrap().into_inner()
+        let (mut zs, cout) = ripple_carry_adder(state.clone(), &xs[..n], &xs[n..]);
+        zs.push(cout);
+        (xs, zs)
+    })
+    .unwrap()
 }
 
 fn xor() -> Term {
-    let state = Rc::new(RefCell::new(Term::empty()));
-
-    // Block contents make sure all acquired Rc references are dropped.
-    {
+    var::build(|state| {
         let xs = vec![Var::new(state.clone(), Bit); 2];
         let y = xs[0].clone() ^ xs[1].clone();
-
-        state.borrow_mut().sources = vec![xs[0].new_source(), xs[1].new_source()];
-        state.borrow_mut().targets = vec![y.new_target()];
-    }
-
-    Rc::try_unwrap(state).unwrap().into_inner()
+        (xs, vec![y])
+    })
+    .unwrap()
 }
 
 fn main() {

@@ -43,3 +43,20 @@ impl<O: Clone, A: HasVar> Var<O, A> {
             .add_edge_target(self.edge_id, self.label.clone())
     }
 }
+
+pub type BuildResult<O, A> = Result<OpenHypergraph<O, A>, Rc<RefCell<OpenHypergraph<O, A>>>>;
+
+/// Construct an [`OpenHypergraph`] from a function taking an empty OpenHypergraph,
+/// and returning two lists of [`Var`]s corresponding to *sources* and *targets*.
+pub fn build<F, O: Clone, A: HasVar>(f: F) -> BuildResult<O, A>
+where
+    F: Fn(&Rc<RefCell<OpenHypergraph<O, A>>>) -> (Vec<Var<O, A>>, Vec<Var<O, A>>),
+{
+    let state = Rc::new(RefCell::new(OpenHypergraph::<O, A>::empty()));
+    {
+        let (s, t) = f(&state);
+        state.borrow_mut().sources = s.iter().map(|x| x.new_source()).collect();
+        state.borrow_mut().targets = t.iter().map(|x| x.new_target()).collect();
+    }
+    Rc::try_unwrap(state).map(|f| f.into_inner())
+}
