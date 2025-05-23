@@ -1,3 +1,8 @@
+//! An implementation of Open Hypergraphs directly following the paper
+//! ["Data-Parallel Algorithms for String Diagrams"](https://arxiv.org/pdf/2305.01041).
+//!
+//! To use `Vec`-backed open hypergraphs, use the [`crate::strict::vec`] module, which provides some
+//! type-aliases specialised to the `Vec` backend.
 pub mod hypergraph;
 pub mod open_hypergraph;
 

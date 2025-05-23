@@ -1,4 +1,4 @@
-use super::spider::*;
+use super::traits::*;
 use crate::strict::*;
 
 /// The identity functor, which implements [`Functor`] for any signature.

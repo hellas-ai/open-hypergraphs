@@ -118,6 +118,9 @@
 //! See `examples/adder.rs` for a more complete example using this interface to build an n-bit full
 //! adder from half-adder circuits.
 //!
+//! By contrast, the [`crate::strict`] module in principle supports GPU acceleration, but has a
+//! much more complicated interface.
+//!
 //! # Datastructure
 //!
 //! Before giving the formal definition, let's revisit the example above.
@@ -258,7 +261,7 @@ pub mod indexed_coproduct;
 pub mod operations;
 pub mod semifinite;
 
-/// Strict open hypergraphs
+// Strict open hypergraphs
 pub mod strict;
 
 // imperative interface to building open hypergraphs

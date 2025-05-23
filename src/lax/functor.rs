@@ -1,3 +1,4 @@
+//! Strict symmetric monoidal hypergraph functors on lax open hypergraphs.
 use crate::array::vec::VecKind;
 use crate::lax::open_hypergraph::*;
 use crate::operations::Operations;
@@ -21,7 +22,8 @@ pub trait Functor<O1, A1, O2, A2> {
     fn map_operation(&self, a: &A1, source: &[O1], target: &[O1]) -> OpenHypergraph<O2, A2>;
 
     /// Apply this functor to an [`OpenHypergraph`].
-    /// Default implementation uses strict::functor::Functor.
+    /// Once `map_operation` is defined, this can typically be defined as
+    /// `define_map_arrow(self, f)`
     fn map_arrow(&self, f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O1, A2>;
 }
 

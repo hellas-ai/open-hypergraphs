@@ -7,7 +7,7 @@ use crate::semifinite::*;
 
 use crate::strict::open_hypergraph::*;
 
-use super::spider::*;
+use super::traits::*;
 
 use core::fmt::Debug;
 use num_traits::One;
