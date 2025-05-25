@@ -51,11 +51,6 @@ pub fn fn_operation<O: Clone, A: HasVar>(
     vs.into_iter().next().unwrap()
 }
 
-/// Vars can be added when the underlying signature has an operation for 'addition'.
-pub trait HasAdd<O, A> {
-    fn add(lhs_type: O, rhs_type: O) -> (O, A);
-}
-
 /// Vars can be XORed when the underlying signature has an operation for 'xor'.
 pub trait HasBitXor<O, A> {
     fn bitxor(lhs_type: O, rhs_type: O) -> (O, A);
@@ -117,7 +112,7 @@ define_binary_op!(Shl, shl, HasShl);
 define_binary_op!(Shr, shr, HasShr);
 define_unary_op!(Not, not, HasNot);
 
-//define_binary_op!(Add, add, HasAdd); // hand-written
+define_binary_op!(Add, add, HasAdd);
 define_binary_op!(Mul, mul, HasMul);
 define_binary_op!(Sub, sub, HasSub);
 define_binary_op!(Div, div, HasDiv);
