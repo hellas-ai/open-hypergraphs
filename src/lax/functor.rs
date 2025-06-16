@@ -24,7 +24,7 @@ pub trait Functor<O1, A1, O2, A2> {
     /// Apply this functor to an [`OpenHypergraph`].
     /// Once `map_operation` is defined, this can typically be defined as
     /// `define_map_arrow(self, f)`
-    fn map_arrow(&self, f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O1, A2>;
+    fn map_arrow(&self, f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2>;
 }
 
 // TODO: write a to_strict_functor returning impl strict::functor::Functor
