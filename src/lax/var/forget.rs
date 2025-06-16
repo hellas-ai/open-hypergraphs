@@ -35,14 +35,24 @@ impl<O: Clone + PartialEq, A: HasVar + Clone + PartialEq> Functor<O, A, O, A> fo
     fn map_operation(&self, a: &A, source: &[O], target: &[O]) -> OpenHypergraph<O, A> {
         // Eliminate var-labeled operations which have all their sources + targets the same type.
         if *a == HasVar::var() && all_elements_equal(source, target) {
-            // Extra-special frobenius axiom
+            // Extra-special frobenius axiom: 0 → 0 copy is the empty diagram
             if source.is_empty() && target.is_empty() {
                 return OpenHypergraph::empty();
             }
 
+            // At least one must have a value
+            let label = {
+                if source.is_empty() {
+                    target[0].clone()
+                } else {
+                    source[0].clone()
+                }
+            };
+
             let s = FiniteFunction::terminal(source.len());
             let t = FiniteFunction::terminal(target.len());
-            return OpenHypergraph::<O, A>::spider(s, t, vec![source[0].clone()]).unwrap();
+
+            return OpenHypergraph::<O, A>::spider(s, t, vec![label]).unwrap();
         }
         OpenHypergraph::singleton(a.clone(), source.to_vec(), target.to_vec())
     }
