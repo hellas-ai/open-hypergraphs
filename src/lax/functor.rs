@@ -31,9 +31,9 @@ pub trait Functor<O1, A1, O2, A2> {
 pub fn define_map_arrow<
     F: Functor<O1, A1, O2, A2> + Clone,
     O1: Clone + PartialEq,
-    A1: Clone + PartialEq,
+    A1: Clone,
     O2: Clone + PartialEq,
-    A2: Clone + PartialEq,
+    A2: Clone,
 >(
     functor: &F,
     f: &OpenHypergraph<O1, A1>,
@@ -57,9 +57,7 @@ fn to_dyn_functor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2>(
     }
 }
 
-fn to_strict<O: Clone + PartialEq, A: Clone + PartialEq>(
-    f: OpenHypergraph<O, A>,
-) -> strict::OpenHypergraph<VecKind, O, A> {
+fn to_strict<O: Clone, A: Clone>(f: OpenHypergraph<O, A>) -> strict::OpenHypergraph<VecKind, O, A> {
     f.to_open_hypergraph()
 }
 
@@ -72,9 +70,9 @@ struct DynFunctor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2> {
 impl<
         F: Functor<O1, A1, O2, A2>,
         O1: Clone + PartialEq,
-        A1: Clone + PartialEq,
+        A1: Clone,
         O2: Clone + PartialEq,
-        A2: Clone + PartialEq,
+        A2: Clone,
     > strict::functor::Functor<VecKind, O1, A1, O2, A2> for DynFunctor<F, O1, A1, O2, A2>
 {
     fn map_object(

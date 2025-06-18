@@ -62,9 +62,9 @@ where
     F: Functor<K, O1, A1, O2, A2>,
     R: Functor<K, O1, A1, O2, A2>,
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O1>: Array<K, O1>,
+    K::Type<O1>: Array<K, O1> + PartialEq,
     K::Type<A1>: Array<K, A1>,
-    K::Type<O2>: Array<K, O2> + Debug,
+    K::Type<O2>: Array<K, O2> + PartialEq + Debug,
     K::Type<A2>: Array<K, A2>,
 {
     fn map_object(
@@ -141,9 +141,9 @@ where
     F: Functor<K, O1, A1, O2, A2>,
     R: Functor<K, O1, A1, O2, A2>,
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O1>: Array<K, O1>,
+    K::Type<O1>: Array<K, O1> + PartialEq,
     K::Type<A1>: Array<K, A1>,
-    K::Type<O2>: Array<K, O2> + Debug,
+    K::Type<O2>: Array<K, O2> + PartialEq + Debug,
     K::Type<A2>: Array<K, A2>,
 {
     pub fn adapt(
@@ -178,7 +178,7 @@ fn interleave_blocks<K: ArrayKind, O, A>(
 ) -> OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     if a.len() != b.len() {

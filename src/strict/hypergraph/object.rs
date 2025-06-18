@@ -102,15 +102,6 @@ where
         self.s.is_empty() && self.t.is_empty() && self.x.0.is_empty()
     }
 
-    pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
-        // TODO: wrap coequalizers in a newtype!
-        let s = self.s.map_values(q)?;
-        let t = self.t.map_values(q)?;
-        let w = SemifiniteFunction(coequalizer_universal(q, &self.w.0)?);
-        let x = self.x.clone();
-        Some(Hypergraph { s, t, w, x })
-    }
-
     pub fn coproduct(&self, other: &Self) -> Self {
         Hypergraph {
             s: self.s.tensor(&other.s),
@@ -128,6 +119,23 @@ where
         let t = IndexedCoproduct::new(b.sources, inj1).expect("invalid Operations?");
         let w = a.values + b.values;
         Hypergraph { s, t, w, x }
+    }
+}
+
+impl<K: ArrayKind, O, A> Hypergraph<K, O, A>
+where
+    K::Type<K::I>: AsRef<K::Index>,
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A>,
+{
+    pub fn coequalize_vertices(&self, q: &FiniteFunction<K>) -> Option<Hypergraph<K, O, A>> {
+        // TODO: wrap coequalizers in a newtype!
+        let s = self.s.map_values(q)?;
+        let t = self.t.map_values(q)?;
+        let w = SemifiniteFunction(coequalizer_universal(q, &self.w.0)?);
+        let x = self.x.clone();
+        Some(Hypergraph { s, t, w, x })
     }
 }
 

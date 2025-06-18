@@ -86,7 +86,7 @@ impl<O, A> OpenHypergraph<O, A> {
     }
 }
 
-impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
+impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
     /// Apply the quotient map to identify nodes in the internal [`Hypergraph`].
     /// This deletes the internal quotient map, resulting in a *strict* [`OpenHypergraph`].
     pub fn quotient(&mut self) {
@@ -102,15 +102,17 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> OpenHypergraph<O, A> {
             .iter_mut()
             .for_each(|x| *x = NodeId(q.table[x.0]));
     }
+}
 
+impl<O: Clone, A: Clone> OpenHypergraph<O, A> {
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::strict::OpenHypergraph`] by
     /// quotienting.
-    pub fn to_open_hypergraph(mut self) -> crate::strict::OpenHypergraph<VecKind, O, A> {
+    pub fn to_open_hypergraph(self) -> crate::strict::OpenHypergraph<VecKind, O, A> {
         use crate::array::vec::VecArray;
         use crate::finite_function::FiniteFunction;
         use crate::strict::open_hypergraph::OpenHypergraph;
 
-        self.quotient();
+        assert!(self.hypergraph.is_strict());
 
         let target = self.hypergraph.nodes.len();
 

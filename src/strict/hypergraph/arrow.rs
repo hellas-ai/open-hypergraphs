@@ -26,8 +26,8 @@ pub struct HypergraphArrow<K: ArrayKind, O, A> {
 
 impl<K: ArrayKind, O, A> HypergraphArrow<K, O, A>
 where
-    K::Type<O>: Array<K, O>,
-    K::Type<A>: Array<K, A>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A> + PartialEq,
 {
     /// Safely create a new HypergraphArrow by checking naturality of `w` and `x`.
     pub fn new(

@@ -29,7 +29,8 @@ pub trait ArrayKind: Sized {
         + Into<Self::Type<Self::I>>
         + From<Self::Type<Self::I>>
         + AsRef<Self::Type<Self::I>>
-        + AsMut<Self::Type<Self::I>>;
+        + AsMut<Self::Type<Self::I>>
+        + PartialEq;
 
     /// a `Slice` is a read-only view into another array's data.
     /// For `VecKind` this is `&[T]`.
@@ -41,7 +42,7 @@ pub trait ArrayKind: Sized {
 /// # Panics
 ///
 /// Any operation using an index out of range for the given array will panic.
-pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
+pub trait Array<K: ArrayKind, T>: Clone {
     /// The empty array
     fn empty() -> Self;
 
@@ -112,7 +113,7 @@ pub trait Array<K: ArrayKind, T>: Clone + PartialEq<Self> {
     fn scatter_assign_constant(&mut self, ixs: &K::Index, arg: T);
 }
 
-pub trait OrdArray<K: ArrayKind, T>: Clone + PartialEq<Self> + Array<K, T> {
+pub trait OrdArray<K: ArrayKind, T>: Clone + Array<K, T> {
     /// Produce an array of indices which sorts `self`.
     /// That is, `self.gather(self.argsort())` is monotonic.
     fn argsort(&self) -> K::Index;

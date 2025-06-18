@@ -88,33 +88,46 @@ where
         let s = h.s.values.clone();
         OpenHypergraph { s, t, h }
     }
-}
 
-impl<K: ArrayKind, O, A> Arrow for OpenHypergraph<K, O, A>
-where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
-    K::Type<A>: Array<K, A>,
-{
-    // TODO: should be SemifiniteFunction?
-    type Object = SemifiniteFunction<K, O>;
+    ////////////////////////////////////////
+    // Category methods
 
-    fn source(&self) -> Self::Object {
+    pub fn source(&self) -> SemifiniteFunction<K, O> {
         // NOTE: invalid OpenHypergraph will panic!
         (&self.s >> &self.h.w).expect("invalid open hypergraph: cospan source has invalid codomain")
     }
 
-    fn target(&self) -> Self::Object {
+    pub fn target(&self) -> SemifiniteFunction<K, O> {
         (&self.t >> &self.h.w).expect("invalid open hypergraph: cospan target has invalid codomain")
     }
 
-    fn identity(w: Self::Object) -> Self {
+    pub fn identity(w: SemifiniteFunction<K, O>) -> OpenHypergraph<K, O, A> {
         let s = FiniteFunction::<K>::identity(w.0.len());
         let t = FiniteFunction::<K>::identity(w.0.len());
         let h = Hypergraph::<K, O, A>::discrete(w);
         OpenHypergraph { s, t, h }
     }
 
+    pub fn spider(
+        s: FiniteFunction<K>,
+        t: FiniteFunction<K>,
+        w: SemifiniteFunction<K, O>,
+    ) -> Option<Self> {
+        if s.target() != w.len() || t.target() != w.len() {
+            return None;
+        }
+
+        let h = Hypergraph::discrete(w);
+        Some(OpenHypergraph { s, t, h })
+    }
+}
+
+impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A>,
+{
     fn compose(&self, other: &Self) -> Option<Self> {
         if self.target() != other.source() {
             return None;
@@ -139,10 +152,36 @@ where
     }
 }
 
+impl<K: ArrayKind, O, A> Arrow for OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A>,
+{
+    // TODO: should be SemifiniteFunction?
+    type Object = SemifiniteFunction<K, O>;
+
+    fn source(&self) -> Self::Object {
+        self.source()
+    }
+
+    fn target(&self) -> Self::Object {
+        self.target()
+    }
+
+    fn identity(w: Self::Object) -> Self {
+        Self::identity(w)
+    }
+
+    fn compose(&self, other: &Self) -> Option<Self> {
+        self.compose(other)
+    }
+}
+
 impl<K: ArrayKind, O, A> Monoidal for OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     fn unit() -> Self::Object {
@@ -161,7 +200,7 @@ where
 impl<K: ArrayKind, O, A> SymmetricMonoidal for OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     fn twist(a: Self::Object, b: Self::Object) -> Self {
@@ -178,7 +217,7 @@ where
 impl<K: ArrayKind, O, A> Spider<K> for OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     fn dagger(&self) -> Self {
@@ -190,12 +229,7 @@ where
     }
 
     fn spider(s: FiniteFunction<K>, t: FiniteFunction<K>, w: Self::Object) -> Option<Self> {
-        if s.target() != w.len() || t.target() != w.len() {
-            return None;
-        }
-
-        let h = Hypergraph::discrete(w);
-        Some(OpenHypergraph { s, t, h })
+        OpenHypergraph::spider(s, t, w)
     }
 }
 
@@ -203,7 +237,7 @@ where
 impl<K: ArrayKind, O, A> Shr<&OpenHypergraph<K, O, A>> for &OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     type Output = Option<OpenHypergraph<K, O, A>>;
@@ -216,7 +250,7 @@ where
 impl<K: ArrayKind, O, A> BitOr<&OpenHypergraph<K, O, A>> for &OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     type Output = OpenHypergraph<K, O, A>;

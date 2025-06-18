@@ -7,7 +7,7 @@ pub struct Identity;
 impl<K: ArrayKind, O, A> Functor<K, O, A, O, A> for Identity
 where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O>,
+    K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A>,
 {
     fn map_object(

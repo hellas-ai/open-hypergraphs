@@ -38,10 +38,10 @@ pub fn define_map_arrow<K: ArrayKind, O1, A1, O2, A2, F: Functor<K, O1, A1, O2, 
 where
     K::Type<K::I>: NaturalArray<K>,
 
-    K::Type<O1>: Array<K, O1>,
+    K::Type<O1>: Array<K, O1> + PartialEq,
     K::Type<A1>: Array<K, A1>,
 
-    K::Type<O2>: Array<K, O2>,
+    K::Type<O2>: Array<K, O2> + PartialEq,
     K::Type<A2>: Array<K, A2>,
 {
     // Compute the tensoring of operations
@@ -66,10 +66,10 @@ pub(crate) fn spider_map_arrow<K: ArrayKind, O1, A1, O2, A2>(
 where
     K::Type<K::I>: NaturalArray<K>,
 
-    K::Type<O1>: Array<K, O1>,
+    K::Type<O1>: Array<K, O1> + PartialEq,
     K::Type<A1>: Array<K, A1>,
 
-    K::Type<O2>: Array<K, O2>,
+    K::Type<O2>: Array<K, O2> + PartialEq,
     K::Type<A2>: Array<K, A2>,
 {
     // Construct the identity map on the wires of F(w)

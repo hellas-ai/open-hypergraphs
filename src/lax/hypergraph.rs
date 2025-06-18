@@ -3,10 +3,10 @@ use crate::finite_function::*;
 
 use core::fmt::Debug;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub usize);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EdgeId(pub usize);
 
 #[derive(Debug, Clone)]
@@ -46,6 +46,11 @@ impl<O, A> Hypergraph<O, A> {
             adjacency: vec![],
             quotient: (vec![], vec![]),
         }
+    }
+
+    /// Check if the quotient map is empty: if so, then this is already a strict OpenHypergraph
+    pub fn is_strict(&self) -> bool {
+        self.quotient.0.is_empty()
     }
 
     pub fn from_strict(h: crate::strict::hypergraph::Hypergraph<VecKind, O, A>) -> Self {
@@ -135,7 +140,7 @@ impl<O, A> Hypergraph<O, A> {
     }
 }
 
-impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {
+impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
     /// Construct a [`Hypergraph`] by identifying nodes in the quotient map.
     /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from `self.quotient`.
     ///
@@ -160,7 +165,9 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Hypergraph<O, A> {
 
         q // return the coequalizer used to quotient the hypergraph
     }
+}
 
+impl<O: Clone, A: Clone> Hypergraph<O, A> {
     pub fn to_hypergraph(&self) -> crate::strict::Hypergraph<VecKind, O, A> {
         make_hypergraph(self)
     }

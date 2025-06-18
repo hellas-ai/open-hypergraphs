@@ -16,8 +16,14 @@ impl ArrayKind for VecKind {
     type Slice<'a, T: 'a> = &'a [T];
 }
 
+impl<T: PartialEq> PartialEq for VecArray<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
 /// A newtype wrapper for [`Vec<T>`] allowing pointwise arithmetic operations.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct VecArray<T>(pub Vec<T>);
 
 impl AsRef<<VecKind as ArrayKind>::Index> for VecArray<usize> {
@@ -46,7 +52,7 @@ impl<T> DerefMut for VecArray<T> {
     }
 }
 
-impl<T: Clone + PartialEq> Array<VecKind, T> for VecArray<T> {
+impl<T: Clone> Array<VecKind, T> for VecArray<T> {
     fn empty() -> Self {
         VecArray(Vec::default())
     }

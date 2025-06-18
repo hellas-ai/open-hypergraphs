@@ -125,7 +125,7 @@ impl<K: ArrayKind> FiniteFunction<K> {
 
     pub fn coequalizer_universal(&self, f: &Self) -> Option<Self>
     where
-        K::Type<K::I>: Array<K, K::I>,
+        K::Type<K::I>: Array<K, K::I> + PartialEq,
     {
         let table = coequalizer_universal(self, f.table.as_ref())?.into();
         let target = f.target();
@@ -223,7 +223,7 @@ pub fn coequalizer_universal<K: ArrayKind, T>(
     f: &K::Type<T>,
 ) -> Option<K::Type<T>>
 where
-    K::Type<T>: Array<K, T>,
+    K::Type<T>: Array<K, T> + PartialEq,
 {
     if q.source() != f.len() {
         return None;
