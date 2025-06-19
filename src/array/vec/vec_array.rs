@@ -276,7 +276,7 @@ impl NaturalArray<VecKind> for VecArray<usize> {
         assert_eq!(self.len(), x.len());
         let mut v: Vec<usize> = Vec::new();
         for (k, xi) in self.iter().zip(x) {
-            v.extend(std::iter::repeat(xi).take(*k))
+            v.extend(std::iter::repeat_n(xi, *k))
         }
         VecArray(v)
     }
