@@ -8,8 +8,8 @@ pub fn assert_hypergraph_equality_invariants<K: ArrayKind, O, A>(
     g: &Hypergraph<K, O, A>,
 ) where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: OrdArray<K, O> + Debug,
-    K::Type<A>: OrdArray<K, A> + Debug,
+    K::Type<O>: OrdArray<K, O> + PartialEq + Debug,
+    K::Type<A>: OrdArray<K, A> + PartialEq + Debug,
 {
     assert_eq!(h.w.len(), g.w.len());
 

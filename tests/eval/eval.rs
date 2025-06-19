@@ -1,5 +1,4 @@
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
 use open_hypergraphs::indexed_coproduct::*;
 use open_hypergraphs::semifinite::*;
 use open_hypergraphs::strict::eval::*;

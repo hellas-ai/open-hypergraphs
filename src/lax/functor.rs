@@ -57,7 +57,9 @@ fn to_dyn_functor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2>(
     }
 }
 
-fn to_strict<O: Clone, A: Clone>(f: OpenHypergraph<O, A>) -> strict::OpenHypergraph<VecKind, O, A> {
+fn to_strict<O: Clone + PartialEq, A: Clone>(
+    f: OpenHypergraph<O, A>,
+) -> strict::OpenHypergraph<VecKind, O, A> {
     f.to_open_hypergraph()
 }
 

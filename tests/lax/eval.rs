@@ -1,5 +1,4 @@
 use open_hypergraphs::array::vec::*;
-use open_hypergraphs::category::*;
 use open_hypergraphs::lax;
 use open_hypergraphs::strict::eval::*;
 

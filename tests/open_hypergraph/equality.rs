@@ -1,5 +1,4 @@
 use open_hypergraphs::array::*;
-use open_hypergraphs::category::*;
 use open_hypergraphs::strict::open_hypergraph::*;
 
 use crate::hypergraph::equality::assert_hypergraph_equality_invariants;
@@ -10,8 +9,8 @@ pub fn assert_open_hypergraph_equality_invariants<K: ArrayKind, O, A>(
     g: &OpenHypergraph<K, O, A>,
 ) where
     K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: OrdArray<K, O> + Debug,
-    K::Type<A>: OrdArray<K, A> + Debug,
+    K::Type<O>: OrdArray<K, O> + PartialEq + Debug,
+    K::Type<A>: OrdArray<K, A> + PartialEq + Debug,
 {
     assert_eq!(f.source(), g.source());
     assert_eq!(f.target(), g.target());
