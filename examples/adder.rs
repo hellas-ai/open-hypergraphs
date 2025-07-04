@@ -9,6 +9,10 @@
 //!
 use open_hypergraphs::lax::var;
 use open_hypergraphs::lax::*;
+use std::sync::{Arc, Mutex};
+
+type Term = OpenHypergraph<Bit, Gate>;
+type Builder = Arc<Mutex<Term>>;
 
 // There is a single generating object in the category: the bit.
 #[derive(PartialEq, Clone, Debug)]
@@ -56,11 +60,7 @@ impl var::HasNot<Bit, Gate> for Gate {
     }
 }
 
-use std::cell::RefCell;
-use std::rc::Rc;
 
-type Term = OpenHypergraph<Bit, Gate>;
-type Builder = Rc<RefCell<Term>>;
 type Var = var::Var<Bit, Gate>;
 
 fn zero(state: Builder) -> Var {
@@ -78,14 +78,14 @@ fn full_adder(a: Var, b: Var, cin: Var) -> (Var, Var) {
     (sum, cout)
 }
 
-fn ripple_carry_adder(state: Builder, a: &[Var], b: &[Var]) -> (Vec<Var>, Var) {
+fn ripple_carry_adder(state: Arc<Mutex<Term>>, a: &[Var], b: &[Var]) -> (Vec<Var>, Var) {
     let n = a.len();
     assert_eq!(n, b.len(), "Input bit arrays must have the same length");
 
     let mut sum = Vec::with_capacity(n);
 
     // Start with carry_in = 0
-    let mut carry = zero(state);
+    let mut carry = zero(state.clone());
 
     // Process each bit position
     for i in 0..n {
