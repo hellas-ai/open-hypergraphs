@@ -3,14 +3,13 @@ use crate::lax::open_hypergraph::OpenHypergraph;
 
 use super::var::*;
 
-use std::cell::RefCell;
 use std::ops::*;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 /// A general helper for constructing `m → n` maps
 pub fn operation<O: Clone, A: HasVar>(
     // TODO: generalise to something which borrows a mutable OpenHypergraph?
-    builder: &Rc<RefCell<OpenHypergraph<O, A>>>,
+    builder: &Arc<Mutex<OpenHypergraph<O, A>>>,
     vars: &[Var<O, A>],
     result_types: Vec<O>, // types of output vars
     op: A,
@@ -26,7 +25,7 @@ pub fn operation<O: Clone, A: HasVar>(
         .collect();
     let result_nodes = result_vars.iter().map(|v| v.new_source()).collect();
 
-    let mut term = builder.borrow_mut();
+    let mut term = builder.lock().unwrap();
     let _ = term.new_edge(
         op,
         Hyperedge {
@@ -41,7 +40,7 @@ pub fn operation<O: Clone, A: HasVar>(
 /// An `n → 1` operation, returning its sole target `Var`.
 pub fn fn_operation<O: Clone, A: HasVar>(
     // TODO: generalise to something which borrows a mutable OpenHypergraph?
-    builder: &Rc<RefCell<OpenHypergraph<O, A>>>,
+    builder: &Arc<Mutex<OpenHypergraph<O, A>>>,
     vars: &[Var<O, A>],
     result_type: O,
     op: A,

@@ -1,8 +1,7 @@
 use crate::lax::hypergraph::*;
 use crate::lax::open_hypergraph::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 // Given a set of operation labels (i.e., edge labels),
 // distinguish one as the type of "Vars".
@@ -15,15 +14,15 @@ pub trait HasVar {
 
 #[derive(Clone, Debug)]
 pub struct Var<O, A> {
-    pub state: Rc<RefCell<OpenHypergraph<O, A>>>,
+    pub state: Arc<Mutex<OpenHypergraph<O, A>>>,
     pub edge_id: EdgeId,
     pub label: O,
 }
 
 /// Vars can be created when the set of edge labels has a 'Copy' operation.
 impl<O: Clone, A: HasVar> Var<O, A> {
-    pub fn new(state: Rc<RefCell<OpenHypergraph<O, A>>>, default_node_label: O) -> Self {
-        let (edge_id, _) = state.borrow_mut().new_operation(A::var(), vec![], vec![]);
+    pub fn new(state: Arc<Mutex<OpenHypergraph<O, A>>>, default_node_label: O) -> Self {
+        let (edge_id, _) = state.lock().unwrap().new_operation(A::var(), vec![], vec![]);
         Var {
             state,
             edge_id,
@@ -33,30 +32,32 @@ impl<O: Clone, A: HasVar> Var<O, A> {
 
     pub fn new_source(&self) -> NodeId {
         self.state
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .add_edge_source(self.edge_id, self.label.clone())
     }
 
     pub fn new_target(&self) -> NodeId {
         self.state
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .add_edge_target(self.edge_id, self.label.clone())
     }
 }
 
-pub type BuildResult<O, A> = Result<OpenHypergraph<O, A>, Rc<RefCell<OpenHypergraph<O, A>>>>;
+pub type BuildResult<O, A> = Result<OpenHypergraph<O, A>, Arc<Mutex<OpenHypergraph<O, A>>>>;
 
 /// Construct an [`OpenHypergraph`] from a function taking an empty OpenHypergraph,
 /// and returning two lists of [`Var`]s corresponding to *sources* and *targets*.
 pub fn build<F, O: Clone, A: HasVar>(f: F) -> BuildResult<O, A>
 where
-    F: Fn(&Rc<RefCell<OpenHypergraph<O, A>>>) -> (Vec<Var<O, A>>, Vec<Var<O, A>>),
+    F: Fn(&Arc<Mutex<OpenHypergraph<O, A>>>) -> (Vec<Var<O, A>>, Vec<Var<O, A>>),
 {
-    let state = Rc::new(RefCell::new(OpenHypergraph::<O, A>::empty()));
+    let state = Arc::new(Mutex::new(OpenHypergraph::<O, A>::empty()));
     {
         let (s, t) = f(&state);
-        state.borrow_mut().sources = s.iter().map(|x| x.new_source()).collect();
-        state.borrow_mut().targets = t.iter().map(|x| x.new_target()).collect();
+        state.lock().unwrap().sources = s.iter().map(|x| x.new_source()).collect();
+        state.lock().unwrap().targets = t.iter().map(|x| x.new_target()).collect();
     }
-    Rc::try_unwrap(state).map(|f| f.into_inner())
+    Arc::try_unwrap(state).map(|f| f.into_inner().unwrap())
 }
