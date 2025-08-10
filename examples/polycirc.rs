@@ -152,7 +152,7 @@ mod imperative {
 
         // build the (strict) open hypergraph
         state.quotient();
-        state.to_open_hypergraph()
+        state.to_strict()
     }
 }
 

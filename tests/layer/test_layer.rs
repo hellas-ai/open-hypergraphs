@@ -78,7 +78,7 @@ fn test_layer_fh_tensor_gh() {
 
     let (layer, unvisited) = layer::<VecKind, Obj, Arr>(&z);
     assert_eq!(layer.table, VecArray(vec![0, 1, 0, 1]));
-    assert!(!unvisited.0.iter().any(|x| *x == 1));
+    assert!(!unvisited.0.contains(&1));
 }
 
 #[test]

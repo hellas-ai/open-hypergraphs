@@ -60,7 +60,7 @@ fn to_dyn_functor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2>(
 fn to_strict<O: Clone + PartialEq, A: Clone>(
     f: OpenHypergraph<O, A>,
 ) -> strict::OpenHypergraph<VecKind, O, A> {
-    f.to_open_hypergraph()
+    f.to_strict()
 }
 
 // A dynamic functor using closures for map_object and map_operation
@@ -111,7 +111,7 @@ impl<
             acc.tensor_assign(self.inner.map_operation(op, &source.0, &target.0))
         }
 
-        acc.to_open_hypergraph()
+        acc.to_strict()
     }
 
     fn map_arrow(

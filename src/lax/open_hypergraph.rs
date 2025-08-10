@@ -105,7 +105,7 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
 
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::strict::OpenHypergraph`] by
     /// quotienting.
-    pub fn to_open_hypergraph(mut self) -> crate::strict::OpenHypergraph<VecKind, O, A> {
+    pub fn to_strict(mut self) -> crate::strict::OpenHypergraph<VecKind, O, A> {
         use crate::array::vec::VecArray;
         use crate::finite_function::FiniteFunction;
         use crate::strict::open_hypergraph::OpenHypergraph;
@@ -127,5 +127,11 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
         let h = self.hypergraph.to_hypergraph();
 
         OpenHypergraph::new(s, t, h).expect("any valid lax::Hypergraph must be quotientable!")
+    }
+
+    // Old name for `to_strict`. Provided for backwards compatibility
+    #[deprecated(since = "0.2.4", note = "renamed to_strict")]
+    pub fn to_open_hypergraph(self) -> crate::strict::OpenHypergraph<VecKind, O, A> {
+        self.to_strict()
     }
 }

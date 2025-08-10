@@ -172,7 +172,7 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
         make_hypergraph(self)
     }
 
-    fn coequalizer(&self) -> FiniteFunction<VecKind> {
+    pub fn coequalizer(&self) -> FiniteFunction<VecKind> {
         // Compute the coequalizer (connected components) of the quotient graph
         let s: FiniteFunction<VecKind> = FiniteFunction {
             table: VecArray(self.quotient.0.iter().map(|x| x.0).collect()),

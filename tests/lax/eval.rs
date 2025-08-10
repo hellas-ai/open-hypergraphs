@@ -25,7 +25,7 @@ fn square() -> Option<Term> {
     let lhs = lax_arr(Copy);
     let rhs = lax_arr(Mul);
     let term = (&lhs >> &rhs)?;
-    Some(term.to_open_hypergraph())
+    Some(term.to_strict())
 }
 
 fn one_plus_one() -> Option<Term> {
@@ -33,7 +33,7 @@ fn one_plus_one() -> Option<Term> {
     let lhs = &lax_arr(One) | &lax_arr(One);
     let rhs = lax_arr(Add);
     let term = (&lhs >> &rhs)?;
-    Some(term.to_open_hypergraph())
+    Some(term.to_strict())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,7 +74,7 @@ fn test_one_plus_one_algebraic() {
     let lhs = &one | &one;
     let rhs = LaxTerm::singleton(Add, vec![Obj, Obj], vec![Obj]);
 
-    let f = (&lhs >> &rhs).unwrap().to_open_hypergraph();
+    let f = (&lhs >> &rhs).unwrap().to_strict();
 
     assert_eq!(f.source(), mktype(0));
     assert_eq!(f.target(), mktype(1));
