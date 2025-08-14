@@ -4,12 +4,15 @@ use crate::finite_function::*;
 use core::fmt::Debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NodeId(pub usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EdgeId(pub usize);
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Hyperedge {
     pub sources: Vec<NodeId>,
     pub targets: Vec<NodeId>,
@@ -22,6 +25,13 @@ pub type Interface = (Vec<NodeId>, Vec<NodeId>);
 /// It can be thought of as a collection of disconnected operations and wires along with a
 /// *quotient map* which can be used with connected components to produce a `Hypergraph`.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(
+        bound = "O: serde::Serialize + serde::de::DeserializeOwned, A: serde::Serialize + serde::de::DeserializeOwned"
+    )
+)]
 pub struct Hypergraph<O, A> {
     /// Node labels. Defines a finite map from [`NodeId`] to node label
     pub nodes: Vec<O>,

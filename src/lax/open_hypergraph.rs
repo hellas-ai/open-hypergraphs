@@ -5,6 +5,13 @@ use crate::array::vec::VecKind;
 /// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(
+        bound = "O: serde::Serialize + serde::de::DeserializeOwned, A: serde::Serialize + serde::de::DeserializeOwned"
+    )
+)]
 pub struct OpenHypergraph<O, A> {
     pub sources: Vec<NodeId>,
     pub targets: Vec<NodeId>,
