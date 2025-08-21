@@ -18,7 +18,7 @@ impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A> {
     /// returning `None` if the graphs are not isomorphic.
     pub fn isomorphism(
         &self,
-        target: &OpenHypergraph<K, O, A>,
+        _target: &OpenHypergraph<K, O, A>,
     ) -> Option<OpenHypergraphArrow<K, O, A>> {
         todo!()
     }
