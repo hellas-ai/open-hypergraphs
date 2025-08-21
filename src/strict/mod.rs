@@ -10,6 +10,8 @@ pub mod eval;
 pub mod functor;
 pub mod layer;
 
+pub mod isomorphism;
+
 pub use crate::array::*;
 pub use crate::category::*;
 pub use crate::finite_function::FiniteFunction;
