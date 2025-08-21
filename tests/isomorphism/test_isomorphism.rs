@@ -4,12 +4,12 @@ use open_hypergraphs::strict::vec::*;
 use proptest::prelude::*;
 
 // TODO: *randomly* permute nodes - use proptest to generate a random permutation.
-fn permute_nodes(f: &OpenHypergraph<Obj, Arr>) -> OpenHypergraph<Obj, Arr> {
+fn permute_nodes(_f: &OpenHypergraph<Obj, Arr>) -> OpenHypergraph<Obj, Arr> {
     todo!()
 }
 
 // TODO: *randomly* permute edges - use proptest to generate a random permutation.
-fn permute_edges(f: &OpenHypergraph<Obj, Arr>) -> OpenHypergraph<Obj, Arr> {
+fn permute_edges(_f: &OpenHypergraph<Obj, Arr>) -> OpenHypergraph<Obj, Arr> {
     todo!()
 }
 
@@ -41,7 +41,7 @@ proptest! {
     fn test_permute_nodes_and_edges_isomorphic(oh in arb_open_hypergraph()) {
         // Generate permutations of both nodes and edges and apply them
         let permuted = permute_edges(&oh);
-        let permuted = permute_nodes(&oh);
+        let permuted = permute_nodes(&permuted);
         oh.isomorphism(&permuted).unwrap();
     }
 }
