@@ -1,6 +1,6 @@
 [package]
 name = "open-hypergraphs"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 description = "Data-Parallel Algorithms for Open Hypergraphs"
 license = "MIT OR Apache-2.0"
@@ -18,3 +18,7 @@ serde = ["dep:serde"]
 [dev-dependencies]
 proptest = "1.6.0"
 serde_json = "1.0"
+
+[[example]]
+name = "serde_example"
+required-features = ["serde"]
