@@ -1,6 +1,6 @@
-use open_hypergraphs::lax::var::{self, fn_operation, HasAdd, HasNeg, HasVar, forget::Forget};
-use open_hypergraphs::lax::OpenHypergraph;
 use open_hypergraphs::lax::functor::Functor;
+use open_hypergraphs::lax::var::{self, fn_operation, forget::Forget, HasAdd, HasNeg, HasVar};
+use open_hypergraphs::lax::OpenHypergraph;
 use serde_json;
 
 #[derive(PartialEq, Clone, Debug)]
@@ -37,17 +37,6 @@ impl HasNeg<NumberType, ArithOp> for ArithOp {
     }
 }
 
-// Custom cast operation
-trait HasCast<O, A> {
-    fn cast(input: O) -> (O, A);
-}
-
-impl HasCast<NumberType, ArithOp> for ArithOp {
-    fn cast(_: NumberType) -> (NumberType, ArithOp) {
-        (NumberType::Real, ArithOp::Cast)
-    }
-}
-
 type Term = OpenHypergraph<NumberType, ArithOp>;
 type Var = var::Var<NumberType, ArithOp>;
 
@@ -68,11 +57,11 @@ fn build_subtraction_term() -> Term {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let term = build_subtraction_term();
-    
+
     // Apply forget functor to remove copy operations
     let forget_functor = Forget;
     let term_without_copies = forget_functor.map_arrow(&term);
-    
+
     let term_json = serde_json::to_string_pretty(&term_without_copies)?;
     println!("Arrow: {}", term_json);
 

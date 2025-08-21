@@ -27,15 +27,24 @@ mod serde_tests {
         assert!(json.contains("int"));
 
         // Deserialize back
-        let deserialized: OpenHypergraph<String, String> = 
+        let deserialized: OpenHypergraph<String, String> =
             serde_json::from_str(&json).expect("Deserialization should succeed");
 
         // Verify the deserialized graph matches the original
         assert_eq!(graph.sources.len(), deserialized.sources.len());
         assert_eq!(graph.targets.len(), deserialized.targets.len());
-        assert_eq!(graph.hypergraph.nodes.len(), deserialized.hypergraph.nodes.len());
-        assert_eq!(graph.hypergraph.edges.len(), deserialized.hypergraph.edges.len());
-        assert_eq!(graph.hypergraph.adjacency.len(), deserialized.hypergraph.adjacency.len());
+        assert_eq!(
+            graph.hypergraph.nodes.len(),
+            deserialized.hypergraph.nodes.len()
+        );
+        assert_eq!(
+            graph.hypergraph.edges.len(),
+            deserialized.hypergraph.edges.len()
+        );
+        assert_eq!(
+            graph.hypergraph.adjacency.len(),
+            deserialized.hypergraph.adjacency.len()
+        );
 
         // Check specific values
         assert_eq!(graph.sources, deserialized.sources);
@@ -47,14 +56,14 @@ mod serde_tests {
     #[test]
     fn test_empty_open_hypergraph_serialization() {
         let graph: OpenHypergraph<String, String> = OpenHypergraph::empty();
-        
+
         // Serialize
         let json = serde_json::to_string(&graph).expect("Serialization should succeed");
-        
+
         // Deserialize
-        let deserialized: OpenHypergraph<String, String> = 
+        let deserialized: OpenHypergraph<String, String> =
             serde_json::from_str(&json).expect("Deserialization should succeed");
-        
+
         // Verify empty state
         assert!(deserialized.sources.is_empty());
         assert!(deserialized.targets.is_empty());
@@ -78,12 +87,18 @@ mod serde_tests {
 
         // Serialize and deserialize
         let json = serde_json::to_string(&graph).expect("Serialization should succeed");
-        let deserialized: OpenHypergraph<String, String> = 
+        let deserialized: OpenHypergraph<String, String> =
             serde_json::from_str(&json).expect("Deserialization should succeed");
 
         // Verify quotient map is preserved
-        assert_eq!(graph.hypergraph.quotient.0.len(), deserialized.hypergraph.quotient.0.len());
-        assert_eq!(graph.hypergraph.quotient.1.len(), deserialized.hypergraph.quotient.1.len());
+        assert_eq!(
+            graph.hypergraph.quotient.0.len(),
+            deserialized.hypergraph.quotient.0.len()
+        );
+        assert_eq!(
+            graph.hypergraph.quotient.1.len(),
+            deserialized.hypergraph.quotient.1.len()
+        );
         assert_eq!(graph.hypergraph.quotient, deserialized.hypergraph.quotient);
     }
 }
