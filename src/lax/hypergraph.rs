@@ -151,7 +151,7 @@ impl<O, A> Hypergraph<O, A> {
 
     /// Set the nodes of a Hypergraph, possibly changing types.
     /// Returns None if new nodes array had different length.
-    pub fn set_nodes<T, F: FnOnce(Vec<O>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<T, A>> {
+    pub fn with_nodes<T, F: FnOnce(Vec<O>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<T, A>> {
         let n = self.nodes.len();
         let nodes = f(self.nodes);
         if nodes.len() != n {
@@ -169,13 +169,13 @@ impl<O, A> Hypergraph<O, A> {
     /// Map the node labels of this Hypergraph, possibly changing their type
     pub fn map_nodes<F: Fn(O) -> T, T>(self, f: F) -> Hypergraph<T, A> {
         // note: unwrap is safe because length is preserved
-        self.set_nodes(|nodes| nodes.into_iter().map(f).collect())
+        self.with_nodes(|nodes| nodes.into_iter().map(f).collect())
             .unwrap()
     }
 
     /// Set the edges of a Hypergraph, possibly changing types.
     /// Returns None if new edges array had different length.
-    pub fn set_edges<T, F: FnOnce(Vec<A>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<O, T>> {
+    pub fn with_edges<T, F: FnOnce(Vec<A>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<O, T>> {
         let n = self.nodes.len();
         let edges = f(self.edges);
         if edges.len() != n {
@@ -193,7 +193,7 @@ impl<O, A> Hypergraph<O, A> {
     /// Map the edge labels of this Hypergraph, possibly changing their type
     pub fn map_edges<F: Fn(A) -> T, T>(self, f: F) -> Hypergraph<O, T> {
         // note: unwrap is safe because length is preserved
-        self.set_edges(|edges| edges.into_iter().map(f).collect())
+        self.with_edges(|edges| edges.into_iter().map(f).collect())
             .unwrap()
     }
 }

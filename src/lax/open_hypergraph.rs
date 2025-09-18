@@ -91,6 +91,48 @@ impl<O, A> OpenHypergraph<O, A> {
     pub fn add_edge_target(&mut self, edge_id: EdgeId, w: O) -> NodeId {
         self.hypergraph.add_edge_target(edge_id, w)
     }
+
+    /// Set the nodes of the OpenHypergraph, possibly changing types.
+    /// Returns None if new nodes array had different length.
+    pub fn with_nodes<T, F: FnOnce(Vec<O>) -> Vec<T>>(self, f: F) -> Option<OpenHypergraph<T, A>> {
+        self.hypergraph
+            .with_nodes(f)
+            .map(|hypergraph| OpenHypergraph {
+                sources: self.sources,
+                targets: self.targets,
+                hypergraph,
+            })
+    }
+
+    /// Map the node labels of this OpenHypergraph, possibly changing their type
+    pub fn map_nodes<F: Fn(O) -> T, T>(self, f: F) -> OpenHypergraph<T, A> {
+        OpenHypergraph {
+            sources: self.sources,
+            targets: self.targets,
+            hypergraph: self.hypergraph.map_nodes(f),
+        }
+    }
+
+    /// Set the edges of the OpenHypergraph, possibly changing types.
+    /// Returns None if new edges array had different length.
+    pub fn with_edges<T, F: FnOnce(Vec<A>) -> Vec<T>>(self, f: F) -> Option<OpenHypergraph<O, T>> {
+        self.hypergraph
+            .with_edges(f)
+            .map(|hypergraph| OpenHypergraph {
+                sources: self.sources,
+                targets: self.targets,
+                hypergraph,
+            })
+    }
+
+    /// Map the edge labels of this OpenHypergraph, possibly changing their type
+    pub fn map_edges<F: Fn(A) -> T, T>(self, f: F) -> OpenHypergraph<O, T> {
+        OpenHypergraph {
+            sources: self.sources,
+            targets: self.targets,
+            hypergraph: self.hypergraph.map_edges(f),
+        }
+    }
 }
 
 impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
