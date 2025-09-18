@@ -54,7 +54,7 @@ pub trait Array<K: ArrayKind, T>: Clone {
         self.len() == K::I::zero()
     }
 
-    fn from_slice<'a>(slice: K::Slice<'a, T>) -> Self;
+    fn from_slice(slice: K::Slice<'_, T>) -> Self;
 
     /// Clamp any `R: RangeBounds<K::I>` into the range of valid indices for this array.
     fn to_range<R: RangeBounds<K::I>>(&self, r: R) -> Range<K::I> {

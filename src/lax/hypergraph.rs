@@ -159,7 +159,7 @@ impl<O, A> Hypergraph<O, A> {
         }
 
         Some(Hypergraph {
-            nodes: nodes,
+            nodes,
             edges: self.edges,
             adjacency: self.adjacency,
             quotient: self.quotient,
@@ -184,7 +184,7 @@ impl<O, A> Hypergraph<O, A> {
 
         Some(Hypergraph {
             nodes: self.nodes,
-            edges: edges,
+            edges,
             adjacency: self.adjacency,
             quotient: self.quotient,
         })

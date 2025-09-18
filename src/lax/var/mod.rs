@@ -39,9 +39,11 @@
 //! language of simple digital circuits.
 
 mod operators;
+#[allow(clippy::module_inception)]
 mod var;
 
 pub mod forget;
 
 pub use operators::*;
+
 pub use var::*;
