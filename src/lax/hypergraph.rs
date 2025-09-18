@@ -148,6 +148,54 @@ impl<O, A> Hypergraph<O, A> {
         self.adjacency[edge_id.0].targets.push(node_id);
         node_id
     }
+
+    /// Set the nodes of a Hypergraph, possibly changing types.
+    /// Returns None if new nodes array had different length.
+    pub fn set_nodes<T, F: FnOnce(Vec<O>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<T, A>> {
+        let n = self.nodes.len();
+        let nodes = f(self.nodes);
+        if nodes.len() != n {
+            return None;
+        }
+
+        Some(Hypergraph {
+            nodes: nodes,
+            edges: self.edges,
+            adjacency: self.adjacency,
+            quotient: self.quotient,
+        })
+    }
+
+    /// Map the node labels of this Hypergraph, possibly changing their type
+    pub fn map_nodes<F: Fn(O) -> T, T>(self, f: F) -> Hypergraph<T, A> {
+        // note: unwrap is safe because length is preserved
+        self.set_nodes(|nodes| nodes.into_iter().map(f).collect())
+            .unwrap()
+    }
+
+    /// Set the edges of a Hypergraph, possibly changing types.
+    /// Returns None if new edges array had different length.
+    pub fn set_edges<T, F: FnOnce(Vec<A>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<O, T>> {
+        let n = self.nodes.len();
+        let edges = f(self.edges);
+        if edges.len() != n {
+            return None;
+        }
+
+        Some(Hypergraph {
+            nodes: self.nodes,
+            edges: edges,
+            adjacency: self.adjacency,
+            quotient: self.quotient,
+        })
+    }
+
+    /// Map the edge labels of this Hypergraph, possibly changing their type
+    pub fn map_edges<F: Fn(A) -> T, T>(self, f: F) -> Hypergraph<O, T> {
+        // note: unwrap is safe because length is preserved
+        self.set_edges(|edges| edges.into_iter().map(f).collect())
+            .unwrap()
+    }
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
