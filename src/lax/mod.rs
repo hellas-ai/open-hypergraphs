@@ -77,6 +77,7 @@ pub mod hypergraph;
 pub mod mut_category;
 pub mod open_hypergraph;
 
+pub use crate::category::*;
 pub use hypergraph::*;
 pub use open_hypergraph::*;
 

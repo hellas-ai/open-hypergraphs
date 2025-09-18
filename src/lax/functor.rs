@@ -48,7 +48,7 @@ pub fn define_map_arrow<
     OpenHypergraph::from_strict(strict_g)
 }
 
-fn to_dyn_functor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2>(
+pub fn to_dyn_functor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2>(
     functor: F,
 ) -> DynFunctor<F, O1, A1, O2, A2> {
     DynFunctor {
@@ -64,7 +64,7 @@ fn to_strict<O: Clone + PartialEq, A: Clone>(
 }
 
 // A dynamic functor using closures for map_object and map_operation
-struct DynFunctor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2> {
+pub struct DynFunctor<F: Functor<O1, A1, O2, A2>, O1, A1, O2, A2> {
     inner: F,
     _phantom: std::marker::PhantomData<(O1, A1, O2, A2)>,
 }
