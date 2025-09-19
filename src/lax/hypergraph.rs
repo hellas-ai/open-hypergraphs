@@ -11,7 +11,7 @@ pub struct NodeId(pub usize);
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EdgeId(pub usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Hyperedge {
     pub sources: Vec<NodeId>,
@@ -24,7 +24,7 @@ pub type Interface = (Vec<NodeId>, Vec<NodeId>);
 ///
 /// It can be thought of as a collection of disconnected operations and wires along with a
 /// *quotient map* which can be used with connected components to produce a `Hypergraph`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "serde",
