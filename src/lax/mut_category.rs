@@ -32,11 +32,20 @@ impl<O, A> Hypergraph<O, A> {
 impl<O, A> OpenHypergraph<O, A> {
     /// Compute the tensor product `f.tensor(g)` by mutating the data of `f`
     pub fn tensor_assign(&mut self, rhs: OpenHypergraph<O, A>) {
+        let (s, t) = self.append(rhs);
+        self.sources.extend(s);
+        self.targets.extend(t);
+    }
+
+    /// Append the data of `rhs` into `self`, but leave boundaries unchanged.
+    /// Return the new source/target nodes of rhs after appending.
+    pub fn append(&mut self, rhs: OpenHypergraph<O, A>) -> (Vec<NodeId>, Vec<NodeId>) {
+        // Corresponds to tensor_assign pre- and post-composed with Frobenius unit/counit.
+        // (but this definition is more efficient)
         let n = self.hypergraph.nodes.len();
         self.hypergraph.coproduct_assign(rhs.hypergraph);
-        self.sources
-            .extend(rhs.sources.iter().map(|&i| NodeId(i.0 + n)));
-        self.targets
-            .extend(rhs.targets.iter().map(|&i| NodeId(i.0 + n)));
+        let sources = rhs.sources.into_iter().map(|i| NodeId(i.0 + n)).collect();
+        let targets = rhs.targets.into_iter().map(|i| NodeId(i.0 + n)).collect();
+        (sources, targets)
     }
 }
