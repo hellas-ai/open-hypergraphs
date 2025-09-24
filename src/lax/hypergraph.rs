@@ -176,7 +176,7 @@ impl<O, A> Hypergraph<O, A> {
     /// Set the edges of a Hypergraph, possibly changing types.
     /// Returns None if new edges array had different length.
     pub fn with_edges<T, F: FnOnce(Vec<A>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<O, T>> {
-        let n = self.nodes.len();
+        let n = self.edges.len();
         let edges = f(self.edges);
         if edges.len() != n {
             return None;

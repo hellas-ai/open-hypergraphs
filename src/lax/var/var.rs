@@ -31,12 +31,14 @@ impl<O: Clone, A: HasVar> Var<O, A> {
         }
     }
 
+    /// Create a new source node of this Var
     pub fn new_source(&self) -> NodeId {
         self.state
             .borrow_mut()
             .add_edge_source(self.edge_id, self.label.clone())
     }
 
+    /// Create a new target node of this Var
     pub fn new_target(&self) -> NodeId {
         self.state
             .borrow_mut()
