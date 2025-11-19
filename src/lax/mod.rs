@@ -81,4 +81,5 @@ pub use crate::category::*;
 pub use hypergraph::*;
 pub use open_hypergraph::*;
 
+pub mod optic;
 pub mod var;
