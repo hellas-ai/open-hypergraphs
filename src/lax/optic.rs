@@ -1,4 +1,10 @@
-//! Optics for lax open hypergraphs
+//! # Optics for lax open hypergraphs
+//!
+//! This module provides an interface for defining optics on [`crate::lax::OpenHypergraph`]
+//! via the [`Optic`] trait.
+//!
+//! By defining the fwd and reverse mappings on objects and operations, the [`Optic`] trait will
+//! give you `map_arrow` and `map_adapted` methods for free.
 use std::fmt::Debug;
 
 use crate::lax::functor::{to_dyn_functor, DynFunctor, Functor};
@@ -9,7 +15,9 @@ use crate::strict::IndexedCoproduct;
 use crate::strict::SemifiniteFunction;
 use crate::{lax, lax::OpenHypergraph, strict::functor::optic::Optic as StrictOptic};
 
-// TODO: can 'static be removed here?
+/// #
+///
+/// foo
 pub trait Optic<
     O1: Clone + PartialEq,
     A1: Clone,
@@ -37,9 +45,9 @@ pub trait Optic<
         let optic = to_strict_optic(self);
         let strict = term.to_strict();
         lax::OpenHypergraph::from_strict({
-            // Get the right trait in scope.
             use crate::strict::functor::Functor;
             let optic_term = optic.map_arrow(&strict);
+            // Adapt the produced term so it's monogamous again (as long as the input was).
             optic.adapt(&optic_term, &strict.source(), &strict.target())
         })
     }
