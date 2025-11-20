@@ -1,7 +1,7 @@
 //! Optics for lax open hypergraphs
 use std::fmt::Debug;
 
-use crate::lax::functor::{to_dyn_functor, Functor};
+use crate::lax::functor::{to_dyn_functor, DynFunctor, Functor};
 use crate::operations::Operations;
 use crate::strict::vec::VecArray;
 use crate::strict::vec::VecKind;
@@ -24,39 +24,69 @@ pub trait Optic<
     fn residual(&self, a: &A1) -> Vec<O2>;
 
     fn map_arrow(&self, term: OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2> {
-        let fwd = to_dyn_functor(Fwd::new(self.clone()));
-        let rev = to_dyn_functor(Rev::new(self.clone()));
-
-        // Clone self to avoid lifetime issues in the closure
-        let self_clone = self.clone();
-
-        //let optic = StrictOptic::<Fwd<Self, _, _, _, _>, Rev<Self, _, _, _, _>, VecKind, O1, A1, O2, A2>::new(fwd, rev, Box::new(|ops: &Operations<VecKind, Obj, Arr| {
-        let optic = StrictOptic::new(
-            fwd,
-            rev,
-            Box::new(move |ops: &Operations<VecKind, O1, A1>| {
-                let mut sources_vec = Vec::new();
-                let mut residuals = Vec::new();
-
-                for i in 0..ops.len() {
-                    let obj = &ops.x.0[i];
-                    let m = self_clone.residual(&obj);
-                    sources_vec.push(m.len());
-                    residuals.extend(m);
-                }
-
-                let sources = SemifiniteFunction::<VecKind, usize>(VecArray(sources_vec));
-                let values = SemifiniteFunction(VecArray(residuals));
-                IndexedCoproduct::from_semifinite(sources, values).unwrap()
-            }),
-        );
+        let optic = to_strict_optic(self);
         let strict = term.to_strict();
-        let optic_term = {
+        lax::OpenHypergraph::from_strict({
+            // Get the right trait in scope.
             use crate::strict::functor::Functor;
             optic.map_arrow(&strict)
-        };
-        lax::OpenHypergraph::from_strict(optic_term)
+        })
     }
+
+    fn map_adapted(&self, term: OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2> {
+        let optic = to_strict_optic(self);
+        let strict = term.to_strict();
+        lax::OpenHypergraph::from_strict({
+            // Get the right trait in scope.
+            use crate::strict::functor::Functor;
+            let optic_term = optic.map_arrow(&strict);
+            optic.adapt(&optic_term, &strict.source(), &strict.target())
+        })
+    }
+}
+
+fn to_strict_optic<
+    T: Optic<O1, A1, O2, A2> + 'static,
+    O1: Clone + PartialEq,
+    A1: Clone,
+    O2: Clone + PartialEq + Debug,
+    A2: Clone,
+>(
+    this: &T,
+) -> StrictOptic<
+    DynFunctor<Fwd<T, O1, A1, O2, A2>, O1, A1, O2, A2>,
+    DynFunctor<Rev<T, O1, A1, O2, A2>, O1, A1, O2, A2>,
+    VecKind,
+    O1,
+    A1,
+    O2,
+    A2,
+> {
+    let fwd = to_dyn_functor(Fwd::new(this.clone()));
+    let rev = to_dyn_functor(Rev::new(this.clone()));
+
+    // Clone self to avoid lifetime issues in the closure
+    let self_clone = this.clone();
+
+    StrictOptic::new(
+        fwd,
+        rev,
+        Box::new(move |ops: &Operations<VecKind, O1, A1>| {
+            let mut sources_vec = Vec::new();
+            let mut residuals = Vec::new();
+
+            for i in 0..ops.len() {
+                let obj = &ops.x.0[i];
+                let m = self_clone.residual(&obj);
+                sources_vec.push(m.len());
+                residuals.extend(m);
+            }
+
+            let sources = SemifiniteFunction::<VecKind, usize>(VecArray(sources_vec));
+            let values = SemifiniteFunction(VecArray(residuals));
+            IndexedCoproduct::from_semifinite(sources, values).unwrap()
+        }),
+    )
 }
 
 ////////////////////////////////////////////////////////////////////////////////
