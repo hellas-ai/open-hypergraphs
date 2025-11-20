@@ -83,9 +83,8 @@ fn to_strict_optic<
             let mut sources_vec = Vec::new();
             let mut residuals = Vec::new();
 
-            for i in 0..ops.len() {
-                let obj = &ops.x.0[i];
-                let m = self_clone.residual(&obj);
+            for (op, _, _) in ops.iter() {
+                let m = self_clone.residual(op);
                 sources_vec.push(m.len());
                 residuals.extend(m);
             }
@@ -99,6 +98,8 @@ fn to_strict_optic<
 
 ////////////////////////////////////////////////////////////////////////////////
 // Fwd and Rev lax functor helpers, needed for Optic
+// **IMPORTANT NOTE**: never expose these in the public API.
+// They rely on never having their `map_arrow` methods called, and panic! in that case.
 
 #[derive(Clone, PartialEq)]
 struct Fwd<T, O1, A1, O2, A2> {
@@ -122,6 +123,7 @@ impl<
         self.optic.fwd_operation(a, source, target)
     }
 
+    // NOTE: this method is never called; and the struct *must* remain private.
     fn map_arrow(&self, _f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2> {
         panic!("Fwd is not a functor!");
     }
@@ -165,6 +167,7 @@ impl<
         self.optic.rev_operation(a, source, target)
     }
 
+    // NOTE: this method is never called; and the struct *must* remain private.
     fn map_arrow(&self, _f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2> {
         panic!("Rev is not a functor!");
     }

@@ -81,3 +81,14 @@ where
         }
     }
 }
+
+use crate::array::vec::VecKind;
+
+impl<O, A> Operations<VecKind, O, A> {
+    pub fn iter(&self) -> impl Iterator<Item = (&A, &[O], &[O])> {
+        self.x.0.iter()
+            .zip(self.a.iter())
+            .zip(self.b.iter())
+            .map(|((a, b), c)| (a, b, c))
+    }
+}

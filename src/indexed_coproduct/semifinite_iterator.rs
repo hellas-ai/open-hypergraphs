@@ -84,3 +84,16 @@ where
         }
     }
 }
+
+use crate::array::vec::VecKind;
+
+impl<T> IndexedCoproduct<VecKind, SemifiniteFunction<VecKind, T>> {
+    pub fn iter(&self) -> impl Iterator<Item = &[T]> {
+        let pointers = self.sources.table.cumulative_sum();
+        (0..pointers.len() - 1).map(move |i| {
+            let start = pointers.get(i);
+            let end = pointers.get(i + 1);
+            &self.values.0[start..end]
+        })
+    }
+}
