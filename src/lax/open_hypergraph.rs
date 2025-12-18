@@ -47,7 +47,7 @@ impl<O, A> OpenHypergraph<O, A> {
         self.hypergraph.new_node(w)
     }
 
-    pub fn new_edge(&mut self, x: A, interface: Hyperedge) -> EdgeId {
+    pub fn new_edge(&mut self, x: A, interface: impl Into<Hyperedge>) -> EdgeId {
         self.hypergraph.new_edge(x, interface)
     }
 
