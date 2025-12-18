@@ -18,6 +18,27 @@ pub struct Hyperedge {
     pub targets: Vec<NodeId>,
 }
 
+/// Create a [`Hyperedge`] from a tuple of `(sources, targets)`.
+///
+/// This allows convenient creation of hyperedges from various collection types:
+/// ```
+/// # use open_hypergraphs::lax::{Hyperedge, NodeId};
+/// let edge: Hyperedge = (vec![NodeId(0), NodeId(1)], vec![NodeId(2)]).into();
+/// let edge: Hyperedge = ([NodeId(0), NodeId(1)], [NodeId(2)]).into();
+/// ```
+impl<S, T> From<(S, T)> for Hyperedge
+where
+    S: Into<Vec<NodeId>>,
+    T: Into<Vec<NodeId>>,
+{
+    fn from((sources, targets): (S, T)) -> Self {
+        Hyperedge {
+            sources: sources.into(),
+            targets: targets.into(),
+        }
+    }
+}
+
 pub type Interface = (Vec<NodeId>, Vec<NodeId>);
 
 /// A [`crate::lax::Hypergraph`] represents an "un-quotiented" hypergraph.
@@ -96,10 +117,10 @@ impl<O, A> Hypergraph<O, A> {
     /// Add a single hyperedge labeled `a` to the [`Hypergraph`]
     /// it has sources and targets specified by `interface`
     /// return which `EdgeId` corresponds to that new hyperedge
-    pub fn new_edge(&mut self, x: A, interface: Hyperedge) -> EdgeId {
+    pub fn new_edge(&mut self, x: A, interface: impl Into<Hyperedge>) -> EdgeId {
         let edge_idx = self.edges.len();
         self.edges.push(x);
-        self.adjacency.push(interface);
+        self.adjacency.push(interface.into());
         EdgeId(edge_idx)
     }
 
