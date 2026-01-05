@@ -197,6 +197,9 @@ impl<O, A> Hypergraph<O, A> {
             .unwrap()
     }
 
+    /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
+    ///
+    /// Out-of-bounds node ids are ignored.
     pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
         if node_ids.is_empty() {
             return;
@@ -204,18 +207,24 @@ impl<O, A> Hypergraph<O, A> {
 
         let node_count = self.nodes.len();
         let mut remove = vec![false; node_count];
+        let mut any_removed = false;
+        let mut remove_count = 0usize;
         for node_id in node_ids {
             if node_id.0 < node_count {
-                remove[node_id.0] = true;
+                if !remove[node_id.0] {
+                    remove[node_id.0] = true;
+                    any_removed = true;
+                    remove_count += 1;
+                }
             }
         }
 
-        if remove.iter().all(|&flag| !flag) {
+        if !any_removed {
             return;
         }
 
         let mut new_index = vec![None; node_count];
-        let mut nodes = Vec::with_capacity(node_count - remove.iter().filter(|&&f| f).count());
+        let mut nodes = Vec::with_capacity(node_count - remove_count);
         for (i, node) in self.nodes.drain(..).enumerate() {
             if !remove[i] {
                 let next = nodes.len();
