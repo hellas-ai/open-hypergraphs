@@ -217,6 +217,67 @@ impl<O, A> Hypergraph<O, A> {
         self.with_edges(|edges| edges.into_iter().map(f).collect())
             .unwrap()
     }
+
+    /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
+    ///
+    /// Out-of-bounds node ids are ignored.
+    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+        if node_ids.is_empty() {
+            return;
+        }
+
+        let node_count = self.nodes.len();
+        let mut remove = vec![false; node_count];
+        let mut any_removed = false;
+        let mut remove_count = 0usize;
+        for node_id in node_ids {
+            if node_id.0 < node_count {
+                if !remove[node_id.0] {
+                    remove[node_id.0] = true;
+                    any_removed = true;
+                    remove_count += 1;
+                }
+            }
+        }
+
+        if !any_removed {
+            return;
+        }
+
+        let mut new_index = vec![None; node_count];
+        let mut nodes = Vec::with_capacity(node_count - remove_count);
+        for (i, node) in self.nodes.drain(..).enumerate() {
+            if !remove[i] {
+                let next = nodes.len();
+                new_index[i] = Some(next);
+                nodes.push(node);
+            }
+        }
+        self.nodes = nodes;
+
+        for edge in &mut self.adjacency {
+            edge.sources = edge
+                .sources
+                .iter()
+                .filter_map(|node| new_index[node.0].map(NodeId))
+                .collect();
+            edge.targets = edge
+                .targets
+                .iter()
+                .filter_map(|node| new_index[node.0].map(NodeId))
+                .collect();
+        }
+
+        let mut quotient_left = Vec::with_capacity(self.quotient.0.len());
+        let mut quotient_right = Vec::with_capacity(self.quotient.1.len());
+        for (v, w) in self.quotient.0.iter().zip(self.quotient.1.iter()) {
+            if let (Some(v_new), Some(w_new)) = (new_index[v.0], new_index[w.0]) {
+                quotient_left.push(NodeId(v_new));
+                quotient_right.push(NodeId(w_new));
+            }
+        }
+        self.quotient = (quotient_left, quotient_right);
+    }
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
