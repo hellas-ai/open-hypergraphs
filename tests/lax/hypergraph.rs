@@ -64,7 +64,8 @@ fn test_delete_nodes_all_nodes_removed() {
 }
 
 #[test]
-fn test_delete_nodes_ignores_out_of_range() {
+#[should_panic]
+fn test_delete_nodes_panics_on_out_of_range() {
     let mut h = Hypergraph::empty();
     h.nodes = vec![5, 6];
     h.edges = vec![1];
@@ -75,12 +76,6 @@ fn test_delete_nodes_ignores_out_of_range() {
     h.quotient = (vec![NodeId(0)], vec![NodeId(1)]);
 
     h.delete_nodes(&[NodeId(99)]);
-
-    assert_eq!(h.nodes, vec![5, 6]);
-    assert_eq!(h.adjacency[0].sources, vec![NodeId(0)]);
-    assert_eq!(h.adjacency[0].targets, vec![NodeId(1)]);
-    assert_eq!(h.quotient.0, vec![NodeId(0)]);
-    assert_eq!(h.quotient.1, vec![NodeId(1)]);
 }
 
 #[test]

@@ -267,7 +267,7 @@ impl<O, A> Hypergraph<O, A> {
 
     /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
     ///
-    /// Out-of-bounds node ids are ignored.
+    /// Panics if any node id is out of bounds.
     pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
         if node_ids.is_empty() {
             return;
@@ -278,12 +278,15 @@ impl<O, A> Hypergraph<O, A> {
         let mut any_removed = false;
         let mut remove_count = 0usize;
         for node_id in node_ids {
-            if node_id.0 < node_count {
-                if !remove[node_id.0] {
-                    remove[node_id.0] = true;
-                    any_removed = true;
-                    remove_count += 1;
-                }
+            assert!(
+                node_id.0 < node_count,
+                "node id {:?} is out of bounds",
+                node_id
+            );
+            if !remove[node_id.0] {
+                remove[node_id.0] = true;
+                any_removed = true;
+                remove_count += 1;
             }
         }
 
