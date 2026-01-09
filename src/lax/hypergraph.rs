@@ -227,6 +227,11 @@ impl<O, A> Hypergraph<O, A> {
         }
 
         let edge_count = self.edges.len();
+        assert_eq!(
+            edge_count,
+            self.adjacency.len(),
+            "edges and adjacency lengths differ"
+        );
         let mut remove = vec![false; edge_count];
         let mut any_removed = false;
         let mut remove_count = 0usize;
