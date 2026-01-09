@@ -222,16 +222,17 @@ impl<O, A> Hypergraph<O, A> {
     ///
     /// Panics if any edge id is out of bounds.
     pub fn delete_edge(&mut self, edge_ids: &[EdgeId]) {
-        if edge_ids.is_empty() {
-            return;
-        }
-
         let edge_count = self.edges.len();
         assert_eq!(
             edge_count,
             self.adjacency.len(),
-            "edges and adjacency lengths differ"
+            "malformed hypergraph: edges and adjacency lengths differ"
         );
+
+        if edge_ids.is_empty() {
+            return;
+        }
+
         let mut remove = vec![false; edge_count];
         let mut any_removed = false;
         let mut remove_count = 0usize;
