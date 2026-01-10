@@ -172,3 +172,147 @@ fn dangling_condition<O, A>(
 
     true
 }
+
+#[cfg(test)]
+mod tests {
+    // Tests from working examples in
+    // Bonchi, Filippo, et al.
+    // "String diagram rewrite theory I: Rewriting with Frobenius structure."
+    // Journal of the ACM (JACM) 69.2 (2022): 1-58.
+    use super::exploded_context;
+    use crate::array::vec::{VecArray, VecKind};
+    use crate::finite_function::FiniteFunction;
+    use crate::lax::{Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap};
+
+    fn empty_map(target: usize) -> FiniteFunction<VecKind> {
+        FiniteFunction::<VecKind>::new(VecArray(vec![]), target).unwrap()
+    }
+
+    #[test]
+    fn test_exploded_context_construction() {
+        // From Session 4.5 Pushout Complements and Rewriting Modulo Frobenius
+        let f_label = "f".to_string();
+        let g_label = "g".to_string();
+
+        let mut g: Hypergraph<String, String> = Hypergraph::empty();
+        let w1 = g.new_node("w1".to_string());
+        let w2 = g.new_node("w2".to_string());
+        let w3 = g.new_node("w3".to_string());
+        let w4 = g.new_node("w4".to_string());
+        let w5 = g.new_node("w5".to_string());
+
+        g.new_edge(
+            f_label.clone(),
+            Hyperedge {
+                sources: vec![w1],
+                targets: vec![w2],
+            },
+        );
+        g.new_edge(
+            g_label.clone(),
+            Hyperedge {
+                sources: vec![w2],
+                targets: vec![w3],
+            },
+        );
+        g.new_edge(
+            f_label.clone(),
+            Hyperedge {
+                sources: vec![w1],
+                targets: vec![w4],
+            },
+        );
+        g.new_edge(
+            g_label.clone(),
+            Hyperedge {
+                sources: vec![w4],
+                targets: vec![w5],
+            },
+        );
+
+        let mut left: Hypergraph<String, String> = Hypergraph::empty();
+        left.new_node("a0".to_string());
+
+        let mut right: Hypergraph<String, String> = Hypergraph::empty();
+        let b0 = right.new_node("b0".to_string());
+        let b2 = right.new_node("b2".to_string());
+        let b1 = right.new_node("b1".to_string());
+        right.new_edge(
+            f_label.clone(),
+            Hyperedge {
+                sources: vec![b0],
+                targets: vec![b2],
+            },
+        );
+        right.new_edge(
+            g_label.clone(),
+            Hyperedge {
+                sources: vec![b2],
+                targets: vec![b1],
+            },
+        );
+
+        let mut apex: Hypergraph<String, String> = Hypergraph::empty();
+        apex.new_node("k0".to_string());
+        apex.new_node("k1".to_string());
+
+        let left_map = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 0]), left.nodes.len()).unwrap(),
+            edges: empty_map(left.edges.len()),
+        };
+        let right_map = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 2]), right.nodes.len()).unwrap(),
+            edges: empty_map(right.edges.len()),
+        };
+        let rule = LaxSpan::new(apex, left, right, left_map, right_map);
+
+        let candidate = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![3]), g.nodes.len()).unwrap(),
+            edges: empty_map(g.edges.len()),
+        };
+
+        let exploded = exploded_context(&g, &rule, &candidate);
+
+        let mut expected: Hypergraph<String, String> = Hypergraph::empty();
+        let e_w1 = expected.new_node("w1".to_string());
+        let e_w2 = expected.new_node("w2".to_string());
+        let e_w3 = expected.new_node("w3".to_string());
+        let e_w5 = expected.new_node("w5".to_string());
+        let e_w4a = expected.new_node("w4".to_string());
+        let e_w4b = expected.new_node("w4".to_string());
+
+        expected.new_edge(
+            f_label.clone(),
+            Hyperedge {
+                sources: vec![e_w1],
+                targets: vec![e_w2],
+            },
+        );
+        expected.new_edge(
+            g_label.clone(),
+            Hyperedge {
+                sources: vec![e_w2],
+                targets: vec![e_w3],
+            },
+        );
+        expected.new_edge(
+            f_label.clone(),
+            Hyperedge {
+                sources: vec![e_w1],
+                targets: vec![e_w4a],
+            },
+        );
+        expected.new_edge(
+            g_label.clone(),
+            Hyperedge {
+                sources: vec![e_w4b],
+                targets: vec![e_w5],
+            },
+        );
+
+        expected.new_node("k0".to_string());
+        expected.new_node("k1".to_string());
+
+        assert_eq!(exploded, expected);
+    }
+}
