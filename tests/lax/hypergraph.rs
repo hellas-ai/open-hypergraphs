@@ -1,6 +1,6 @@
 use open_hypergraphs::array::vec::{VecArray, VecKind};
 use open_hypergraphs::finite_function::FiniteFunction;
-use open_hypergraphs::lax::{Hyperedge, Hypergraph, LaxHypergraphArrow, NodeId};
+use open_hypergraphs::lax::{Arrow, Hyperedge, Hypergraph, LaxHypergraphArrow, NodeId};
 
 #[test]
 fn test_delete_nodes_remap_and_quotient() {
