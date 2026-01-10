@@ -5,6 +5,7 @@ use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap, 
 struct ExplodedContext<O, A> {
     graph: Hypergraph<O, A>,
     map: NodeEdgeMap,
+    node_fibers: Vec<Vec<NodeId>>,
 }
 
 /// Rewrite a lax hypergraph using a rule span and candidate map.
@@ -106,9 +107,15 @@ fn exploded_context<O: Clone, A: Clone>(
         edges: q_h_edges.coproduct(&q_k_edges).expect("edge coproduct"),
     };
 
+    let mut node_fibers = vec![Vec::new(); g.nodes.len()];
+    for (src, &tgt) in q.nodes.table.iter().enumerate() {
+        node_fibers[tgt].push(NodeId(src));
+    }
+
     ExplodedContext {
         graph: h.coproduct(&rule.apex),
         map: q,
+        node_fibers,
     }
 }
 
