@@ -1,4 +1,11 @@
-use crate::lax::{Arrow, Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap, NodeId};
+use crate::array::vec::{VecArray, VecKind};
+use crate::finite_function::FiniteFunction;
+use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap, NodeId};
+
+struct ExplodedContext<O, A> {
+    graph: Hypergraph<O, A>,
+    map: NodeEdgeMap,
+}
 
 /// Rewrite a lax hypergraph using a rule span and candidate map.
 pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
@@ -11,14 +18,14 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
         return None;
     }
     let exploded = exploded_context(g, rule, candidate);
-    Some(exploded)
+    Some(exploded.graph)
 }
 
 fn exploded_context<O: Clone, A: Clone>(
     g: &Hypergraph<O, A>,
     rule: &LaxSpan<O, A>,
     candidate: &NodeEdgeMap,
-) -> Hypergraph<O, A> {
+) -> ExplodedContext<O, A> {
     let mut in_image_nodes = vec![false; g.nodes.len()];
     for i in 0..candidate.nodes.source() {
         let idx = candidate.nodes.table[i];
@@ -32,15 +39,18 @@ fn exploded_context<O: Clone, A: Clone>(
     }
 
     let mut h = Hypergraph::empty();
+    let mut h_node_to_g = Vec::new();
     let mut node_map: Vec<Option<usize>> = vec![None; g.nodes.len()];
     for (idx, label) in g.nodes.iter().enumerate() {
         if in_image_nodes[idx] {
             continue;
         }
         let new_id = h.new_node(label.clone());
+        h_node_to_g.push(idx);
         node_map[idx] = Some(new_id.0);
     }
 
+    let mut h_edge_to_g = Vec::new();
     for (edge_id, edge) in g.adjacency.iter().enumerate() {
         if in_image_edges[edge_id] {
             continue;
@@ -50,7 +60,11 @@ fn exploded_context<O: Clone, A: Clone>(
         for node in &edge.sources {
             let new_id = match node_map[node.0] {
                 Some(existing) => NodeId(existing),
-                None => h.new_node(g.nodes[node.0].clone()),
+                None => {
+                    let new_id = h.new_node(g.nodes[node.0].clone());
+                    h_node_to_g.push(node.0);
+                    new_id
+                }
             };
             sources.push(new_id);
         }
@@ -59,15 +73,43 @@ fn exploded_context<O: Clone, A: Clone>(
         for node in &edge.targets {
             let new_id = match node_map[node.0] {
                 Some(existing) => NodeId(existing),
-                None => h.new_node(g.nodes[node.0].clone()),
+                None => {
+                    let new_id = h.new_node(g.nodes[node.0].clone());
+                    h_node_to_g.push(node.0);
+                    new_id
+                }
             };
             targets.push(new_id);
         }
 
         h.new_edge(g.edges[edge_id].clone(), Hyperedge { sources, targets });
+        h_edge_to_g.push(edge_id);
     }
 
-    h.coproduct(&rule.apex)
+    let q_h_nodes =
+        FiniteFunction::<VecKind>::new(VecArray(h_node_to_g), g.nodes.len()).unwrap();
+    let q_h_edges =
+        FiniteFunction::<VecKind>::new(VecArray(h_edge_to_g), g.edges.len()).unwrap();
+    let q_k_nodes = rule
+        .left_map
+        .nodes
+        .compose(&candidate.nodes)
+        .expect("candidate map left nodes compose");
+    let q_k_edges = rule
+        .left_map
+        .edges
+        .compose(&candidate.edges)
+        .expect("candidate map left edges compose");
+
+    let q = NodeEdgeMap {
+        nodes: q_h_nodes.coproduct(&q_k_nodes).expect("node coproduct"),
+        edges: q_h_edges.coproduct(&q_k_edges).expect("edge coproduct"),
+    };
+
+    ExplodedContext {
+        graph: h.coproduct(&rule.apex),
+        map: q,
+    }
 }
 
 fn validate_candidate_map<O, A>(
@@ -313,6 +355,6 @@ mod tests {
         expected.new_node("k0".to_string());
         expected.new_node("k1".to_string());
 
-        assert_eq!(exploded, expected);
+        assert_eq!(exploded.graph, expected);
     }
 }
