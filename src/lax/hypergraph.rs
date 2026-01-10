@@ -19,6 +19,104 @@ pub struct Hyperedge {
     pub targets: Vec<NodeId>,
 }
 
+/// A map on nodes and edges without structure preservation guarantees.
+#[derive(Clone)]
+pub struct NodeEdgeMap {
+    pub nodes: FiniteFunction<VecKind>,
+    pub edges: FiniteFunction<VecKind>,
+}
+
+#[derive(Clone)]
+pub struct LaxSpan<O, A> {
+    pub apex: Hypergraph<O, A>,
+    pub left: Hypergraph<O, A>,
+    pub right: Hypergraph<O, A>,
+    pub left_map: NodeEdgeMap,
+    pub right_map: NodeEdgeMap,
+}
+
+impl<O, A> LaxSpan<O, A> {
+    /// Construct a lax span and validate its structural properties.
+    pub fn new(
+        apex: Hypergraph<O, A>,
+        left: Hypergraph<O, A>,
+        right: Hypergraph<O, A>,
+        left_map: NodeEdgeMap,
+        right_map: NodeEdgeMap,
+    ) -> Self {
+        LaxSpan {
+            apex,
+            left,
+            right,
+            left_map,
+            right_map,
+        }
+        .validate()
+    }
+
+    /// Validate that maps are compatible with their hypergraphs.
+    pub fn validate(self) -> Self {
+        if self.left_map.nodes.source() != self.apex.nodes.len() {
+            panic!(
+                "left map node source size mismatch: got {}, expected {}",
+                self.left_map.nodes.source(),
+                self.apex.nodes.len()
+            );
+        }
+        if self.left_map.nodes.target() != self.left.nodes.len() {
+            panic!(
+                "left map node target size mismatch: got {}, expected {}",
+                self.left_map.nodes.target(),
+                self.left.nodes.len()
+            );
+        }
+        if self.left_map.edges.source() != self.apex.edges.len() {
+            panic!(
+                "left map edge source size mismatch: got {}, expected {}",
+                self.left_map.edges.source(),
+                self.apex.edges.len()
+            );
+        }
+        if self.left_map.edges.target() != self.left.edges.len() {
+            panic!(
+                "left map edge target size mismatch: got {}, expected {}",
+                self.left_map.edges.target(),
+                self.left.edges.len()
+            );
+        }
+        if self.right_map.nodes.source() != self.apex.nodes.len() {
+            panic!(
+                "right map node source size mismatch: got {}, expected {}",
+                self.right_map.nodes.source(),
+                self.apex.nodes.len()
+            );
+        }
+        if self.right_map.nodes.target() != self.right.nodes.len() {
+            panic!(
+                "right map node target size mismatch: got {}, expected {}",
+                self.right_map.nodes.target(),
+                self.right.nodes.len()
+            );
+        }
+        if self.right_map.edges.source() != self.apex.edges.len() {
+            panic!(
+                "right map edge source size mismatch: got {}, expected {}",
+                self.right_map.edges.source(),
+                self.apex.edges.len()
+            );
+        }
+        if self.right_map.edges.target() != self.right.edges.len() {
+            panic!(
+                "right map edge target size mismatch: got {}, expected {}",
+                self.right_map.edges.target(),
+                self.right.edges.len()
+            );
+        }
+
+        self
+    }
+}
+
 /// Create a [`Hyperedge`] from a tuple of `(sources, targets)`.
 ///
 /// This allows convenient creation of hyperedges from various collection types:
