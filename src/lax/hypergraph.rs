@@ -56,6 +56,12 @@ impl<O, A> LaxSpan<O, A> {
 
     /// Validate that maps are compatible with their hypergraphs.
     pub fn validate(self) -> Self {
+        if !self.apex.edges.is_empty() {
+            panic!(
+                "apex must be discrete (no edges), got {} edge(s)",
+                self.apex.edges.len()
+            );
+        }
         if self.left_map.nodes.source() != self.apex.nodes.len() {
             panic!(
                 "left map node source size mismatch: got {}, expected {}",
@@ -114,6 +120,30 @@ impl<O, A> LaxSpan<O, A> {
         }
 
         self
+    }
+
+    /// Compute the pushout of the span, identifying only nodes.
+    ///
+    /// NOTE: this assumes the apex is discrete (no edges), so edge identifications are ignored.
+    pub fn pushout(&self) -> Hypergraph<O, A>
+    where
+        O: Clone + PartialEq,
+        A: Clone + PartialEq,
+    {
+        debug_assert!(
+            self.apex.edges.is_empty(),
+            "pushout assumes discrete apex (no edge identifications)"
+        );
+
+        let mut pushout = self.left.coproduct(&self.right);
+        let left_nodes = self.left.nodes.len();
+        for (k_idx, &l_idx) in self.left_map.nodes.table.iter().enumerate() {
+            let r_idx = self.right_map.nodes.table[k_idx] + left_nodes;
+            pushout.quotient.0.push(NodeId(l_idx));
+            pushout.quotient.1.push(NodeId(r_idx));
+        }
+        pushout.quotient();
+        pushout
     }
 }
 

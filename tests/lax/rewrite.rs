@@ -40,7 +40,7 @@ fn test_rewrite_identification_fails() {
         edges: empty_map(g.edges.len()),
     };
 
-    assert!(rewrite(&g, &rule, &candidate).is_none());
+    assert!(rewrite(&g, &rule, &candidate).is_empty());
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn test_rewrite_dangling_fails() {
         edges: empty_map(g.edges.len()),
     };
 
-    assert!(rewrite(&g, &rule, &candidate).is_none());
+    assert!(rewrite(&g, &rule, &candidate).is_empty());
 }
 
 #[test]
@@ -87,6 +87,6 @@ fn test_rewrite_gluing_ok() {
         edges: empty_map(g.edges.len()),
     };
 
-    let complements = rewrite(&g, &rule, &candidate).expect("expected complements");
+    let complements = rewrite(&g, &rule, &candidate);
     assert!(!complements.is_empty());
 }

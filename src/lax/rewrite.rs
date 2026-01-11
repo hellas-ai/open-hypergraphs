@@ -13,10 +13,10 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
     g: &Hypergraph<O, A>,
     rule: &LaxSpan<O, A>,
     candidate: &NodeEdgeMap,
-) -> Option<Vec<Hypergraph<O, A>>> {
+) -> Vec<Hypergraph<O, A>> {
     validate_candidate_map(rule, g, candidate);
     if !identification_condition(rule, candidate) || !dangling_condition(rule, candidate, g) {
-        return None;
+        return Vec::new();
     }
     let exploded = exploded_context(g, rule, candidate);
     let fiber_inputs = fiber_partition_inputs(&exploded);
@@ -26,14 +26,20 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
         .collect();
 
     if partitions_per_fiber.is_empty() {
-        return Some(vec![exploded.graph]);
+        return vec![pushout_result(
+            &exploded,
+            rule,
+            &partitions_per_fiber,
+            &[],
+        )];
     }
 
     let mut complements = Vec::new();
     let mut selection: Vec<usize> = Vec::with_capacity(partitions_per_fiber.len());
 
-    fn pushout_complement<O: Clone + PartialEq, A: Clone>(
+    fn pushout_result<O: Clone + PartialEq, A: Clone + PartialEq>(
         exploded: &ExplodedContext<O, A>,
+        rule: &LaxSpan<O, A>,
         partitions_per_fiber: &[Vec<FiberPartition>],
         selection: &[usize],
     ) -> Hypergraph<O, A> {
@@ -55,20 +61,45 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
 
         let mut complement = exploded.graph.clone();
         complement.quotient = (quotient_left, quotient_right);
-        complement.quotient();
-        complement
+        let q = complement.quotient();
+
+        let copied_nodes = exploded.graph.nodes.len() - rule.apex.nodes.len();
+        let k_to_c_nodes = FiniteFunction::<VecKind>::new(
+            VecArray(
+                (0..rule.apex.nodes.len())
+                    .map(|idx| q.table[copied_nodes + idx])
+                    .collect(),
+            ),
+            complement.nodes.len(),
+        )
+        .expect("k to complement map");
+        let k_to_c = NodeEdgeMap {
+            nodes: k_to_c_nodes,
+            edges: FiniteFunction::<VecKind>::initial(complement.edges.len()),
+        };
+
+        let span = LaxSpan::new(
+            rule.apex.clone(),
+            rule.right.clone(),
+            complement,
+            rule.right_map.clone(),
+            k_to_c,
+        );
+        span.pushout()
     }
 
-    fn walk<O: Clone + PartialEq, A: Clone>(
+    fn walk<O: Clone + PartialEq, A: Clone + PartialEq>(
         idx: usize,
         exploded: &ExplodedContext<O, A>,
+        rule: &LaxSpan<O, A>,
         partitions_per_fiber: &[Vec<FiberPartition>],
         selection: &mut Vec<usize>,
-        complements: &mut Vec<Hypergraph<O, A>>,
+        results: &mut Vec<Hypergraph<O, A>>,
     ) {
         if idx == partitions_per_fiber.len() {
-            complements.push(pushout_complement(
+            results.push(pushout_result(
                 exploded,
+                rule,
                 partitions_per_fiber,
                 selection,
             ));
@@ -80,9 +111,10 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
             walk(
                 idx + 1,
                 exploded,
+                rule,
                 partitions_per_fiber,
                 selection,
-                complements,
+                results,
             );
             selection.pop();
         }
@@ -91,12 +123,13 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
     walk(
         0,
         &exploded,
+        rule,
         &partitions_per_fiber,
         &mut selection,
         &mut complements,
     );
 
-    Some(complements)
+    complements
 }
 
 fn exploded_context<O: Clone, A: Clone>(
@@ -676,215 +709,259 @@ mod tests {
     #[test]
     fn test_rewrite_complements_working_example() {
         let (f_label, g_label, g, rule, candidate) = example_rewrite_input();
-
         let mut expected = Vec::new();
 
-        let mut h1: Hypergraph<String, String> = Hypergraph::empty();
-        let w1 = h1.new_node("w".to_string());
-        let w2 = h1.new_node("w".to_string());
-        let w3 = h1.new_node("w".to_string());
-        let w5 = h1.new_node("w".to_string());
-        let a0 = h1.new_node("w".to_string());
-        let a1 = h1.new_node("w".to_string());
-        let k0 = h1.new_node("w".to_string());
-        let k1 = h1.new_node("w".to_string());
-        h1.new_edge(
+        let mut c1: Hypergraph<String, String> = Hypergraph::empty();
+        let w1 = c1.new_node("w".to_string());
+        let w2 = c1.new_node("w".to_string());
+        let w3 = c1.new_node("w".to_string());
+        let w5 = c1.new_node("w".to_string());
+        let a0 = c1.new_node("w".to_string());
+        let a1 = c1.new_node("w".to_string());
+        let k0 = c1.new_node("w".to_string());
+        let k1 = c1.new_node("w".to_string());
+        c1.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![w2],
             },
         );
-        h1.new_edge(
+        c1.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![w2],
                 targets: vec![w3],
             },
         );
-        h1.new_edge(
+        c1.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![a0],
             },
         );
-        h1.new_edge(
+        c1.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![a1],
                 targets: vec![w5],
             },
         );
-        h1.quotient = (vec![a1, a0], vec![k0, k1]);
-        h1.quotient();
-        expected.push(h1);
+        c1.quotient = (vec![a1, a0], vec![k0, k1]);
+        let q1 = c1.quotient();
+        let k0_c1 = NodeId(q1.table[k0.0]);
+        let k1_c1 = NodeId(q1.table[k1.0]);
+        let mut p1 = rule.right.coproduct(&c1);
+        let left_nodes = rule.right.nodes.len();
+        p1.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
+        p1.quotient.1.push(NodeId(k0_c1.0 + left_nodes));
+        p1.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
+        p1.quotient.1.push(NodeId(k1_c1.0 + left_nodes));
+        p1.quotient();
+        expected.push(p1);
 
-        let mut h2: Hypergraph<String, String> = Hypergraph::empty();
-        let w1 = h2.new_node("w".to_string());
-        let w2 = h2.new_node("w".to_string());
-        let w3 = h2.new_node("w".to_string());
-        let w5 = h2.new_node("w".to_string());
-        let a0 = h2.new_node("w".to_string());
-        let a1 = h2.new_node("w".to_string());
-        let k0 = h2.new_node("w".to_string());
-        let k1 = h2.new_node("w".to_string());
-        h2.new_edge(
+        let mut c2: Hypergraph<String, String> = Hypergraph::empty();
+        let w1 = c2.new_node("w".to_string());
+        let w2 = c2.new_node("w".to_string());
+        let w3 = c2.new_node("w".to_string());
+        let w5 = c2.new_node("w".to_string());
+        let a0 = c2.new_node("w".to_string());
+        let a1 = c2.new_node("w".to_string());
+        let k0 = c2.new_node("w".to_string());
+        let k1 = c2.new_node("w".to_string());
+        c2.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![w2],
             },
         );
-        h2.new_edge(
+        c2.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![w2],
                 targets: vec![w3],
             },
         );
-        h2.new_edge(
+        c2.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![a0],
             },
         );
-        h2.new_edge(
+        c2.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![a1],
                 targets: vec![w5],
             },
         );
-        h2.quotient = (vec![a1, a0], vec![k1, k0]);
-        h2.quotient();
-        expected.push(h2);
+        c2.quotient = (vec![a1, a0], vec![k1, k0]);
+        let q2 = c2.quotient();
+        let k0_c2 = NodeId(q2.table[k0.0]);
+        let k1_c2 = NodeId(q2.table[k1.0]);
+        let mut p2 = rule.right.coproduct(&c2);
+        let left_nodes = rule.right.nodes.len();
+        p2.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
+        p2.quotient.1.push(NodeId(k0_c2.0 + left_nodes));
+        p2.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
+        p2.quotient.1.push(NodeId(k1_c2.0 + left_nodes));
+        p2.quotient();
+        expected.push(p2);
 
-        let mut h3: Hypergraph<String, String> = Hypergraph::empty();
-        let w1 = h3.new_node("w".to_string());
-        let w2 = h3.new_node("w".to_string());
-        let w3 = h3.new_node("w".to_string());
-        let w5 = h3.new_node("w".to_string());
-        let a0 = h3.new_node("w".to_string());
-        let a1 = h3.new_node("w".to_string());
-        let k0 = h3.new_node("w".to_string());
-        let k1 = h3.new_node("w".to_string());
-        h3.new_edge(
+        let mut c3: Hypergraph<String, String> = Hypergraph::empty();
+        let w1 = c3.new_node("w".to_string());
+        let w2 = c3.new_node("w".to_string());
+        let w3 = c3.new_node("w".to_string());
+        let w5 = c3.new_node("w".to_string());
+        let a0 = c3.new_node("w".to_string());
+        let a1 = c3.new_node("w".to_string());
+        let k0 = c3.new_node("w".to_string());
+        let k1 = c3.new_node("w".to_string());
+        c3.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![w2],
             },
         );
-        h3.new_edge(
+        c3.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![w2],
                 targets: vec![w3],
             },
         );
-        h3.new_edge(
+        c3.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![a0],
             },
         );
-        h3.new_edge(
+        c3.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![a1],
                 targets: vec![w5],
             },
         );
-        h3.quotient = (vec![a0, a0], vec![a1, k1]);
-        h3.quotient();
-        expected.push(h3);
+        c3.quotient = (vec![a0, a0], vec![a1, k1]);
+        let q3 = c3.quotient();
+        let k0_c3 = NodeId(q3.table[k0.0]);
+        let k1_c3 = NodeId(q3.table[k1.0]);
+        let mut p3 = rule.right.coproduct(&c3);
+        let left_nodes = rule.right.nodes.len();
+        p3.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
+        p3.quotient.1.push(NodeId(k0_c3.0 + left_nodes));
+        p3.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
+        p3.quotient.1.push(NodeId(k1_c3.0 + left_nodes));
+        p3.quotient();
+        expected.push(p3);
 
-        let mut h4: Hypergraph<String, String> = Hypergraph::empty();
-        let w1 = h4.new_node("w".to_string());
-        let w2 = h4.new_node("w".to_string());
-        let w3 = h4.new_node("w".to_string());
-        let w5 = h4.new_node("w".to_string());
-        let a0 = h4.new_node("w".to_string());
-        let a1 = h4.new_node("w".to_string());
-        let k0 = h4.new_node("w".to_string());
-        let k1 = h4.new_node("w".to_string());
-        h4.new_edge(
+        let mut c4: Hypergraph<String, String> = Hypergraph::empty();
+        let w1 = c4.new_node("w".to_string());
+        let w2 = c4.new_node("w".to_string());
+        let w3 = c4.new_node("w".to_string());
+        let w5 = c4.new_node("w".to_string());
+        let a0 = c4.new_node("w".to_string());
+        let a1 = c4.new_node("w".to_string());
+        let k0 = c4.new_node("w".to_string());
+        let k1 = c4.new_node("w".to_string());
+        c4.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![w2],
             },
         );
-        h4.new_edge(
+        c4.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![w2],
                 targets: vec![w3],
             },
         );
-        h4.new_edge(
+        c4.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![a0],
             },
         );
-        h4.new_edge(
+        c4.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![a1],
                 targets: vec![w5],
             },
         );
-        h4.quotient = (vec![a0, a0], vec![a1, k0]);
-        h4.quotient();
-        expected.push(h4);
+        c4.quotient = (vec![a0, a0], vec![a1, k0]);
+        let q4 = c4.quotient();
+        let k0_c4 = NodeId(q4.table[k0.0]);
+        let k1_c4 = NodeId(q4.table[k1.0]);
+        let mut p4 = rule.right.coproduct(&c4);
+        let left_nodes = rule.right.nodes.len();
+        p4.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
+        p4.quotient.1.push(NodeId(k0_c4.0 + left_nodes));
+        p4.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
+        p4.quotient.1.push(NodeId(k1_c4.0 + left_nodes));
+        p4.quotient();
+        expected.push(p4);
 
-        let mut h5: Hypergraph<String, String> = Hypergraph::empty();
-        let w1 = h5.new_node("w".to_string());
-        let w2 = h5.new_node("w".to_string());
-        let w3 = h5.new_node("w".to_string());
-        let w5 = h5.new_node("w".to_string());
-        let a0 = h5.new_node("w".to_string());
-        let a1 = h5.new_node("w".to_string());
-        let k0 = h5.new_node("w".to_string());
-        let k1 = h5.new_node("w".to_string());
-        h5.new_edge(
+        let mut c5: Hypergraph<String, String> = Hypergraph::empty();
+        let w1 = c5.new_node("w".to_string());
+        let w2 = c5.new_node("w".to_string());
+        let w3 = c5.new_node("w".to_string());
+        let w5 = c5.new_node("w".to_string());
+        let a0 = c5.new_node("w".to_string());
+        let a1 = c5.new_node("w".to_string());
+        let k0 = c5.new_node("w".to_string());
+        let k1 = c5.new_node("w".to_string());
+        c5.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![w2],
             },
         );
-        h5.new_edge(
+        c5.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![w2],
                 targets: vec![w3],
             },
         );
-        h5.new_edge(
+        c5.new_edge(
             f_label.clone(),
             Hyperedge {
                 sources: vec![w1],
                 targets: vec![a0],
             },
         );
-        h5.new_edge(
+        c5.new_edge(
             g_label.clone(),
             Hyperedge {
                 sources: vec![a1],
                 targets: vec![w5],
             },
         );
-        h5.quotient = (vec![a0, a0, a0], vec![a1, k0, k1]);
-        h5.quotient();
-        expected.push(h5);
+        c5.quotient = (vec![a0, a0, a0], vec![a1, k0, k1]);
+        let q5 = c5.quotient();
+        let k0_c5 = NodeId(q5.table[k0.0]);
+        let k1_c5 = NodeId(q5.table[k1.0]);
+        let mut p5 = rule.right.coproduct(&c5);
+        let left_nodes = rule.right.nodes.len();
+        p5.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
+        p5.quotient.1.push(NodeId(k0_c5.0 + left_nodes));
+        p5.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
+        p5.quotient.1.push(NodeId(k1_c5.0 + left_nodes));
+        p5.quotient();
+        expected.push(p5);
 
-        let complements = rewrite(&g, &rule, &candidate).expect("expected complements");
+        let complements = rewrite(&g, &rule, &candidate);
         assert_eq!(complements.len(), 5);
         for expected_graph in expected {
             assert!(complements.iter().any(|h| h == &expected_graph));
