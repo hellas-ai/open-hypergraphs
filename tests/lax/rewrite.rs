@@ -87,5 +87,6 @@ fn test_rewrite_gluing_ok() {
         edges: empty_map(g.edges.len()),
     };
 
-    assert!(rewrite(&g, &rule, &candidate).is_some());
+    let complements = rewrite(&g, &rule, &candidate).expect("expected complements");
+    assert!(!complements.is_empty());
 }
