@@ -1,6 +1,7 @@
 use crate::array::vec::{VecArray, VecKind};
 use crate::finite_function::FiniteFunction;
 use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, Span};
+use crate::union_find::UnionFind;
 
 struct ExplodedContext<O, A> {
     graph: Hypergraph<O, A>,
@@ -274,7 +275,7 @@ fn enumerate_fiber_partitions(fiber: &FiberPartitionInput) -> Vec<FiberPartition
     let mut uf = UnionFind::new(fiber.class_count);
 
     fn all_connected(uf: &UnionFind) -> bool {
-        uf.components == 1
+        uf.components() == 1
     }
 
     fn walk(
@@ -355,91 +356,6 @@ struct FiberBlock {
 struct BlockState {
     nodes: Vec<NodeId>,
     classes: Vec<usize>,
-}
-
-struct UnionFind {
-    parent: Vec<usize>,
-    size: Vec<usize>,
-    history: Vec<HistoryEntry>,
-    components: usize,
-}
-
-enum HistoryEntry {
-    Noop,
-    Merge {
-        root: usize,
-        parent: usize,
-        size_parent: usize,
-    },
-}
-
-impl UnionFind {
-    fn new(n: usize) -> Self {
-        Self {
-            parent: (0..n).collect(),
-            size: vec![1; n],
-            history: Vec::new(),
-            components: n,
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.parent.len()
-    }
-
-    fn find(&mut self, x: usize) -> usize {
-        let mut node = x;
-        while self.parent[node] != node {
-            node = self.parent[node];
-        }
-        node
-    }
-
-    fn union(&mut self, x: usize, y: usize) {
-        let root_x = self.find(x);
-        let root_y = self.find(y);
-        if root_x == root_y {
-            self.history.push(HistoryEntry::Noop);
-            return;
-        }
-
-        let (root, parent) = if self.size[root_x] >= self.size[root_y] {
-            (root_y, root_x)
-        } else {
-            (root_x, root_y)
-        };
-
-        self.history.push(HistoryEntry::Merge {
-            root,
-            parent,
-            size_parent: self.size[parent],
-        });
-
-        self.parent[root] = parent;
-        self.size[parent] += self.size[root];
-        self.components -= 1;
-    }
-
-    fn snapshot(&self) -> usize {
-        self.history.len()
-    }
-
-    fn rollback(&mut self, snapshot: usize) {
-        while self.history.len() > snapshot {
-            match self.history.pop().expect("rollback history") {
-                HistoryEntry::Noop => {}
-                HistoryEntry::Merge {
-                    root,
-                    parent,
-                    size_parent,
-                } => {
-                    self.parent[root] = root;
-                    self.size[parent] = size_parent;
-                    self.components += 1;
-                }
-            }
-        }
-    }
 }
 
 fn validate_candidate_map<O, A>(

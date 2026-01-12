@@ -260,6 +260,7 @@ pub mod finite_function;
 pub mod indexed_coproduct;
 pub mod operations;
 pub mod semifinite;
+pub mod union_find;
 
 // Strict open hypergraphs
 pub mod strict;
