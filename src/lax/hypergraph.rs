@@ -370,9 +370,62 @@ impl<O, A> Hypergraph<O, A> {
             .unwrap()
     }
 
+    /// Delete the specified edges and their adjacency information.
+    ///
+    /// Panics if any edge id is out of bounds.
+    pub fn delete_edge(&mut self, edge_ids: &[EdgeId]) {
+        let edge_count = self.edges.len();
+        assert_eq!(
+            edge_count,
+            self.adjacency.len(),
+            "malformed hypergraph: edges and adjacency lengths differ"
+        );
+
+        if edge_ids.is_empty() {
+            return;
+        }
+
+        let mut remove = vec![false; edge_count];
+        let mut any_removed = false;
+        let mut remove_count = 0usize;
+        for edge_id in edge_ids {
+            assert!(
+                edge_id.0 < edge_count,
+                "edge id {:?} is out of bounds",
+                edge_id
+            );
+            if !remove[edge_id.0] {
+                remove[edge_id.0] = true;
+                any_removed = true;
+                remove_count += 1;
+            }
+        }
+
+        if !any_removed {
+            return;
+        }
+
+        let mut edges = Vec::with_capacity(edge_count - remove_count);
+        let mut adjacency = Vec::with_capacity(edge_count - remove_count);
+        for (i, (edge, adj)) in self
+            .edges
+            .drain(..)
+            .zip(self.adjacency.drain(..))
+            .enumerate()
+        {
+            if !remove[i] {
+                edges.push(edge);
+                adjacency.push(adj);
+            }
+        }
+
+        self.edges = edges;
+        self.adjacency = adjacency;
+    }
+
     /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
     ///
-    /// Out-of-bounds node ids are ignored.
+    /// Panics if any node id is out of bounds.
     pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
         if node_ids.is_empty() {
             return;
@@ -383,12 +436,15 @@ impl<O, A> Hypergraph<O, A> {
         let mut any_removed = false;
         let mut remove_count = 0usize;
         for node_id in node_ids {
-            if node_id.0 < node_count {
-                if !remove[node_id.0] {
-                    remove[node_id.0] = true;
-                    any_removed = true;
-                    remove_count += 1;
-                }
+            assert!(
+                node_id.0 < node_count,
+                "node id {:?} is out of bounds",
+                node_id
+            );
+            if !remove[node_id.0] {
+                remove[node_id.0] = true;
+                any_removed = true;
+                remove_count += 1;
             }
         }
 
