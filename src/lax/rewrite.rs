@@ -4,7 +4,7 @@ use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, S
 use crate::union_find::UnionFind;
 
 struct ExplodedContext<O, A> {
-    graph: Hypergraph<O, A>,
+    remainder_plus_interface: Hypergraph<O, A>,
     to_host: NodeEdgeMap,
     to_remainder_plus_redex: NodeEdgeMap,
     interface_in_exploded_nodes: FiniteFunction<VecKind>,
@@ -63,7 +63,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
         }
 
         let (complement, q) = exploded
-            .graph
+            .remainder_plus_interface
             .clone()
             .quotiented_with(quotient_left, quotient_right);
 
@@ -240,7 +240,7 @@ fn exploded_context<O: Clone, A: Clone>(
         FiniteFunction::<VecKind>::identity(rule.apex.nodes.len()).inject1(copied_nodes);
 
     ExplodedContext {
-        graph: remainder.coproduct(&rule.apex),
+        remainder_plus_interface: remainder.coproduct(&rule.apex),
         to_host,
         to_remainder_plus_redex,
         interface_in_exploded_nodes,
@@ -542,7 +542,7 @@ mod tests {
         expected.new_node("w".to_string());
         expected.new_node("w".to_string());
 
-        assert_eq!(exploded.graph, expected);
+        assert_eq!(exploded.remainder_plus_interface, expected);
     }
 
     #[test]
@@ -552,8 +552,14 @@ mod tests {
         let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
         let exploded = exploded_context(&g, &rule, &candidate);
 
-        let mut f_prime_to_q = vec![None; exploded.to_copied_plus_left.nodes.target()];
-        for (src, &f_prime_image) in exploded.to_copied_plus_left.nodes.table.iter().enumerate() {
+        let mut f_prime_to_q = vec![None; exploded.to_remainder_plus_redex.nodes.target()];
+        for (src, &f_prime_image) in exploded
+            .to_remainder_plus_redex
+            .nodes
+            .table
+            .iter()
+            .enumerate()
+        {
             let q_image = exploded.to_host.nodes.table[src];
             match f_prime_to_q[f_prime_image] {
                 Some(existing) => assert_eq!(existing, q_image),
@@ -570,7 +576,7 @@ mod tests {
         let exploded = exploded_context(&g, &rule, &candidate);
         let fibers = fiber_partition_inputs(&exploded);
 
-        let copied_nodes = exploded.graph.nodes.len() - rule.apex.nodes.len();
+        let copied_nodes = exploded.remainder_plus_interface.nodes.len() - rule.apex.nodes.len();
         let target_fiber = fibers
             .iter()
             .find(|fiber| {
