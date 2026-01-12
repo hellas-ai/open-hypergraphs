@@ -298,10 +298,9 @@ fn dangling_condition<O, A>(
 
 #[cfg(test)]
 mod tests {
-    // Tests from working examples in
-    // Bonchi, Filippo, et al.
-    // "String diagram rewrite theory I: Rewriting with Frobenius structure."
-    // Journal of the ACM (JACM) 69.2 (2022): 1-58.
+    // Examples from
+    // 1. Bonchi, Filippo, et al. "String diagram rewrite theory I: Rewriting with Frobenius structure." Journal of the ACM (JACM) 69.2 (2022): 1-58.
+    // 2. Heumüller, Marvin, et al. "Construction of pushout complements in the category of hypergraphs." Electronic Communications of the EASST 39 (2011).
     use super::{exploded_context, fiber_partition_inputs, rewrite};
     use crate::array::vec::{VecArray, VecKind};
     use crate::finite_function::FiniteFunction;
@@ -720,6 +719,82 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_rewrite_pushout_complement_split_match_node() {
+        // [2] Example 1
+        let mut host: Hypergraph<String, String> = Hypergraph::empty();
+        let f_node = host.new_node("w".to_string());
+        let u_node = host.new_node("w".to_string());
+        host.new_edge(
+            "e".to_string(),
+            Hyperedge {
+                sources: vec![u_node],
+                targets: vec![u_node],
+            },
+        );
+        host.new_edge(
+            "f".to_string(),
+            Hyperedge {
+                sources: vec![f_node],
+                targets: vec![f_node],
+            },
+        );
+
+        let mut apex: Hypergraph<String, String> = Hypergraph::empty();
+        apex.new_node("w".to_string());
+        apex.new_node("w".to_string());
+        apex.new_node("w".to_string());
+        apex.new_node("w".to_string());
+
+        let mut left: Hypergraph<String, String> = Hypergraph::empty();
+        left.new_node("w".to_string());
+        left.new_node("w".to_string());
+
+        let right = apex.clone();
+
+        let left_map = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 0, 1, 1]), left.nodes.len())
+                .unwrap(),
+            edges: empty_map(left.edges.len()),
+        };
+        let right_map = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 1, 2, 3]), right.nodes.len())
+                .unwrap(),
+            edges: empty_map(right.edges.len()),
+        };
+
+        let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
+        let candidate = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(
+                VecArray(vec![f_node.0, f_node.0]),
+                host.nodes.len(),
+            )
+            .unwrap(),
+            edges: empty_map(host.edges.len()),
+        };
+
+        let complements = rewrite(&host, &rule, &candidate);
+        assert!(complements.len() == 61, "Found {}", complements.len());
+
+        let mut has_split_loop = false;
+        for complement in &complements {
+            assert_eq!(complement.edges.len(), 2);
+            let f_idx = complement
+                .edges
+                .iter()
+                .position(|label| label == "f")
+                .expect("f edge exists");
+            let f_edge = &complement.adjacency[f_idx];
+            assert_eq!(f_edge.sources.len(), 1);
+            assert_eq!(f_edge.targets.len(), 1);
+            if f_edge.sources[0] != f_edge.targets[0] {
+                has_split_loop = true;
+            }
+        }
+
+        assert!(has_split_loop);
+    }
+
     fn normalize_partition(
         partition: &Partition<NodeId>,
         name_map: &HashMap<NodeId, &'static str>,
@@ -752,7 +827,7 @@ mod tests {
         NodeEdgeMap,
         NodeEdgeMap,
     ) {
-        // From Session 4.5 Pushout Complements and Rewriting Modulo Frobenius
+        // [1] Session 4.5 Pushout Complements and Rewriting Modulo Frobenius
         let f_label = "f".to_string();
         let g_label = "g".to_string();
 
