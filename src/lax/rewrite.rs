@@ -72,13 +72,15 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
             .clone()
             .quotiented_with(quotient_left, quotient_right);
 
-        let interface_to_complement_nodes = exploded
-            .interface_in_exploded_nodes()
-            .compose(&q)
-            .expect("interface to complement map");
-        let interface_to_complement = NodeEdgeMap {
-            nodes: interface_to_complement_nodes,
-            edges: FiniteFunction::<VecKind>::initial(complement.edges.len()),
+        let interface_to_complement = {
+            let nodes = exploded
+                .interface_in_exploded_nodes()
+                .compose(&q)
+                .expect("interface to complement map");
+            NodeEdgeMap {
+                nodes,
+                edges: FiniteFunction::<VecKind>::initial(complement.edges.len()),
+            }
         };
 
         let span = Span::new(
