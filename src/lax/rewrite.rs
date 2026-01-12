@@ -229,11 +229,11 @@ fn exploded_context<O: Clone, A: Clone>(
         nodes: FiniteFunction::<VecKind>::identity(copied_nodes)
             .inject0(left_nodes)
             .coproduct(&rule.left_map.nodes.inject1(copied_nodes))
-            .expect("coproduct id + left nodes"),
+            .expect("remainder + redex nodes"),
         edges: FiniteFunction::<VecKind>::identity(copied_edges)
             .inject0(left_edges)
             .coproduct(&rule.left_map.edges.inject1(copied_edges))
-            .expect("coproduct id + left edges"),
+            .expect("cremainder + redex edges"),
     };
 
     let interface_in_exploded_nodes =
