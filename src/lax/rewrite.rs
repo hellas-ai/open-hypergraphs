@@ -722,56 +722,9 @@ mod tests {
     #[test]
     fn test_rewrite_pushout_complement_split_match_node() {
         // [2] Example 1
-        let mut host: Hypergraph<String, String> = Hypergraph::empty();
-        let f_node = host.new_node("w".to_string());
-        let u_node = host.new_node("w".to_string());
-        host.new_edge(
-            "e".to_string(),
-            Hyperedge {
-                sources: vec![u_node],
-                targets: vec![u_node],
-            },
-        );
-        host.new_edge(
-            "f".to_string(),
-            Hyperedge {
-                sources: vec![f_node],
-                targets: vec![f_node],
-            },
-        );
-
-        let mut apex: Hypergraph<String, String> = Hypergraph::empty();
-        apex.new_node("w".to_string());
-        apex.new_node("w".to_string());
-        apex.new_node("w".to_string());
-        apex.new_node("w".to_string());
-
-        let mut left: Hypergraph<String, String> = Hypergraph::empty();
-        left.new_node("w".to_string());
-        left.new_node("w".to_string());
-
-        let right = apex.clone();
-
-        let left_map = NodeEdgeMap {
-            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 0, 1, 1]), left.nodes.len())
-                .unwrap(),
-            edges: empty_map(left.edges.len()),
-        };
-        let right_map = NodeEdgeMap {
-            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 1, 2, 3]), right.nodes.len())
-                .unwrap(),
-            edges: empty_map(right.edges.len()),
-        };
-
+        let (host, apex, left, right, left_map, right_map, candidate) =
+            example_rewrite_pushout_complement_split_match_node_input();
         let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
-        let candidate = NodeEdgeMap {
-            nodes: FiniteFunction::<VecKind>::new(
-                VecArray(vec![f_node.0, f_node.0]),
-                host.nodes.len(),
-            )
-            .unwrap(),
-            edges: empty_map(host.edges.len()),
-        };
 
         let complements = rewrite(&host, &rule, &candidate);
         assert!(complements.len() == 61, "Found {}", complements.len());
@@ -909,5 +862,67 @@ mod tests {
         (
             f_label, g_label, g, apex, left, right, left_map, right_map, candidate,
         )
+    }
+
+    fn example_rewrite_pushout_complement_split_match_node_input() -> (
+        Hypergraph<String, String>,
+        Hypergraph<String, String>,
+        Hypergraph<String, String>,
+        Hypergraph<String, String>,
+        NodeEdgeMap,
+        NodeEdgeMap,
+        NodeEdgeMap,
+    ) {
+        // [2] Example 1
+        let mut host: Hypergraph<String, String> = Hypergraph::empty();
+        let f_node = host.new_node("w".to_string());
+        let u_node = host.new_node("w".to_string());
+        host.new_edge(
+            "e".to_string(),
+            Hyperedge {
+                sources: vec![u_node],
+                targets: vec![u_node],
+            },
+        );
+        host.new_edge(
+            "f".to_string(),
+            Hyperedge {
+                sources: vec![f_node],
+                targets: vec![f_node],
+            },
+        );
+
+        let mut apex: Hypergraph<String, String> = Hypergraph::empty();
+        apex.new_node("w".to_string());
+        apex.new_node("w".to_string());
+        apex.new_node("w".to_string());
+        apex.new_node("w".to_string());
+
+        let mut left: Hypergraph<String, String> = Hypergraph::empty();
+        left.new_node("w".to_string());
+        left.new_node("w".to_string());
+
+        let right = apex.clone();
+
+        let left_map = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 0, 1, 1]), left.nodes.len())
+                .unwrap(),
+            edges: empty_map(left.edges.len()),
+        };
+        let right_map = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 1, 2, 3]), right.nodes.len())
+                .unwrap(),
+            edges: empty_map(right.edges.len()),
+        };
+        let candidate = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(
+                VecArray(vec![f_node.0, f_node.0]),
+                host.nodes.len(),
+            )
+            .unwrap(),
+            edges: empty_map(host.edges.len()),
+        };
+
+        (host, apex, left, right, left_map, right_map, candidate)
     }
 }
