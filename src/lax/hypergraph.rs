@@ -1,4 +1,5 @@
 use crate::array::vec::{VecArray, VecKind};
+use crate::category::Coproduct;
 use crate::finite_function::*;
 use crate::lax::Arrow;
 
@@ -24,6 +25,34 @@ pub struct Hyperedge {
 pub struct NodeEdgeMap {
     pub nodes: FiniteFunction<VecKind>,
     pub edges: FiniteFunction<VecKind>,
+}
+
+impl NodeEdgeMap {
+    pub fn compose(&self, other: &NodeEdgeMap) -> Self {
+        NodeEdgeMap {
+            nodes: self
+                .nodes
+                .compose(&other.nodes)
+                .expect("node map compose"),
+            edges: self
+                .edges
+                .compose(&other.edges)
+                .expect("edge map compose"),
+        }
+    }
+
+    pub fn coproduct(&self, other: &NodeEdgeMap) -> Self {
+        NodeEdgeMap {
+            nodes: self
+                .nodes
+                .coproduct(&other.nodes)
+                .expect("node map coproduct"),
+            edges: self
+                .edges
+                .coproduct(&other.edges)
+                .expect("edge map coproduct"),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]

@@ -201,40 +201,25 @@ fn exploded_context<O: Clone, A: Clone>(
         FiniteFunction::<VecKind>::new(VecArray(remainder_node_to_host), host.nodes.len()).unwrap();
     let q_remainder_edges =
         FiniteFunction::<VecKind>::new(VecArray(remainder_edge_to_host), host.edges.len()).unwrap();
-    let q_interface_nodes = rule
-        .left_map
-        .nodes
-        .compose(&candidate.nodes)
-        .expect("candidate map left nodes compose");
-    let q_interface_edges = rule
-        .left_map
-        .edges
-        .compose(&candidate.edges)
-        .expect("candidate map left edges compose");
-
+    let q_interface = rule.left_map.compose(candidate);
     let to_host = NodeEdgeMap {
-        nodes: q_remainder_nodes
-            .coproduct(&q_interface_nodes)
-            .expect("node coproduct"),
-        edges: q_remainder_edges
-            .coproduct(&q_interface_edges)
-            .expect("edge coproduct"),
-    };
+        nodes: q_remainder_nodes,
+        edges: q_remainder_edges,
+    }
+    .coproduct(&q_interface);
 
     let copied_nodes = remainder.nodes.len();
     let copied_edges = remainder.edges.len();
     let left_nodes = rule.left.nodes.len();
     let left_edges = rule.left.edges.len();
     let to_remainder_plus_redex = NodeEdgeMap {
-        nodes: FiniteFunction::<VecKind>::identity(copied_nodes)
-            .inject0(left_nodes)
-            .coproduct(&rule.left_map.nodes.inject1(copied_nodes))
-            .expect("remainder + redex nodes"),
-        edges: FiniteFunction::<VecKind>::identity(copied_edges)
-            .inject0(left_edges)
-            .coproduct(&rule.left_map.edges.inject1(copied_edges))
-            .expect("cremainder + redex edges"),
-    };
+        nodes: FiniteFunction::<VecKind>::identity(copied_nodes).inject0(left_nodes),
+        edges: FiniteFunction::<VecKind>::identity(copied_edges).inject0(left_edges),
+    }
+    .coproduct(&NodeEdgeMap {
+        nodes: rule.left_map.nodes.inject1(copied_nodes),
+        edges: rule.left_map.edges.inject1(copied_edges),
+    });
 
     let interface_in_exploded_nodes =
         FiniteFunction::<VecKind>::identity(rule.apex.nodes.len()).inject1(copied_nodes);
