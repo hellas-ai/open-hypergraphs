@@ -5,7 +5,7 @@ use crate::union_find::UnionFind;
 
 struct ExplodedContext<O, A> {
     graph: Hypergraph<O, A>,
-    to_g: NodeEdgeMap,
+    to_host: NodeEdgeMap,
     to_copied_plus_left: NodeEdgeMap,
     interface_in_exploded_nodes: FiniteFunction<VecKind>,
 }
@@ -34,12 +34,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
         .collect();
 
     if partitions_per_fiber.is_empty() {
-        return vec![pushout_result(
-            &exploded,
-            rule,
-            &partitions_per_fiber,
-            &[],
-        )];
+        return vec![pushout_result(&exploded, rule, &partitions_per_fiber, &[])];
     }
 
     let mut complements = Vec::new();
@@ -138,36 +133,36 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
 }
 
 fn exploded_context<O: Clone, A: Clone>(
-    g: &Hypergraph<O, A>,
+    host: &Hypergraph<O, A>,
     rule: &Span<'_, O, A>,
     candidate: &NodeEdgeMap,
 ) -> ExplodedContext<O, A> {
-    let mut in_image_nodes = vec![false; g.nodes.len()];
+    let mut in_image_nodes = vec![false; host.nodes.len()];
     for i in 0..candidate.nodes.source() {
         let idx = candidate.nodes.table[i];
         in_image_nodes[idx] = true;
     }
 
-    let mut in_image_edges = vec![false; g.edges.len()];
+    let mut in_image_edges = vec![false; host.edges.len()];
     for i in 0..candidate.edges.source() {
         let idx = candidate.edges.table[i];
         in_image_edges[idx] = true;
     }
 
-    let mut h = Hypergraph::empty();
-    let mut h_node_to_g = Vec::new();
-    let mut node_map: Vec<Option<usize>> = vec![None; g.nodes.len()];
-    for (idx, label) in g.nodes.iter().enumerate() {
+    let mut remainder = Hypergraph::empty();
+    let mut remainder_node_to_host = Vec::new();
+    let mut node_map: Vec<Option<usize>> = vec![None; host.nodes.len()];
+    for (idx, label) in host.nodes.iter().enumerate() {
         if in_image_nodes[idx] {
             continue;
         }
-        let new_id = h.new_node(label.clone());
-        h_node_to_g.push(idx);
+        let new_id = remainder.new_node(label.clone());
+        remainder_node_to_host.push(idx);
         node_map[idx] = Some(new_id.0);
     }
 
-    let mut h_edge_to_g = Vec::new();
-    for (edge_id, edge) in g.adjacency.iter().enumerate() {
+    let mut remainder_edge_to_host = Vec::new();
+    for (edge_id, edge) in host.adjacency.iter().enumerate() {
         if in_image_edges[edge_id] {
             continue;
         }
@@ -177,8 +172,8 @@ fn exploded_context<O: Clone, A: Clone>(
             let new_id = match node_map[node.0] {
                 Some(existing) => NodeId(existing),
                 None => {
-                    let new_id = h.new_node(g.nodes[node.0].clone());
-                    h_node_to_g.push(node.0);
+                    let new_id = remainder.new_node(host.nodes[node.0].clone());
+                    remainder_node_to_host.push(node.0);
                     new_id
                 }
             };
@@ -190,38 +185,44 @@ fn exploded_context<O: Clone, A: Clone>(
             let new_id = match node_map[node.0] {
                 Some(existing) => NodeId(existing),
                 None => {
-                    let new_id = h.new_node(g.nodes[node.0].clone());
-                    h_node_to_g.push(node.0);
+                    let new_id = remainder.new_node(host.nodes[node.0].clone());
+                    remainder_node_to_host.push(node.0);
                     new_id
                 }
             };
             targets.push(new_id);
         }
 
-        h.new_edge(g.edges[edge_id].clone(), Hyperedge { sources, targets });
-        h_edge_to_g.push(edge_id);
+        remainder.new_edge(host.edges[edge_id].clone(), Hyperedge { sources, targets });
+        remainder_edge_to_host.push(edge_id);
     }
 
-    let q_h_nodes = FiniteFunction::<VecKind>::new(VecArray(h_node_to_g), g.nodes.len()).unwrap();
-    let q_h_edges = FiniteFunction::<VecKind>::new(VecArray(h_edge_to_g), g.edges.len()).unwrap();
-    let q_k_nodes = rule
+    let q_remainder_nodes =
+        FiniteFunction::<VecKind>::new(VecArray(remainder_node_to_host), host.nodes.len()).unwrap();
+    let q_remainder_edges =
+        FiniteFunction::<VecKind>::new(VecArray(remainder_edge_to_host), host.edges.len()).unwrap();
+    let q_interface_nodes = rule
         .left_map
         .nodes
         .compose(&candidate.nodes)
         .expect("candidate map left nodes compose");
-    let q_k_edges = rule
+    let q_interface_edges = rule
         .left_map
         .edges
         .compose(&candidate.edges)
         .expect("candidate map left edges compose");
 
-    let to_g = NodeEdgeMap {
-        nodes: q_h_nodes.coproduct(&q_k_nodes).expect("node coproduct"),
-        edges: q_h_edges.coproduct(&q_k_edges).expect("edge coproduct"),
+    let to_host = NodeEdgeMap {
+        nodes: q_remainder_nodes
+            .coproduct(&q_interface_nodes)
+            .expect("node coproduct"),
+        edges: q_remainder_edges
+            .coproduct(&q_interface_edges)
+            .expect("edge coproduct"),
     };
 
-    let copied_nodes = h.nodes.len();
-    let copied_edges = h.edges.len();
+    let copied_nodes = remainder.nodes.len();
+    let copied_edges = remainder.edges.len();
     let left_nodes = rule.left.nodes.len();
     let left_edges = rule.left.edges.len();
     let to_copied_plus_left = NodeEdgeMap {
@@ -239,16 +240,16 @@ fn exploded_context<O: Clone, A: Clone>(
         FiniteFunction::<VecKind>::identity(rule.apex.nodes.len()).inject1(copied_nodes);
 
     ExplodedContext {
-        graph: h.coproduct(&rule.apex),
-        to_g,
+        graph: remainder.coproduct(&rule.apex),
+        to_host,
         to_copied_plus_left,
         interface_in_exploded_nodes,
     }
 }
 
 fn fiber_partition_inputs<O, A>(exploded: &ExplodedContext<O, A>) -> Vec<FiberPartitionInput> {
-    let mut fibers = vec![Vec::new(); exploded.to_g.nodes.target()];
-    for (src, &tgt) in exploded.to_g.nodes.table.iter().enumerate() {
+    let mut fibers = vec![Vec::new(); exploded.to_host.nodes.target()];
+    for (src, &tgt) in exploded.to_host.nodes.table.iter().enumerate() {
         fibers[tgt].push(NodeId(src));
     }
 
@@ -553,7 +554,7 @@ mod tests {
 
         let mut f_prime_to_q = vec![None; exploded.to_copied_plus_left.nodes.target()];
         for (src, &f_prime_image) in exploded.to_copied_plus_left.nodes.table.iter().enumerate() {
-            let q_image = exploded.to_g.nodes.table[src];
+            let q_image = exploded.to_host.nodes.table[src];
             match f_prime_to_q[f_prime_image] {
                 Some(existing) => assert_eq!(existing, q_image),
                 None => f_prime_to_q[f_prime_image] = Some(q_image),
