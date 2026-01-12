@@ -138,76 +138,9 @@ fn exploded_context<O: Clone, A: Clone>(
     rule: &Span<'_, O, A>,
     matching: &NodeEdgeMap,
 ) -> ExplodedContext<O, A> {
-    let mut in_image_nodes = vec![false; host.nodes.len()];
-    for i in 0..matching.nodes.source() {
-        let idx = matching.nodes.table[i];
-        in_image_nodes[idx] = true;
-    }
-
-    let mut in_image_edges = vec![false; host.edges.len()];
-    for i in 0..matching.edges.source() {
-        let idx = matching.edges.table[i];
-        in_image_edges[idx] = true;
-    }
-
-    let mut remainder = Hypergraph::empty();
-    let mut remainder_node_to_host = Vec::new();
-    let mut node_map: Vec<Option<usize>> = vec![None; host.nodes.len()];
-    for (idx, label) in host.nodes.iter().enumerate() {
-        if in_image_nodes[idx] {
-            continue;
-        }
-        let new_id = remainder.new_node(label.clone());
-        remainder_node_to_host.push(idx);
-        node_map[idx] = Some(new_id.0);
-    }
-
-    let mut remainder_edge_to_host = Vec::new();
-    for (edge_id, edge) in host.adjacency.iter().enumerate() {
-        if in_image_edges[edge_id] {
-            continue;
-        }
-
-        let mut sources = Vec::with_capacity(edge.sources.len());
-        for node in &edge.sources {
-            let new_id = match node_map[node.0] {
-                Some(existing) => NodeId(existing),
-                None => {
-                    let new_id = remainder.new_node(host.nodes[node.0].clone());
-                    remainder_node_to_host.push(node.0);
-                    new_id
-                }
-            };
-            sources.push(new_id);
-        }
-
-        let mut targets = Vec::with_capacity(edge.targets.len());
-        for node in &edge.targets {
-            let new_id = match node_map[node.0] {
-                Some(existing) => NodeId(existing),
-                None => {
-                    let new_id = remainder.new_node(host.nodes[node.0].clone());
-                    remainder_node_to_host.push(node.0);
-                    new_id
-                }
-            };
-            targets.push(new_id);
-        }
-
-        remainder.new_edge(host.edges[edge_id].clone(), Hyperedge { sources, targets });
-        remainder_edge_to_host.push(edge_id);
-    }
-
-    let q_remainder_nodes =
-        FiniteFunction::<VecKind>::new(VecArray(remainder_node_to_host), host.nodes.len()).unwrap();
-    let q_remainder_edges =
-        FiniteFunction::<VecKind>::new(VecArray(remainder_edge_to_host), host.edges.len()).unwrap();
+    let (remainder, remainder_in_host) = host.remainder_with_injection(matching);
     let q_interface = rule.left_map.compose(matching);
-    let to_host = NodeEdgeMap {
-        nodes: q_remainder_nodes,
-        edges: q_remainder_edges,
-    }
-    .coproduct(&q_interface);
+    let to_host = remainder_in_host.coproduct(&q_interface);
 
     let (_remainder_plus_redex, remainder_in_remainder_plus_redex, redex_in_remainder_plus_redex) =
         remainder.coproduct_with_injections(rule.left);

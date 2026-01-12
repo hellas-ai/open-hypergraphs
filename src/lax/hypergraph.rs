@@ -514,6 +514,98 @@ pub(crate) fn concat<T: Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
 }
 
 impl<O: Clone, A: Clone> Hypergraph<O, A> {
+    pub fn remainder_with_injection(
+        &self,
+        excluded: &NodeEdgeMap,
+    ) -> (Hypergraph<O, A>, NodeEdgeMap) {
+        let mut in_image_nodes = vec![false; self.nodes.len()];
+        for &idx in excluded.nodes.table.iter() {
+            if idx >= self.nodes.len() {
+                panic!(
+                    "excluded node index out of range: got {}, max {}",
+                    idx,
+                    self.nodes.len()
+                );
+            }
+            in_image_nodes[idx] = true;
+        }
+
+        let mut in_image_edges = vec![false; self.edges.len()];
+        for &idx in excluded.edges.table.iter() {
+            if idx >= self.edges.len() {
+                panic!(
+                    "excluded edge index out of range: got {}, max {}",
+                    idx,
+                    self.edges.len()
+                );
+            }
+            in_image_edges[idx] = true;
+        }
+
+        let mut remainder = Hypergraph::empty();
+        let mut remainder_node_to_host = Vec::new();
+        let mut node_map: Vec<Option<usize>> = vec![None; self.nodes.len()];
+        for (idx, label) in self.nodes.iter().enumerate() {
+            if in_image_nodes[idx] {
+                continue;
+            }
+            let new_id = remainder.new_node(label.clone());
+            remainder_node_to_host.push(idx);
+            node_map[idx] = Some(new_id.0);
+        }
+
+        let mut remainder_edge_to_host = Vec::new();
+        for (edge_id, edge) in self.adjacency.iter().enumerate() {
+            if in_image_edges[edge_id] {
+                continue;
+            }
+
+            let mut sources = Vec::with_capacity(edge.sources.len());
+            for node in &edge.sources {
+                let new_id = match node_map[node.0] {
+                    Some(existing) => NodeId(existing),
+                    None => {
+                        let new_id = remainder.new_node(self.nodes[node.0].clone());
+                        remainder_node_to_host.push(node.0);
+                        new_id
+                    }
+                };
+                sources.push(new_id);
+            }
+
+            let mut targets = Vec::with_capacity(edge.targets.len());
+            for node in &edge.targets {
+                let new_id = match node_map[node.0] {
+                    Some(existing) => NodeId(existing),
+                    None => {
+                        let new_id = remainder.new_node(self.nodes[node.0].clone());
+                        remainder_node_to_host.push(node.0);
+                        new_id
+                    }
+                };
+                targets.push(new_id);
+            }
+
+            remainder.new_edge(self.edges[edge_id].clone(), Hyperedge { sources, targets });
+            remainder_edge_to_host.push(edge_id);
+        }
+
+        let remainder_in_host = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(
+                VecArray(remainder_node_to_host),
+                self.nodes.len(),
+            )
+            .expect("remainder node injection"),
+            edges: FiniteFunction::<VecKind>::new(
+                VecArray(remainder_edge_to_host),
+                self.edges.len(),
+            )
+            .expect("remainder edge injection"),
+        };
+
+        (remainder, remainder_in_host)
+    }
+
     pub(crate) fn coproduct_with_injections(
         &self,
         other: &Hypergraph<O, A>,
