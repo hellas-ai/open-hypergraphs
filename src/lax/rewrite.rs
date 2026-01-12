@@ -1,7 +1,7 @@
-use crate::array::vec::{VecArray, VecKind};
+use crate::array::vec::VecKind;
 use crate::finite_function::FiniteFunction;
-use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, Span};
-use crate::union_find::UnionFind;
+use crate::lax::{Arrow, Coproduct as _, Hypergraph, NodeEdgeMap, NodeId, Span};
+use crate::partition::{enumerate_partitions, Partition, PartitionInput};
 
 struct ExplodedContext<O, A> {
     remainder_plus_interface: Hypergraph<O, A>,
@@ -28,10 +28,8 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
     }
     let exploded = exploded_context(g, rule, candidate);
     let fiber_inputs = fiber_partition_inputs(&exploded);
-    let partitions_per_fiber: Vec<Vec<FiberPartition>> = fiber_inputs
-        .iter()
-        .map(enumerate_fiber_partitions)
-        .collect();
+    let partitions_per_fiber: Vec<Vec<Partition<NodeId>>> =
+        fiber_inputs.iter().map(enumerate_partitions).collect();
 
     if partitions_per_fiber.is_empty() {
         return vec![pushout_result(&exploded, rule, &partitions_per_fiber, &[])];
@@ -43,7 +41,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
     fn pushout_result<O: Clone + PartialEq, A: Clone + PartialEq>(
         exploded: &ExplodedContext<O, A>,
         rule: &Span<'_, O, A>,
-        partitions_per_fiber: &[Vec<FiberPartition>],
+        partitions_per_fiber: &[Vec<Partition<NodeId>>],
         selection: &[usize],
     ) -> Hypergraph<O, A> {
         let mut quotient_left = Vec::new();
@@ -52,7 +50,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
         for (fiber_idx, &partition_idx) in selection.iter().enumerate() {
             let partition = &partitions_per_fiber[fiber_idx][partition_idx];
             for block in &partition.blocks {
-                let Some((first, rest)) = block.nodes.split_first() else {
+                let Some((first, rest)) = block.elements.split_first() else {
                     continue;
                 };
                 for node in rest {
@@ -93,7 +91,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
         idx: usize,
         exploded: &ExplodedContext<O, A>,
         rule: &Span<'_, O, A>,
-        partitions_per_fiber: &[Vec<FiberPartition>],
+        partitions_per_fiber: &[Vec<Partition<NodeId>>],
         selection: &mut Vec<usize>,
         results: &mut Vec<Hypergraph<O, A>>,
     ) {
@@ -158,7 +156,7 @@ fn exploded_context<O: Clone, A: Clone>(
     }
 }
 
-fn fiber_partition_inputs<O, A>(exploded: &ExplodedContext<O, A>) -> Vec<FiberPartitionInput> {
+fn fiber_partition_inputs<O, A>(exploded: &ExplodedContext<O, A>) -> Vec<PartitionInput<NodeId>> {
     let mut fibers = vec![Vec::new(); exploded.to_host.nodes.target()];
     for (src, &tgt) in exploded.to_host.nodes.table.iter().enumerate() {
         fibers[tgt].push(NodeId(src));
@@ -186,102 +184,13 @@ fn fiber_partition_inputs<O, A>(exploded: &ExplodedContext<O, A>) -> Vec<FiberPa
                 class_ids.push(id);
             }
 
-            FiberPartitionInput {
-                nodes,
+            PartitionInput {
+                elements: nodes,
                 class_ids,
                 class_count: next_class,
             }
         })
         .collect()
-}
-
-fn enumerate_fiber_partitions(fiber: &FiberPartitionInput) -> Vec<FiberPartition> {
-    let mut results = Vec::new();
-    let mut blocks: Vec<BlockState> = Vec::new();
-    let mut uf = UnionFind::new(fiber.class_count);
-
-    fn all_connected(uf: &UnionFind) -> bool {
-        uf.components() == 1
-    }
-
-    fn walk(
-        idx: usize,
-        fiber: &FiberPartitionInput,
-        blocks: &mut Vec<BlockState>,
-        uf: &mut UnionFind,
-        results: &mut Vec<FiberPartition>,
-    ) {
-        if idx == fiber.nodes.len() {
-            if all_connected(uf) {
-                let blocks = blocks
-                    .iter()
-                    .map(|b| FiberBlock {
-                        nodes: b.nodes.clone(),
-                    })
-                    .collect();
-                results.push(FiberPartition { blocks });
-            }
-            return;
-        }
-
-        let node = fiber.nodes[idx];
-        let class_id = fiber.class_ids[idx];
-
-        for i in 0..blocks.len() {
-            let snap = uf.snapshot();
-            let (nodes_len, classes_len) = {
-                let block = &mut blocks[i];
-                let nodes_len = block.nodes.len();
-                let classes_len = block.classes.len();
-
-                block.nodes.push(node);
-                if !block.classes.contains(&class_id) {
-                    if let Some(&rep) = block.classes.first() {
-                        uf.union(rep, class_id);
-                    }
-                    block.classes.push(class_id);
-                }
-
-                (nodes_len, classes_len)
-            };
-
-            walk(idx + 1, fiber, blocks, uf, results);
-
-            uf.rollback(snap);
-            let block = &mut blocks[i];
-            block.nodes.truncate(nodes_len);
-            block.classes.truncate(classes_len);
-        }
-
-        blocks.push(BlockState {
-            nodes: vec![node],
-            classes: vec![class_id],
-        });
-        walk(idx + 1, fiber, blocks, uf, results);
-        blocks.pop();
-    }
-
-    walk(0, fiber, &mut blocks, &mut uf, &mut results);
-    results
-}
-
-struct FiberPartitionInput {
-    nodes: Vec<NodeId>,
-    class_ids: Vec<usize>,
-    class_count: usize,
-}
-
-struct FiberPartition {
-    blocks: Vec<FiberBlock>,
-}
-
-struct FiberBlock {
-    nodes: Vec<NodeId>,
-}
-
-struct BlockState {
-    nodes: Vec<NodeId>,
-    classes: Vec<usize>,
 }
 
 fn validate_candidate_map<O, A>(
@@ -393,13 +302,11 @@ mod tests {
     // Bonchi, Filippo, et al.
     // "String diagram rewrite theory I: Rewriting with Frobenius structure."
     // Journal of the ACM (JACM) 69.2 (2022): 1-58.
-    use super::{
-        enumerate_fiber_partitions, exploded_context, fiber_partition_inputs, rewrite,
-        FiberPartition,
-    };
+    use super::{exploded_context, fiber_partition_inputs, rewrite};
     use crate::array::vec::{VecArray, VecKind};
     use crate::finite_function::FiniteFunction;
-    use crate::lax::{Arrow, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, Span};
+    use crate::lax::{Arrow as _, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, Span};
+    use crate::partition::{enumerate_partitions, Partition};
     use std::collections::HashMap;
 
     fn empty_map(target: usize) -> FiniteFunction<VecKind> {
@@ -492,7 +399,7 @@ mod tests {
             .iter()
             .find(|fiber| {
                 let apex_count = fiber
-                    .nodes
+                    .elements
                     .iter()
                     .filter(|node| node.0 >= copied_nodes)
                     .count();
@@ -501,7 +408,7 @@ mod tests {
             .expect("expected fiber containing apex nodes");
 
         let mut apex_nodes = target_fiber
-            .nodes
+            .elements
             .iter()
             .cloned()
             .filter(|node| node.0 >= copied_nodes)
@@ -509,7 +416,7 @@ mod tests {
         apex_nodes.sort_by_key(|node| node.0);
 
         let mut w4_nodes = target_fiber
-            .nodes
+            .elements
             .iter()
             .cloned()
             .filter(|node| node.0 < copied_nodes)
@@ -522,7 +429,7 @@ mod tests {
         name_map.insert(apex_nodes[0], "k0");
         name_map.insert(apex_nodes[1], "k1");
 
-        let partitions = enumerate_fiber_partitions(target_fiber);
+        let partitions = enumerate_partitions(target_fiber);
         let mut actual = partitions
             .iter()
             .map(|partition| normalize_partition(partition, &name_map))
@@ -814,7 +721,7 @@ mod tests {
     }
 
     fn normalize_partition(
-        partition: &FiberPartition,
+        partition: &Partition<NodeId>,
         name_map: &HashMap<NodeId, &'static str>,
     ) -> Vec<Vec<&'static str>> {
         let mut blocks = partition
@@ -822,7 +729,7 @@ mod tests {
             .iter()
             .map(|block| {
                 let mut names = block
-                    .nodes
+                    .elements
                     .iter()
                     .map(|node| *name_map.get(node).expect("name map"))
                     .collect::<Vec<_>>();
