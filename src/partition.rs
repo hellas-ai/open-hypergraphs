@@ -148,10 +148,7 @@ mod tests {
         let partitions = enumerate_partitions(&input);
         assert_eq!(partitions.len(), 3);
 
-        let mut actual = partitions
-            .iter()
-            .map(normalize)
-            .collect::<Vec<_>>();
+        let mut actual = partitions.iter().map(normalize).collect::<Vec<_>>();
         actual.sort();
 
         let mut expected = vec![
