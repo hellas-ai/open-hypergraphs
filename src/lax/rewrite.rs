@@ -6,7 +6,7 @@ use crate::union_find::UnionFind;
 struct ExplodedContext<O, A> {
     graph: Hypergraph<O, A>,
     to_host: NodeEdgeMap,
-    to_copied_plus_left: NodeEdgeMap,
+    to_remainder_plus_redex: NodeEdgeMap,
     interface_in_exploded_nodes: FiniteFunction<VecKind>,
 }
 
@@ -225,7 +225,7 @@ fn exploded_context<O: Clone, A: Clone>(
     let copied_edges = remainder.edges.len();
     let left_nodes = rule.left.nodes.len();
     let left_edges = rule.left.edges.len();
-    let to_copied_plus_left = NodeEdgeMap {
+    let to_remainder_plus_redex = NodeEdgeMap {
         nodes: FiniteFunction::<VecKind>::identity(copied_nodes)
             .inject0(left_nodes)
             .coproduct(&rule.left_map.nodes.inject1(copied_nodes))
@@ -242,7 +242,7 @@ fn exploded_context<O: Clone, A: Clone>(
     ExplodedContext {
         graph: remainder.coproduct(&rule.apex),
         to_host,
-        to_copied_plus_left,
+        to_remainder_plus_redex,
         interface_in_exploded_nodes,
     }
 }
@@ -258,11 +258,11 @@ fn fiber_partition_inputs<O, A>(exploded: &ExplodedContext<O, A>) -> Vec<FiberPa
         .filter(|nodes| !nodes.is_empty())
         .map(|nodes| {
             // f' refines q, so f'-classes are contained within each q-fiber.
-            let mut class_index = vec![None; exploded.to_copied_plus_left.nodes.target()];
+            let mut class_index = vec![None; exploded.to_remainder_plus_redex.nodes.target()];
             let mut class_ids = Vec::with_capacity(nodes.len());
             let mut next_class = 0;
             for node in &nodes {
-                let f_image = exploded.to_copied_plus_left.nodes.table[node.0];
+                let f_image = exploded.to_remainder_plus_redex.nodes.table[node.0];
                 let id = match class_index[f_image] {
                     Some(existing) => existing,
                     None => {
