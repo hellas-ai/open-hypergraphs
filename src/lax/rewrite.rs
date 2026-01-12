@@ -135,17 +135,17 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
 fn exploded_context<O: Clone, A: Clone>(
     host: &Hypergraph<O, A>,
     rule: &Span<'_, O, A>,
-    candidate: &NodeEdgeMap,
+    matching: &NodeEdgeMap,
 ) -> ExplodedContext<O, A> {
     let mut in_image_nodes = vec![false; host.nodes.len()];
-    for i in 0..candidate.nodes.source() {
-        let idx = candidate.nodes.table[i];
+    for i in 0..matching.nodes.source() {
+        let idx = matching.nodes.table[i];
         in_image_nodes[idx] = true;
     }
 
     let mut in_image_edges = vec![false; host.edges.len()];
-    for i in 0..candidate.edges.source() {
-        let idx = candidate.edges.table[i];
+    for i in 0..matching.edges.source() {
+        let idx = matching.edges.table[i];
         in_image_edges[idx] = true;
     }
 
@@ -201,7 +201,7 @@ fn exploded_context<O: Clone, A: Clone>(
         FiniteFunction::<VecKind>::new(VecArray(remainder_node_to_host), host.nodes.len()).unwrap();
     let q_remainder_edges =
         FiniteFunction::<VecKind>::new(VecArray(remainder_edge_to_host), host.edges.len()).unwrap();
-    let q_interface = rule.left_map.compose(candidate);
+    let q_interface = rule.left_map.compose(matching);
     let to_host = NodeEdgeMap {
         nodes: q_remainder_nodes,
         edges: q_remainder_edges,
