@@ -514,6 +514,26 @@ pub(crate) fn concat<T: Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
 }
 
 impl<O: Clone, A: Clone> Hypergraph<O, A> {
+    pub(crate) fn coproduct_with_injections(
+        &self,
+        other: &Hypergraph<O, A>,
+    ) -> (Hypergraph<O, A>, NodeEdgeMap, NodeEdgeMap) {
+        let coproduct = self.coproduct(other);
+        let left = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::identity(self.nodes.len())
+                .inject0(other.nodes.len()),
+            edges: FiniteFunction::<VecKind>::identity(self.edges.len())
+                .inject0(other.edges.len()),
+        };
+        let right = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::identity(other.nodes.len())
+                .inject1(self.nodes.len()),
+            edges: FiniteFunction::<VecKind>::identity(other.edges.len())
+                .inject1(self.edges.len()),
+        };
+        (coproduct, left, right)
+    }
+
     pub(crate) fn coproduct(&self, other: &Hypergraph<O, A>) -> Hypergraph<O, A> {
         let n = self.nodes.len();
 

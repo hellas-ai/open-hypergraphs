@@ -7,12 +7,12 @@ struct ExplodedContext<O, A> {
     remainder_plus_interface: Hypergraph<O, A>,
     to_host: NodeEdgeMap,
     to_remainder_plus_redex: NodeEdgeMap,
-    interface_in_exploded_nodes: FiniteFunction<VecKind>,
+    interface_in_exploded: NodeEdgeMap,
 }
 
 impl<O, A> ExplodedContext<O, A> {
-    fn interface_in_exploded_nodes(&self) -> &FiniteFunction<VecKind> {
-        &self.interface_in_exploded_nodes
+    fn interface_in_exploded(&self) -> &NodeEdgeMap {
+        &self.interface_in_exploded
     }
 }
 
@@ -69,7 +69,8 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
 
         let interface_to_complement = {
             let nodes = exploded
-                .interface_in_exploded_nodes()
+                .interface_in_exploded()
+                .nodes
                 .compose(&q)
                 .expect("interface to complement map");
             NodeEdgeMap {
@@ -208,27 +209,19 @@ fn exploded_context<O: Clone, A: Clone>(
     }
     .coproduct(&q_interface);
 
-    let copied_nodes = remainder.nodes.len();
-    let copied_edges = remainder.edges.len();
-    let left_nodes = rule.left.nodes.len();
-    let left_edges = rule.left.edges.len();
-    let to_remainder_plus_redex = NodeEdgeMap {
-        nodes: FiniteFunction::<VecKind>::identity(copied_nodes).inject0(left_nodes),
-        edges: FiniteFunction::<VecKind>::identity(copied_edges).inject0(left_edges),
-    }
-    .coproduct(&NodeEdgeMap {
-        nodes: rule.left_map.nodes.inject1(copied_nodes),
-        edges: rule.left_map.edges.inject1(copied_edges),
-    });
+    let (_remainder_plus_redex, remainder_in_remainder_plus_redex, redex_in_remainder_plus_redex) =
+        remainder.coproduct_with_injections(rule.left);
+    let to_remainder_plus_redex = remainder_in_remainder_plus_redex
+        .coproduct(&rule.left_map.compose(&redex_in_remainder_plus_redex));
 
-    let interface_in_exploded_nodes =
-        FiniteFunction::<VecKind>::identity(rule.apex.nodes.len()).inject1(copied_nodes);
+    let (remainder_plus_interface, _remainder_in_exploded, interface_in_exploded) =
+        remainder.coproduct_with_injections(rule.apex);
 
     ExplodedContext {
-        remainder_plus_interface: remainder.coproduct(&rule.apex),
+        remainder_plus_interface,
         to_host,
         to_remainder_plus_redex,
-        interface_in_exploded_nodes,
+        interface_in_exploded,
     }
 }
 
