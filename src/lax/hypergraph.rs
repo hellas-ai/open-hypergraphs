@@ -1,5 +1,6 @@
 use crate::array::vec::{VecArray, VecKind};
 use crate::finite_function::*;
+use crate::lax::Arrow;
 
 use core::fmt::Debug;
 
