@@ -60,9 +60,10 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
             }
         }
 
-        let mut complement = exploded.graph.clone();
-        complement.quotient = (quotient_left, quotient_right);
-        let q = complement.quotient();
+        let (complement, q) = exploded
+            .graph
+            .clone()
+            .quotiented_with(quotient_left, quotient_right);
 
         let copied_nodes = exploded.graph.nodes.len() - rule.apex.nodes.len();
         let k_to_c_nodes = FiniteFunction::<VecKind>::new(
@@ -666,8 +667,7 @@ mod tests {
                 targets: vec![w5],
             },
         );
-        c1.quotient = (vec![a1, a0], vec![k0, k1]);
-        let q1 = c1.quotient();
+        let (c1, q1) = c1.quotiented_with(vec![a1, a0], vec![k0, k1]);
         let k0_c1 = NodeId(q1.table[k0.0]);
         let k1_c1 = NodeId(q1.table[k1.0]);
         let mut p1 = rule.right.coproduct(&c1);
@@ -716,8 +716,7 @@ mod tests {
                 targets: vec![w5],
             },
         );
-        c2.quotient = (vec![a1, a0], vec![k1, k0]);
-        let q2 = c2.quotient();
+        let (c2, q2) = c2.quotiented_with(vec![a1, a0], vec![k1, k0]);
         let k0_c2 = NodeId(q2.table[k0.0]);
         let k1_c2 = NodeId(q2.table[k1.0]);
         let mut p2 = rule.right.coproduct(&c2);
@@ -766,8 +765,7 @@ mod tests {
                 targets: vec![w5],
             },
         );
-        c3.quotient = (vec![a0, a0], vec![a1, k1]);
-        let q3 = c3.quotient();
+        let (c3, q3) = c3.quotiented_with(vec![a0, a0], vec![a1, k1]);
         let k0_c3 = NodeId(q3.table[k0.0]);
         let k1_c3 = NodeId(q3.table[k1.0]);
         let mut p3 = rule.right.coproduct(&c3);
@@ -816,8 +814,7 @@ mod tests {
                 targets: vec![w5],
             },
         );
-        c4.quotient = (vec![a0, a0], vec![a1, k0]);
-        let q4 = c4.quotient();
+        let (c4, q4) = c4.quotiented_with(vec![a0, a0], vec![a1, k0]);
         let k0_c4 = NodeId(q4.table[k0.0]);
         let k1_c4 = NodeId(q4.table[k1.0]);
         let mut p4 = rule.right.coproduct(&c4);
@@ -866,8 +863,7 @@ mod tests {
                 targets: vec![w5],
             },
         );
-        c5.quotient = (vec![a0, a0, a0], vec![a1, k0, k1]);
-        let q5 = c5.quotient();
+        let (c5, q5) = c5.quotiented_with(vec![a0, a0, a0], vec![a1, k0, k1]);
         let k0_c5 = NodeId(q5.table[k0.0]);
         let k1_c5 = NodeId(q5.table[k1.0]);
         let mut p5 = rule.right.coproduct(&c5);
