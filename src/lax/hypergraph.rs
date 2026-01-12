@@ -196,7 +196,6 @@ pub struct Hypergraph<O, A> {
     pub quotient: (Vec<NodeId>, Vec<NodeId>),
 }
 
-/// A lax morphism of hypergraphs that preserves structure up to the target quotient.
 impl<O, A> Hypergraph<O, A> {
     /// The empty Hypergraph with no nodes or edges.
     pub fn empty() -> Self {
