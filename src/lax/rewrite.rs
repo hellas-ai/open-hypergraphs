@@ -7,6 +7,13 @@ struct ExplodedContext<O, A> {
     graph: Hypergraph<O, A>,
     to_g: NodeEdgeMap,
     to_copied_plus_left: NodeEdgeMap,
+    interface_in_exploded_nodes: FiniteFunction<VecKind>,
+}
+
+impl<O, A> ExplodedContext<O, A> {
+    fn interface_in_exploded_nodes(&self) -> &FiniteFunction<VecKind> {
+        &self.interface_in_exploded_nodes
+    }
 }
 
 /// Rewrite a lax hypergraph using a rule span and candidate map.
@@ -65,22 +72,22 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
             .clone()
             .quotiented_with(quotient_left, quotient_right);
 
-        let copied_nodes = exploded.graph.nodes.len() - rule.apex.nodes.len();
-        let k_to_c_nodes = FiniteFunction::<VecKind>::new(
-            VecArray(
-                (0..rule.apex.nodes.len())
-                    .map(|idx| q.table[copied_nodes + idx])
-                    .collect(),
-            ),
-            complement.nodes.len(),
-        )
-        .expect("k to complement map");
-        let k_to_c = NodeEdgeMap {
-            nodes: k_to_c_nodes,
+        let interface_to_complement_nodes = exploded
+            .interface_in_exploded_nodes()
+            .compose(&q)
+            .expect("interface to complement map");
+        let interface_to_complement = NodeEdgeMap {
+            nodes: interface_to_complement_nodes,
             edges: FiniteFunction::<VecKind>::initial(complement.edges.len()),
         };
 
-        let span = Span::new(rule.apex, rule.right, &complement, rule.right_map, &k_to_c);
+        let span = Span::new(
+            rule.apex,
+            rule.right,
+            &complement,
+            rule.right_map,
+            &interface_to_complement,
+        );
         span.pushout()
     }
 
@@ -226,10 +233,14 @@ fn exploded_context<O: Clone, A: Clone>(
             .expect("coproduct id + left edges"),
     };
 
+    let interface_in_exploded_nodes =
+        FiniteFunction::<VecKind>::identity(rule.apex.nodes.len()).inject1(copied_nodes);
+
     ExplodedContext {
         graph: h.coproduct(&rule.apex),
         to_g,
         to_copied_plus_left,
+        interface_in_exploded_nodes,
     }
 }
 
