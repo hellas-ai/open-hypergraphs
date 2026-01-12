@@ -1,6 +1,6 @@
 use crate::array::vec::{VecArray, VecKind};
 use crate::finite_function::FiniteFunction;
-use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap, NodeId};
+use crate::lax::{Arrow, Coproduct, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, Span};
 
 struct ExplodedContext<O, A> {
     graph: Hypergraph<O, A>,
@@ -11,7 +11,7 @@ struct ExplodedContext<O, A> {
 /// Rewrite a lax hypergraph using a rule span and candidate map.
 pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
     g: &Hypergraph<O, A>,
-    rule: &LaxSpan<O, A>,
+    rule: &Span<'_, O, A>,
     candidate: &NodeEdgeMap,
 ) -> Vec<Hypergraph<O, A>> {
     validate_candidate_map(rule, g, candidate);
@@ -39,7 +39,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
 
     fn pushout_result<O: Clone + PartialEq, A: Clone + PartialEq>(
         exploded: &ExplodedContext<O, A>,
-        rule: &LaxSpan<O, A>,
+        rule: &Span<'_, O, A>,
         partitions_per_fiber: &[Vec<FiberPartition>],
         selection: &[usize],
     ) -> Hypergraph<O, A> {
@@ -78,20 +78,14 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
             edges: FiniteFunction::<VecKind>::initial(complement.edges.len()),
         };
 
-        let span = LaxSpan::new(
-            rule.apex.clone(),
-            rule.right.clone(),
-            complement,
-            rule.right_map.clone(),
-            k_to_c,
-        );
+        let span = Span::new(rule.apex, rule.right, &complement, rule.right_map, &k_to_c);
         span.pushout()
     }
 
     fn walk<O: Clone + PartialEq, A: Clone + PartialEq>(
         idx: usize,
         exploded: &ExplodedContext<O, A>,
-        rule: &LaxSpan<O, A>,
+        rule: &Span<'_, O, A>,
         partitions_per_fiber: &[Vec<FiberPartition>],
         selection: &mut Vec<usize>,
         results: &mut Vec<Hypergraph<O, A>>,
@@ -134,7 +128,7 @@ pub fn rewrite<O: Clone + PartialEq, A: Clone + PartialEq>(
 
 fn exploded_context<O: Clone, A: Clone>(
     g: &Hypergraph<O, A>,
-    rule: &LaxSpan<O, A>,
+    rule: &Span<'_, O, A>,
     candidate: &NodeEdgeMap,
 ) -> ExplodedContext<O, A> {
     let mut in_image_nodes = vec![false; g.nodes.len()];
@@ -449,7 +443,7 @@ impl UnionFind {
 }
 
 fn validate_candidate_map<O, A>(
-    rule: &LaxSpan<O, A>,
+    rule: &Span<'_, O, A>,
     g: &Hypergraph<O, A>,
     candidate: &NodeEdgeMap,
 ) {
@@ -483,7 +477,7 @@ fn validate_candidate_map<O, A>(
     }
 }
 
-fn identification_condition<O, A>(rule: &LaxSpan<O, A>, candidate: &NodeEdgeMap) -> bool {
+fn identification_condition<O, A>(rule: &Span<'_, O, A>, candidate: &NodeEdgeMap) -> bool {
     let mut in_image = vec![false; rule.left.nodes.len()];
     for i in 0..rule.left_map.nodes.source() {
         let idx = rule.left_map.nodes.table[i];
@@ -509,7 +503,7 @@ fn identification_condition<O, A>(rule: &LaxSpan<O, A>, candidate: &NodeEdgeMap)
 }
 
 fn dangling_condition<O, A>(
-    rule: &LaxSpan<O, A>,
+    rule: &Span<'_, O, A>,
     candidate: &NodeEdgeMap,
     g: &Hypergraph<O, A>,
 ) -> bool {
@@ -563,7 +557,7 @@ mod tests {
     };
     use crate::array::vec::{VecArray, VecKind};
     use crate::finite_function::FiniteFunction;
-    use crate::lax::{Arrow, Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap, NodeId};
+    use crate::lax::{Arrow, Hyperedge, Hypergraph, NodeEdgeMap, NodeId, Span};
     use std::collections::HashMap;
 
     fn empty_map(target: usize) -> FiniteFunction<VecKind> {
@@ -572,7 +566,9 @@ mod tests {
 
     #[test]
     fn test_exploded_context_construction() {
-        let (f_label, g_label, g, rule, candidate) = example_rewrite_input();
+        let (f_label, g_label, g, apex, left, right, left_map, right_map, candidate) =
+            example_rewrite_input();
+        let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
         let exploded = exploded_context(&g, &rule, &candidate);
 
         let mut expected: Hypergraph<String, String> = Hypergraph::empty();
@@ -620,7 +616,9 @@ mod tests {
 
     #[test]
     fn test_f_prime_refines_q() {
-        let (_f_label, _g_label, g, rule, candidate) = example_rewrite_input();
+        let (_f_label, _g_label, g, apex, left, right, left_map, right_map, candidate) =
+            example_rewrite_input();
+        let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
         let exploded = exploded_context(&g, &rule, &candidate);
 
         let mut f_prime_to_q = vec![None; exploded.to_copied_plus_left.nodes.target()];
@@ -635,7 +633,9 @@ mod tests {
 
     #[test]
     fn test_fiber_partitions_expected_blocks() {
-        let (_f_label, _g_label, g, rule, candidate) = example_rewrite_input();
+        let (_f_label, _g_label, g, apex, left, right, left_map, right_map, candidate) =
+            example_rewrite_input();
+        let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
         let exploded = exploded_context(&g, &rule, &candidate);
         let fibers = fiber_partition_inputs(&exploded);
 
@@ -708,7 +708,9 @@ mod tests {
 
     #[test]
     fn test_rewrite_complements_working_example() {
-        let (f_label, g_label, g, rule, candidate) = example_rewrite_input();
+        let (f_label, g_label, g, apex, left, right, left_map, right_map, candidate) =
+            example_rewrite_input();
+        let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
         let mut expected = Vec::new();
 
         let mut c1: Hypergraph<String, String> = Hypergraph::empty();
@@ -993,7 +995,11 @@ mod tests {
         String,
         String,
         Hypergraph<String, String>,
-        LaxSpan<String, String>,
+        Hypergraph<String, String>,
+        Hypergraph<String, String>,
+        Hypergraph<String, String>,
+        NodeEdgeMap,
+        NodeEdgeMap,
         NodeEdgeMap,
     ) {
         // From Session 4.5 Pushout Complements and Rewriting Modulo Frobenius
@@ -1070,13 +1076,13 @@ mod tests {
             nodes: FiniteFunction::<VecKind>::new(VecArray(vec![0, 2]), right.nodes.len()).unwrap(),
             edges: empty_map(right.edges.len()),
         };
-        let rule = LaxSpan::new(apex, left, right, left_map, right_map);
-
         let candidate = NodeEdgeMap {
             nodes: FiniteFunction::<VecKind>::new(VecArray(vec![3]), g.nodes.len()).unwrap(),
             edges: empty_map(g.edges.len()),
         };
 
-        (f_label, g_label, g, rule, candidate)
+        (
+            f_label, g_label, g, apex, left, right, left_map, right_map, candidate,
+        )
     }
 }

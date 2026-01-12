@@ -25,25 +25,25 @@ pub struct NodeEdgeMap {
     pub edges: FiniteFunction<VecKind>,
 }
 
-#[derive(Clone)]
-pub struct LaxSpan<O, A> {
-    pub apex: Hypergraph<O, A>,
-    pub left: Hypergraph<O, A>,
-    pub right: Hypergraph<O, A>,
-    pub left_map: NodeEdgeMap,
-    pub right_map: NodeEdgeMap,
+#[derive(Clone, Copy)]
+pub struct Span<'a, O, A> {
+    pub apex: &'a Hypergraph<O, A>,
+    pub left: &'a Hypergraph<O, A>,
+    pub right: &'a Hypergraph<O, A>,
+    pub left_map: &'a NodeEdgeMap,
+    pub right_map: &'a NodeEdgeMap,
 }
 
-impl<O, A> LaxSpan<O, A> {
+impl<'a, O, A> Span<'a, O, A> {
     /// Construct a lax span and validate its structural properties.
     pub fn new(
-        apex: Hypergraph<O, A>,
-        left: Hypergraph<O, A>,
-        right: Hypergraph<O, A>,
-        left_map: NodeEdgeMap,
-        right_map: NodeEdgeMap,
+        apex: &'a Hypergraph<O, A>,
+        left: &'a Hypergraph<O, A>,
+        right: &'a Hypergraph<O, A>,
+        left_map: &'a NodeEdgeMap,
+        right_map: &'a NodeEdgeMap,
     ) -> Self {
-        LaxSpan {
+        Span {
             apex,
             left,
             right,
@@ -134,7 +134,7 @@ impl<O, A> LaxSpan<O, A> {
             "pushout assumes discrete apex (no edge identifications)"
         );
 
-        let mut pushout = self.left.coproduct(&self.right);
+        let mut pushout = self.left.coproduct(self.right);
         let left_nodes = self.left.nodes.len();
         for (k_idx, &l_idx) in self.left_map.nodes.table.iter().enumerate() {
             let r_idx = self.right_map.nodes.table[k_idx] + left_nodes;

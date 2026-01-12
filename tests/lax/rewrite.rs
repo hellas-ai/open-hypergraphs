@@ -1,15 +1,15 @@
 use open_hypergraphs::array::vec::{VecArray, VecKind};
 use open_hypergraphs::finite_function::FiniteFunction;
-use open_hypergraphs::lax::{rewrite, Hyperedge, Hypergraph, LaxSpan, NodeEdgeMap};
+use open_hypergraphs::lax::{rewrite, Hyperedge, Hypergraph, NodeEdgeMap, Span};
 
 fn empty_map(target: usize) -> FiniteFunction<VecKind> {
     FiniteFunction::<VecKind>::new(VecArray(vec![]), target).unwrap()
 }
 
 fn span_with_empty_apex(
-    left: Hypergraph<i32, i32>,
-    right: Hypergraph<i32, i32>,
-) -> LaxSpan<i32, i32> {
+    left: &Hypergraph<i32, i32>,
+    right: &Hypergraph<i32, i32>,
+) -> (Hypergraph<i32, i32>, NodeEdgeMap, NodeEdgeMap) {
     let apex: Hypergraph<i32, i32> = Hypergraph::empty();
     let left_map = NodeEdgeMap {
         nodes: empty_map(left.nodes.len()),
@@ -19,7 +19,7 @@ fn span_with_empty_apex(
         nodes: empty_map(right.nodes.len()),
         edges: empty_map(right.edges.len()),
     };
-    LaxSpan::new(apex, left, right, left_map, right_map)
+    (apex, left_map, right_map)
 }
 
 #[test]
@@ -30,7 +30,8 @@ fn test_rewrite_identification_fails() {
     l.new_node(2);
 
     let r: Hypergraph<i32, i32> = Hypergraph::empty();
-    let rule = span_with_empty_apex(l.clone(), r);
+    let (apex, left_map, right_map) = span_with_empty_apex(&l, &r);
+    let rule = Span::new(&apex, &l, &r, &left_map, &right_map);
 
     let mut g: Hypergraph<i32, i32> = Hypergraph::empty();
     g.new_node(1);
@@ -50,7 +51,8 @@ fn test_rewrite_dangling_fails() {
     l.new_node(1);
 
     let r: Hypergraph<i32, i32> = Hypergraph::empty();
-    let rule = span_with_empty_apex(l.clone(), r);
+    let (apex, left_map, right_map) = span_with_empty_apex(&l, &r);
+    let rule = Span::new(&apex, &l, &r, &left_map, &right_map);
 
     let mut g: Hypergraph<i32, i32> = Hypergraph::empty();
     let v = g.new_node(1);
@@ -77,7 +79,8 @@ fn test_rewrite_gluing_ok() {
     l.new_node(1);
 
     let r: Hypergraph<i32, i32> = Hypergraph::empty();
-    let rule = span_with_empty_apex(l.clone(), r);
+    let (apex, left_map, right_map) = span_with_empty_apex(&l, &r);
+    let rule = Span::new(&apex, &l, &r, &left_map, &right_map);
 
     let mut g: Hypergraph<i32, i32> = Hypergraph::empty();
     g.new_node(1);
