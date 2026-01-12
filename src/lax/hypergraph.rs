@@ -30,14 +30,8 @@ pub struct NodeEdgeMap {
 impl NodeEdgeMap {
     pub fn compose(&self, other: &NodeEdgeMap) -> Self {
         NodeEdgeMap {
-            nodes: self
-                .nodes
-                .compose(&other.nodes)
-                .expect("node map compose"),
-            edges: self
-                .edges
-                .compose(&other.edges)
-                .expect("edge map compose"),
+            nodes: self.nodes.compose(&other.nodes).expect("node map compose"),
+            edges: self.edges.compose(&other.edges).expect("edge map compose"),
         }
     }
 
@@ -612,16 +606,12 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
     ) -> (Hypergraph<O, A>, NodeEdgeMap, NodeEdgeMap) {
         let coproduct = self.coproduct(other);
         let left = NodeEdgeMap {
-            nodes: FiniteFunction::<VecKind>::identity(self.nodes.len())
-                .inject0(other.nodes.len()),
-            edges: FiniteFunction::<VecKind>::identity(self.edges.len())
-                .inject0(other.edges.len()),
+            nodes: FiniteFunction::<VecKind>::identity(self.nodes.len()).inject0(other.nodes.len()),
+            edges: FiniteFunction::<VecKind>::identity(self.edges.len()).inject0(other.edges.len()),
         };
         let right = NodeEdgeMap {
-            nodes: FiniteFunction::<VecKind>::identity(other.nodes.len())
-                .inject1(self.nodes.len()),
-            edges: FiniteFunction::<VecKind>::identity(other.edges.len())
-                .inject1(self.edges.len()),
+            nodes: FiniteFunction::<VecKind>::identity(other.nodes.len()).inject1(self.nodes.len()),
+            edges: FiniteFunction::<VecKind>::identity(other.edges.len()).inject1(self.edges.len()),
         };
         (coproduct, left, right)
     }

@@ -88,3 +88,32 @@ impl UnionFind {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::UnionFind;
+
+    #[test]
+    fn union_find_unions_and_connects() {
+        let mut uf = UnionFind::new(4);
+        assert_eq!(uf.components(), 4);
+        uf.union(0, 1);
+        uf.union(2, 3);
+        assert_eq!(uf.components(), 2);
+        uf.union(1, 2);
+        assert_eq!(uf.components(), 1);
+    }
+
+    #[test]
+    fn union_find_snapshot_and_rollback() {
+        let mut uf = UnionFind::new(3);
+        uf.union(0, 1);
+        let snap = uf.snapshot();
+        uf.union(1, 2);
+        assert_eq!(uf.components(), 1);
+        uf.rollback(snap);
+        assert_eq!(uf.components(), 2);
+        uf.union(0, 2);
+        assert_eq!(uf.components(), 1);
+    }
+}

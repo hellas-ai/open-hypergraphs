@@ -158,7 +158,20 @@ mod tests {
             vec![vec![0, 1, 2]],
             vec![vec![0, 2], vec![1]],
             vec![vec![1, 2], vec![0]],
-        ];
+        ]
+        .into_iter()
+        .map(|blocks| {
+            let mut blocks = blocks
+                .into_iter()
+                .map(|mut block| {
+                    block.sort();
+                    block
+                })
+                .collect::<Vec<_>>();
+            blocks.sort();
+            blocks
+        })
+        .collect::<Vec<_>>();
         expected.sort();
 
         assert_eq!(actual, expected);
