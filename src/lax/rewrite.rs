@@ -226,6 +226,54 @@ fn validate_candidate_map<O, A>(
             g.edges.len()
         );
     }
+
+    for (edge_id, edge) in rule.left.adjacency.iter().enumerate() {
+        let host_edge_id = candidate.edges.table[edge_id];
+        let host_edge = g.adjacency.get(host_edge_id).unwrap_or_else(|| {
+            panic!(
+                "candidate edge image out of bounds: got {}, max {}",
+                host_edge_id,
+                g.adjacency.len()
+            )
+        });
+
+        if edge.sources.len() != host_edge.sources.len()
+            || edge.targets.len() != host_edge.targets.len()
+        {
+            panic!(
+                "candidate edge image arity mismatch for edge {}",
+                edge_id
+            );
+        }
+
+        for (idx, node) in edge.sources.iter().enumerate() {
+            let image = candidate.nodes.table[node.0];
+            let host_node = host_edge.sources[idx].0;
+            if image != host_node {
+                panic!(
+                    "candidate edge image source mismatch for edge {} at position {}: got {}, expected {}",
+                    edge_id,
+                    idx,
+                    host_node,
+                    image
+                );
+            }
+        }
+
+        for (idx, node) in edge.targets.iter().enumerate() {
+            let image = candidate.nodes.table[node.0];
+            let host_node = host_edge.targets[idx].0;
+            if image != host_node {
+                panic!(
+                    "candidate edge image target mismatch for edge {} at position {}: got {}, expected {}",
+                    edge_id,
+                    idx,
+                    host_node,
+                    image
+                );
+            }
+        }
+    }
 }
 
 fn identification_condition<O, A>(rule: &Span<'_, O, A>, candidate: &NodeEdgeMap) -> bool {

@@ -568,6 +568,11 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
         &self,
         excluded: &NodeEdgeMap,
     ) -> (Hypergraph<O, A>, NodeEdgeMap) {
+        assert_eq!(
+            self.edges.len(),
+            self.adjacency.len(),
+            "malformed hypergraph: edges and adjacency lengths differ"
+        );
         let mut in_image_nodes = vec![false; self.nodes.len()];
         for &idx in excluded.nodes.table.iter() {
             if idx >= self.nodes.len() {
