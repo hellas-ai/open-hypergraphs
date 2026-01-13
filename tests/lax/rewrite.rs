@@ -27,7 +27,7 @@ fn test_rewrite_identification_fails() {
     // K = ∅, L = {a, b}. G has one node w and m(a) = m(b) = w.
     let mut l: Hypergraph<i32, i32> = Hypergraph::empty();
     l.new_node(1);
-    l.new_node(2);
+    l.new_node(1);
 
     let r: Hypergraph<i32, i32> = Hypergraph::empty();
     let (apex, left_map, right_map) = span_with_empty_apex(&l, &r);

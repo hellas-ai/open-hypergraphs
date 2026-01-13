@@ -193,7 +193,7 @@ fn fiber_partition_inputs<O, A>(exploded: &ExplodedContext<O, A>) -> Vec<Partiti
         .collect()
 }
 
-fn validate_candidate_map<O, A>(
+fn validate_candidate_map<O: PartialEq, A: PartialEq>(
     rule: &Span<'_, O, A>,
     g: &Hypergraph<O, A>,
     candidate: &NodeEdgeMap,
@@ -227,6 +227,20 @@ fn validate_candidate_map<O, A>(
         );
     }
 
+    for (node_id, node_label) in rule.left.nodes.iter().enumerate() {
+        let host_node_id = candidate.nodes.table[node_id];
+        let host_label = g.nodes.get(host_node_id).unwrap_or_else(|| {
+            panic!(
+                "candidate node image out of bounds: got {}, max {}",
+                host_node_id,
+                g.nodes.len()
+            )
+        });
+        if host_label != node_label {
+            panic!("candidate node label mismatch for node {}", node_id);
+        }
+    }
+
     for (edge_id, edge) in rule.left.adjacency.iter().enumerate() {
         let host_edge_id = candidate.edges.table[edge_id];
         let host_edge = g.adjacency.get(host_edge_id).unwrap_or_else(|| {
@@ -236,14 +250,28 @@ fn validate_candidate_map<O, A>(
                 g.adjacency.len()
             )
         });
+        let host_edge_label = g.edges.get(host_edge_id).unwrap_or_else(|| {
+            panic!(
+                "candidate edge image out of bounds: got {}, max {}",
+                host_edge_id,
+                g.edges.len()
+            )
+        });
+        let edge_label = rule.left.edges.get(edge_id).unwrap_or_else(|| {
+            panic!(
+                "left edge index out of bounds: got {}, max {}",
+                edge_id,
+                rule.left.edges.len()
+            )
+        });
+        if host_edge_label != edge_label {
+            panic!("candidate edge label mismatch for edge {}", edge_id);
+        }
 
         if edge.sources.len() != host_edge.sources.len()
             || edge.targets.len() != host_edge.targets.len()
         {
-            panic!(
-                "candidate edge image arity mismatch for edge {}",
-                edge_id
-            );
+            panic!("candidate edge image arity mismatch for edge {}", edge_id);
         }
 
         for (idx, node) in edge.sources.iter().enumerate() {
