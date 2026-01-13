@@ -85,3 +85,6 @@ pub use rewrite::*;
 
 pub mod optic;
 pub mod var;
+
+#[cfg(test)]
+pub mod test_utils;
