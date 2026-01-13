@@ -227,6 +227,11 @@ fn validate_candidate_map<O: PartialEq, A: PartialEq>(
         );
     }
     assert_eq!(
+        g.edges.len(),
+        g.adjacency.len(),
+        "malformed hypergraph: edges and adjacency lengths differ"
+    );
+    assert_eq!(
         rule.left.edges.len(),
         rule.left.adjacency.len(),
         "malformed hypergraph: edges and adjacency lengths differ"
