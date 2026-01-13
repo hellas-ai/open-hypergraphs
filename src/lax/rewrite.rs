@@ -226,6 +226,11 @@ fn validate_candidate_map<O: PartialEq, A: PartialEq>(
             g.edges.len()
         );
     }
+    assert_eq!(
+        rule.left.edges.len(),
+        rule.left.adjacency.len(),
+        "malformed hypergraph: edges and adjacency lengths differ"
+    );
 
     for (node_id, node_label) in rule.left.nodes.iter().enumerate() {
         let host_node_id = candidate.nodes.table[node_id];
