@@ -465,6 +465,32 @@ mod tests {
         let (f_label, g_label, g, apex, left, right, left_map, right_map, candidate) =
             example_rewrite_input();
         let rule = Span::new(&apex, &left, &right, &left_map, &right_map);
+        let build_expected = |complement: Hypergraph<String, String>,
+                              q: &FiniteFunction<VecKind>,
+                              k0: NodeId,
+                              k1: NodeId|
+         -> Hypergraph<String, String> {
+            let interface_in_complement = NodeEdgeMap {
+                nodes: FiniteFunction::<VecKind>::new(VecArray(vec![k0.0, k1.0]), q.source())
+                    .unwrap(),
+                edges: empty_map(complement.edges.len()),
+            };
+            let interface_to_complement = NodeEdgeMap {
+                nodes: interface_in_complement
+                    .nodes
+                    .compose(q)
+                    .expect("interface to complement map"),
+                edges: empty_map(complement.edges.len()),
+            };
+            let span = Span::new(
+                rule.apex,
+                rule.right,
+                &complement,
+                rule.right_map,
+                &interface_to_complement,
+            );
+            span.pushout()
+        };
         let mut expected = Vec::new();
 
         let mut c1: Hypergraph<String, String> = Hypergraph::empty();
@@ -505,16 +531,7 @@ mod tests {
             },
         );
         let (c1, q1) = c1.quotiented_with(vec![a1, a0], vec![k0, k1]);
-        let k0_c1 = NodeId(q1.table[k0.0]);
-        let k1_c1 = NodeId(q1.table[k1.0]);
-        let mut p1 = rule.right.coproduct(&c1);
-        let left_nodes = rule.right.nodes.len();
-        p1.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
-        p1.quotient.1.push(NodeId(k0_c1.0 + left_nodes));
-        p1.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
-        p1.quotient.1.push(NodeId(k1_c1.0 + left_nodes));
-        p1.quotient();
-        expected.push(p1);
+        expected.push(build_expected(c1, &q1, k0, k1));
 
         let mut c2: Hypergraph<String, String> = Hypergraph::empty();
         let w1 = c2.new_node("w".to_string());
@@ -554,16 +571,7 @@ mod tests {
             },
         );
         let (c2, q2) = c2.quotiented_with(vec![a1, a0], vec![k1, k0]);
-        let k0_c2 = NodeId(q2.table[k0.0]);
-        let k1_c2 = NodeId(q2.table[k1.0]);
-        let mut p2 = rule.right.coproduct(&c2);
-        let left_nodes = rule.right.nodes.len();
-        p2.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
-        p2.quotient.1.push(NodeId(k0_c2.0 + left_nodes));
-        p2.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
-        p2.quotient.1.push(NodeId(k1_c2.0 + left_nodes));
-        p2.quotient();
-        expected.push(p2);
+        expected.push(build_expected(c2, &q2, k0, k1));
 
         let mut c3: Hypergraph<String, String> = Hypergraph::empty();
         let w1 = c3.new_node("w".to_string());
@@ -603,16 +611,7 @@ mod tests {
             },
         );
         let (c3, q3) = c3.quotiented_with(vec![a0, a0], vec![a1, k1]);
-        let k0_c3 = NodeId(q3.table[k0.0]);
-        let k1_c3 = NodeId(q3.table[k1.0]);
-        let mut p3 = rule.right.coproduct(&c3);
-        let left_nodes = rule.right.nodes.len();
-        p3.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
-        p3.quotient.1.push(NodeId(k0_c3.0 + left_nodes));
-        p3.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
-        p3.quotient.1.push(NodeId(k1_c3.0 + left_nodes));
-        p3.quotient();
-        expected.push(p3);
+        expected.push(build_expected(c3, &q3, k0, k1));
 
         let mut c4: Hypergraph<String, String> = Hypergraph::empty();
         let w1 = c4.new_node("w".to_string());
@@ -652,16 +651,7 @@ mod tests {
             },
         );
         let (c4, q4) = c4.quotiented_with(vec![a0, a0], vec![a1, k0]);
-        let k0_c4 = NodeId(q4.table[k0.0]);
-        let k1_c4 = NodeId(q4.table[k1.0]);
-        let mut p4 = rule.right.coproduct(&c4);
-        let left_nodes = rule.right.nodes.len();
-        p4.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
-        p4.quotient.1.push(NodeId(k0_c4.0 + left_nodes));
-        p4.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
-        p4.quotient.1.push(NodeId(k1_c4.0 + left_nodes));
-        p4.quotient();
-        expected.push(p4);
+        expected.push(build_expected(c4, &q4, k0, k1));
 
         let mut c5: Hypergraph<String, String> = Hypergraph::empty();
         let w1 = c5.new_node("w".to_string());
@@ -701,16 +691,7 @@ mod tests {
             },
         );
         let (c5, q5) = c5.quotiented_with(vec![a0, a0, a0], vec![a1, k0, k1]);
-        let k0_c5 = NodeId(q5.table[k0.0]);
-        let k1_c5 = NodeId(q5.table[k1.0]);
-        let mut p5 = rule.right.coproduct(&c5);
-        let left_nodes = rule.right.nodes.len();
-        p5.quotient.0.push(NodeId(rule.right_map.nodes.table[0]));
-        p5.quotient.1.push(NodeId(k0_c5.0 + left_nodes));
-        p5.quotient.0.push(NodeId(rule.right_map.nodes.table[1]));
-        p5.quotient.1.push(NodeId(k1_c5.0 + left_nodes));
-        p5.quotient();
-        expected.push(p5);
+        expected.push(build_expected(c5, &q5, k0, k1));
 
         let complements = rewrite(&g, &rule, &candidate);
         assert_eq!(complements.len(), 5);
