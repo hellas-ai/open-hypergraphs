@@ -714,9 +714,15 @@ mod tests {
 
         let complements = rewrite(&g, &rule, &candidate);
         assert_eq!(complements.len(), 5);
-        for expected_graph in expected {
-            assert!(complements.iter().any(|h| h == &expected_graph));
-        }
+        let missing = expected
+            .iter()
+            .filter(|expected_graph| !complements.iter().any(|h| h == *expected_graph))
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "Missing {} expected complement(s)",
+            missing.len()
+        );
     }
 
     #[test]
