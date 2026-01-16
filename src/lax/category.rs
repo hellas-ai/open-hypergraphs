@@ -32,6 +32,18 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
         if self.target() != other.source() {
             return None;
         }
+        self.lax_compose(other)
+    }
+}
+
+impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
+    /// Compose two open hypergraphs, unifying the boundary nodes without checking labels.
+    ///
+    /// Returns None when the boundary arities do not match.
+    pub fn lax_compose(&self, other: &Self) -> Option<Self> {
+        if self.targets.len() != other.sources.len() {
+            return None;
+        }
 
         let n = self.hypergraph.nodes.len();
         let mut f = self.tensor(other);
@@ -39,7 +51,7 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
             f.unify(*u, NodeId(v.0 + n));
         }
 
-        f.sources = f.sources[..self.sources.len()].to_vec();
+        f.sources.truncate(self.sources.len());
         f.targets = f.targets[self.targets.len()..].to_vec();
 
         Some(f)
