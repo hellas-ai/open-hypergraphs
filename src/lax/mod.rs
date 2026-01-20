@@ -74,6 +74,7 @@
 pub mod category;
 pub mod functor;
 pub mod hypergraph;
+pub mod subgraph;
 pub mod mut_category;
 pub mod open_hypergraph;
 
