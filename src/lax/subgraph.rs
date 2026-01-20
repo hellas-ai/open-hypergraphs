@@ -112,6 +112,13 @@ where
         .filter_map(|(idx, used)| if *used { None } else { Some(idx) })
         .collect();
 
+    // VF2 feasibility checks used here:
+    // - Degree compatibility: in/out degree of each pattern node must not exceed the target's.
+    // - Frontier capacity: remaining unmapped incident edges on a pattern node must fit within
+    //   the remaining incident capacity on its mapped target node.
+    let (pattern_in, pattern_out) = node_degrees(pattern);
+    let (target_in, target_out) = node_degrees(target);
+
     // Mutable state for the backtracking search.
     // Rationale: we mutate maps/used flags in-place and roll back to avoid repeated allocation.
     let mut matches = Vec::new();
@@ -119,6 +126,10 @@ where
     let mut edge_map = vec![None; pattern.edges.len()];
     let mut used_target_nodes = vec![false; target.nodes.len()];
     let mut used_target_edges = vec![false; target.edges.len()];
+    let mut pattern_mapped_in = vec![0usize; pattern.nodes.len()];
+    let mut pattern_mapped_out = vec![0usize; pattern.nodes.len()];
+    let mut target_mapped_in = vec![0usize; target.nodes.len()];
+    let mut target_mapped_out = vec![0usize; target.nodes.len()];
 
     backtrack_edges(
         target,
@@ -132,6 +143,14 @@ where
         &mut edge_map,
         &mut used_target_nodes,
         &mut used_target_edges,
+        &pattern_in,
+        &pattern_out,
+        &target_in,
+        &target_out,
+        &mut pattern_mapped_in,
+        &mut pattern_mapped_out,
+        &mut target_mapped_in,
+        &mut target_mapped_out,
         &mut matches,
     );
 
@@ -151,6 +170,14 @@ fn backtrack_edges<OP, AP, O, A, FN>(
     edge_map: &mut Vec<Option<EdgeId>>,
     used_target_nodes: &mut Vec<bool>,
     used_target_edges: &mut Vec<bool>,
+    pattern_in: &[usize],
+    pattern_out: &[usize],
+    target_in: &[usize],
+    target_out: &[usize],
+    pattern_mapped_in: &mut [usize],
+    pattern_mapped_out: &mut [usize],
+    target_mapped_in: &mut [usize],
+    target_mapped_out: &mut [usize],
     matches: &mut Vec<SubgraphIsomorphism>,
 ) where
     FN: Fn(&OP, &O) -> bool,
@@ -167,6 +194,14 @@ fn backtrack_edges<OP, AP, O, A, FN>(
             node_map,
             edge_map,
             used_target_nodes,
+            pattern_in,
+            pattern_out,
+            target_in,
+            target_out,
+            pattern_mapped_in,
+            pattern_mapped_out,
+            target_mapped_in,
+            target_mapped_out,
             matches,
         );
         return;
@@ -193,8 +228,18 @@ fn backtrack_edges<OP, AP, O, A, FN>(
                 node_eq,
                 p_node.0,
                 t_node.0,
+                0,
+                1,
                 node_map,
                 used_target_nodes,
+                pattern_in,
+                pattern_out,
+                target_in,
+                target_out,
+                pattern_mapped_in,
+                pattern_mapped_out,
+                target_mapped_in,
+                target_mapped_out,
                 &mut newly_mapped,
             ) {
                 ok = false;
@@ -210,8 +255,18 @@ fn backtrack_edges<OP, AP, O, A, FN>(
                     node_eq,
                     p_node.0,
                     t_node.0,
+                    1,
+                    0,
                     node_map,
                     used_target_nodes,
+                    pattern_in,
+                    pattern_out,
+                    target_in,
+                    target_out,
+                    pattern_mapped_in,
+                    pattern_mapped_out,
+                    target_mapped_in,
+                    target_mapped_out,
                     &mut newly_mapped,
                 ) {
                     ok = false;
@@ -223,6 +278,20 @@ fn backtrack_edges<OP, AP, O, A, FN>(
         if ok {
             used_target_edges[t_edge_idx] = true;
             edge_map[p_edge_idx] = Some(EdgeId(t_edge_idx));
+            apply_edge_incidence(
+                &p_adj.sources,
+                &p_adj.targets,
+                pattern_mapped_in,
+                pattern_mapped_out,
+                1,
+            );
+            apply_edge_incidence(
+                &t_adj.sources,
+                &t_adj.targets,
+                target_mapped_in,
+                target_mapped_out,
+                1,
+            );
 
             backtrack_edges(
                 target,
@@ -236,11 +305,33 @@ fn backtrack_edges<OP, AP, O, A, FN>(
                 edge_map,
                 used_target_nodes,
                 used_target_edges,
+                pattern_in,
+                pattern_out,
+                target_in,
+                target_out,
+                pattern_mapped_in,
+                pattern_mapped_out,
+                target_mapped_in,
+                target_mapped_out,
                 matches,
             );
 
             edge_map[p_edge_idx] = None;
             used_target_edges[t_edge_idx] = false;
+            apply_edge_incidence(
+                &p_adj.sources,
+                &p_adj.targets,
+                pattern_mapped_in,
+                pattern_mapped_out,
+                -1,
+            );
+            apply_edge_incidence(
+                &t_adj.sources,
+                &t_adj.targets,
+                target_mapped_in,
+                target_mapped_out,
+                -1,
+            );
         }
 
         // Revert any provisional node mappings for this candidate edge.
@@ -262,6 +353,14 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
     node_map: &mut Vec<Option<NodeId>>,
     edge_map: &mut Vec<Option<EdgeId>>,
     used_target_nodes: &mut Vec<bool>,
+    pattern_in: &[usize],
+    pattern_out: &[usize],
+    target_in: &[usize],
+    target_out: &[usize],
+    pattern_mapped_in: &mut [usize],
+    pattern_mapped_out: &mut [usize],
+    target_mapped_in: &mut [usize],
+    target_mapped_out: &mut [usize],
     matches: &mut Vec<SubgraphIsomorphism>,
 ) where
     FN: Fn(&OP, &O) -> bool,
@@ -286,6 +385,22 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         if used_target_nodes[t_node_idx] {
             continue;
         }
+        if !degree_feasible(
+            p_node_idx,
+            t_node_idx,
+            0,
+            0,
+            pattern_in,
+            pattern_out,
+            target_in,
+            target_out,
+            pattern_mapped_in,
+            pattern_mapped_out,
+            target_mapped_in,
+            target_mapped_out,
+        ) {
+            continue;
+        }
         if !node_eq(&pattern.nodes[p_node_idx], &target.nodes[t_node_idx]) {
             continue;
         }
@@ -302,6 +417,14 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
             node_map,
             edge_map,
             used_target_nodes,
+            pattern_in,
+            pattern_out,
+            target_in,
+            target_out,
+            pattern_mapped_in,
+            pattern_mapped_out,
+            target_mapped_in,
+            target_mapped_out,
             matches,
         );
 
@@ -316,8 +439,18 @@ fn try_map_node<OP, AP, O, A, FN>(
     node_eq: &FN,
     p_node_idx: usize,
     t_node_idx: usize,
+    add_in: usize,
+    add_out: usize,
     node_map: &mut Vec<Option<NodeId>>,
     used_target_nodes: &mut Vec<bool>,
+    pattern_in: &[usize],
+    pattern_out: &[usize],
+    target_in: &[usize],
+    target_out: &[usize],
+    pattern_mapped_in: &mut [usize],
+    pattern_mapped_out: &mut [usize],
+    target_mapped_in: &mut [usize],
+    target_mapped_out: &mut [usize],
     newly_mapped: &mut Vec<usize>,
 ) -> bool
 where
@@ -327,7 +460,23 @@ where
     // If the pattern node is already mapped, this only succeeds when it maps to the same target.
     // Otherwise, it checks injectivity and label compatibility before recording the mapping.
     if let Some(existing) = node_map[p_node_idx] {
-        return existing.0 == t_node_idx;
+        if existing.0 != t_node_idx {
+            return false;
+        }
+        return degree_feasible(
+            p_node_idx,
+            t_node_idx,
+            add_in,
+            add_out,
+            pattern_in,
+            pattern_out,
+            target_in,
+            target_out,
+            pattern_mapped_in,
+            pattern_mapped_out,
+            target_mapped_in,
+            target_mapped_out,
+        );
     }
     // injectivity: a target node can only be used once
     if used_target_nodes[t_node_idx] {
@@ -337,9 +486,97 @@ where
     if !node_eq(&pattern.nodes[p_node_idx], &target.nodes[t_node_idx]) {
         return false;
     }
+    if !degree_feasible(
+        p_node_idx,
+        t_node_idx,
+        add_in,
+        add_out,
+        pattern_in,
+        pattern_out,
+        target_in,
+        target_out,
+        pattern_mapped_in,
+        pattern_mapped_out,
+        target_mapped_in,
+        target_mapped_out,
+    ) {
+        return false;
+    }
 
     node_map[p_node_idx] = Some(NodeId(t_node_idx));
     used_target_nodes[t_node_idx] = true;
     newly_mapped.push(p_node_idx);
     true
+}
+
+fn node_degrees<O, A>(graph: &Hypergraph<O, A>) -> (Vec<usize>, Vec<usize>) {
+    let mut in_deg = vec![0usize; graph.nodes.len()];
+    let mut out_deg = vec![0usize; graph.nodes.len()];
+    for edge in &graph.adjacency {
+        for node in &edge.sources {
+            out_deg[node.0] += 1;
+        }
+        for node in &edge.targets {
+            in_deg[node.0] += 1;
+        }
+    }
+    (in_deg, out_deg)
+}
+
+fn apply_edge_incidence(
+    sources: &[NodeId],
+    targets: &[NodeId],
+    mapped_in: &mut [usize],
+    mapped_out: &mut [usize],
+    delta: i32,
+) {
+    if delta >= 0 {
+        let add = delta as usize;
+        for node in sources {
+            mapped_out[node.0] += add;
+        }
+        for node in targets {
+            mapped_in[node.0] += add;
+        }
+    } else {
+        let sub = (-delta) as usize;
+        for node in sources {
+            mapped_out[node.0] -= sub;
+        }
+        for node in targets {
+            mapped_in[node.0] -= sub;
+        }
+    }
+}
+
+fn degree_feasible(
+    p_node_idx: usize,
+    t_node_idx: usize,
+    add_in: usize,
+    add_out: usize,
+    pattern_in: &[usize],
+    pattern_out: &[usize],
+    target_in: &[usize],
+    target_out: &[usize],
+    pattern_mapped_in: &[usize],
+    pattern_mapped_out: &[usize],
+    target_mapped_in: &[usize],
+    target_mapped_out: &[usize],
+) -> bool {
+    if pattern_in[p_node_idx] > target_in[t_node_idx]
+        || pattern_out[p_node_idx] > target_out[t_node_idx]
+    {
+        return false;
+    }
+
+    let pattern_remaining_in = pattern_in[p_node_idx]
+        .saturating_sub(pattern_mapped_in[p_node_idx] + add_in);
+    let pattern_remaining_out = pattern_out[p_node_idx]
+        .saturating_sub(pattern_mapped_out[p_node_idx] + add_out);
+    let target_remaining_in = target_in[t_node_idx]
+        .saturating_sub(target_mapped_in[t_node_idx] + add_in);
+    let target_remaining_out = target_out[t_node_idx]
+        .saturating_sub(target_mapped_out[t_node_idx] + add_out);
+
+    pattern_remaining_in <= target_remaining_in && pattern_remaining_out <= target_remaining_out
 }
