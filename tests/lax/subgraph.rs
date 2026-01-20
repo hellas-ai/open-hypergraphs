@@ -62,6 +62,7 @@ fn test_subgraph_isomorphisms_isolated_nodes() {
     pattern.new_node(2);
 
     let matches = target.find_subgraph_isomorphisms(&pattern);
+    // The pattern's 2-label must map to the unique 2 in the target; the 1-label can map to either 1.
     assert_eq!(matches.len(), 2);
     assert!(matches.iter().all(|m| m.node_map()[1] == NodeId(1)));
 
@@ -161,6 +162,33 @@ fn test_subgraph_isomorphisms_multi_incidence_sources() {
 }
 
 #[test]
+fn test_subgraph_isomorphisms_multiple_matches_complex_target() {
+    let mut target = Hypergraph::empty();
+    let n0 = target.new_node(0);
+    let n1 = target.new_node(0);
+    let n2 = target.new_node(1);
+    let n3 = target.new_node(1);
+    let n4 = target.new_node(2);
+    target.new_edge('f', (vec![n0], vec![n2]));
+    target.new_edge('f', (vec![n0], vec![n3]));
+    target.new_edge('f', (vec![n1], vec![n2]));
+    target.new_edge('f', (vec![n1], vec![n3]));
+    target.new_edge('g', (vec![n2], vec![n4]));
+    target.new_edge('g', (vec![n3], vec![n4]));
+
+    let mut pattern = Hypergraph::empty();
+    let p0 = pattern.new_node(0);
+    let p1 = pattern.new_node(1);
+    let p2 = pattern.new_node(2);
+    pattern.new_edge('f', (vec![p0], vec![p1]));
+    pattern.new_edge('g', (vec![p1], vec![p2]));
+
+    let matches = target.find_subgraph_isomorphisms(&pattern);
+    assert_eq!(matches.len(), 4);
+    assert!(matches.iter().all(|m| m.node_map()[2] == n4));
+}
+
+#[test]
 fn test_subgraph_isomorphisms_node_in_sources_and_targets() {
     let mut target = Hypergraph::empty();
     let n0 = target.new_node(0);
@@ -191,7 +219,10 @@ fn test_subgraph_isomorphisms_identical_edges_injective() {
 
     let matches = target.find_subgraph_isomorphisms(&pattern);
     assert_eq!(matches.len(), 2);
-    let mut edge_ids = matches.iter().map(|m| m.edge_map()[0].0).collect::<Vec<_>>();
+    let mut edge_ids = matches
+        .iter()
+        .map(|m| m.edge_map()[0].0)
+        .collect::<Vec<_>>();
     edge_ids.sort();
     assert_eq!(edge_ids, vec![0, 1]);
 }
