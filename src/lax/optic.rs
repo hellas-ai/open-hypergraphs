@@ -7,7 +7,9 @@
 //! give you `map_arrow` and `map_adapted` methods for free.
 use std::fmt::Debug;
 
-use crate::lax::functor::{to_dyn_functor, DynFunctor, Functor};
+use crate::lax::functor::dyn_functor::{to_dyn_functor, DynFunctor};
+use crate::lax::functor::Functor;
+
 use crate::operations::Operations;
 use crate::strict::vec::VecArray;
 use crate::strict::vec::VecKind;
