@@ -1,3 +1,4 @@
+//! Allow defining functors of lax OpenHypergraphs in terms of strict ones.
 use crate::array::vec::VecKind;
 use crate::lax::open_hypergraph::*;
 use crate::operations::Operations;
@@ -5,7 +6,8 @@ use crate::strict;
 
 use super::traits::Functor;
 
-// TODO: write a to_strict_functor returning impl strict::functor::Functor
+/// Define the `map_arrow` function of a lax [`Functor`] by translating it to a `strit::Functor`,
+/// applying it, and translating back.
 pub fn define_map_arrow<
     F: Functor<O1, A1, O2, A2> + Clone,
     O1: Clone + PartialEq,
