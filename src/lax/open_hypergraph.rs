@@ -139,6 +139,14 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
     /// Apply the quotient map to identify nodes in the internal [`Hypergraph`].
     /// This deletes the internal quotient map, resulting in a *strict* [`OpenHypergraph`].
     pub fn quotient(&mut self) {
+        self.quotient_witness();
+    }
+
+    /// Like [`Self::quotient`], but also returns the coequalizer [`crate::finite_function::FiniteFunction`]
+    /// mapping pre-quotient node indices to post-quotient node indices.
+    pub fn quotient_witness(
+        &mut self,
+    ) -> crate::finite_function::FiniteFunction<VecKind> {
         // mutably quotient self.hypergraph, returning the coequalizer q
         let q = self.hypergraph.quotient();
 
@@ -150,6 +158,8 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
         self.targets
             .iter_mut()
             .for_each(|x| *x = NodeId(q.table[x.0]));
+
+        q
     }
 
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::strict::OpenHypergraph`] by
