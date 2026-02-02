@@ -445,21 +445,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         if context.options.injective && state.used_target_nodes[t_node_idx] {
             continue;
         }
-        if !degree_feasible(
-            p_node_idx,
-            t_node_idx,
-            0,
-            0,
-            context.pattern_in,
-            context.pattern_out,
-            context.target_in,
-            context.target_out,
-            &state.pattern_mapped_in,
-            &state.pattern_mapped_out,
-            &state.target_mapped_in,
-            &state.target_mapped_out,
-            context.options.injective,
-        ) {
+        if !degree_feasible(context, state, p_node_idx, t_node_idx, 0, 0) {
             continue;
         }
         if !(context.node_eq)(
@@ -501,21 +487,7 @@ where
             return false;
         }
         if context.options.injective {
-            return degree_feasible(
-                p_node_idx,
-                t_node_idx,
-                add_in,
-                add_out,
-                context.pattern_in,
-                context.pattern_out,
-                context.target_in,
-                context.target_out,
-                &state.pattern_mapped_in,
-                &state.pattern_mapped_out,
-                &state.target_mapped_in,
-                &state.target_mapped_out,
-                context.options.injective,
-            );
+            return degree_feasible(context, state, p_node_idx, t_node_idx, add_in, add_out);
         }
         return true;
     }
@@ -528,21 +500,7 @@ where
     ) {
         return false;
     }
-    if !degree_feasible(
-        p_node_idx,
-        t_node_idx,
-        add_in,
-        add_out,
-        context.pattern_in,
-        context.pattern_out,
-        context.target_in,
-        context.target_out,
-        &state.pattern_mapped_in,
-        &state.pattern_mapped_out,
-        &state.target_mapped_in,
-        &state.target_mapped_out,
-        context.options.injective,
-    ) {
+    if !degree_feasible(context, state, p_node_idx, t_node_idx, add_in, add_out) {
         return false;
     }
 
@@ -596,41 +554,37 @@ fn remove_edge_incidence(
     }
 }
 
-fn degree_feasible(
+fn degree_feasible<OP, AP, O, A, FN>(
+    context: &MatchContext<'_, OP, AP, O, A, FN>,
+    state: &MatchState,
     p_node_idx: usize,
     t_node_idx: usize,
     add_in: usize,
     add_out: usize,
-    pattern_in: &[usize],
-    pattern_out: &[usize],
-    target_in: &[usize],
-    target_out: &[usize],
-    pattern_mapped_in: &[usize],
-    pattern_mapped_out: &[usize],
-    target_mapped_in: &[usize],
-    target_mapped_out: &[usize],
-    injective: bool,
-) -> bool {
-    if !injective {
+) -> bool
+where
+    FN: Fn(&OP, &O) -> bool,
+{
+    if !context.options.injective {
         return true;
     }
     // Basic degree bound: a pattern node cannot map to a target node with fewer in/out edges.
-    if pattern_in[p_node_idx] > target_in[t_node_idx]
-        || pattern_out[p_node_idx] > target_out[t_node_idx]
+    if context.pattern_in[p_node_idx] > context.target_in[t_node_idx]
+        || context.pattern_out[p_node_idx] > context.target_out[t_node_idx]
     {
         return false;
     }
 
     // Remaining incident edges on the pattern node after this tentative assignment.
-    let pattern_remaining_in =
-        pattern_in[p_node_idx].saturating_sub(pattern_mapped_in[p_node_idx] + add_in);
-    let pattern_remaining_out =
-        pattern_out[p_node_idx].saturating_sub(pattern_mapped_out[p_node_idx] + add_out);
+    let pattern_remaining_in = context.pattern_in[p_node_idx]
+        .saturating_sub(state.pattern_mapped_in[p_node_idx] + add_in);
+    let pattern_remaining_out = context.pattern_out[p_node_idx]
+        .saturating_sub(state.pattern_mapped_out[p_node_idx] + add_out);
     // Remaining capacity on the target node to host those edges.
-    let target_remaining_in =
-        target_in[t_node_idx].saturating_sub(target_mapped_in[t_node_idx] + add_in);
-    let target_remaining_out =
-        target_out[t_node_idx].saturating_sub(target_mapped_out[t_node_idx] + add_out);
+    let target_remaining_in = context.target_in[t_node_idx]
+        .saturating_sub(state.target_mapped_in[t_node_idx] + add_in);
+    let target_remaining_out = context.target_out[t_node_idx]
+        .saturating_sub(state.target_mapped_out[t_node_idx] + add_out);
 
     // Feasible if the target has enough unused incident capacity to fit the pattern.
     pattern_remaining_in <= target_remaining_in && pattern_remaining_out <= target_remaining_out
