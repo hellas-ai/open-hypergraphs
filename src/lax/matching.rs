@@ -1,12 +1,12 @@
 use super::hypergraph::{EdgeId, Hypergraph, NodeId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubgraphIsomorphism {
+pub struct Morphism {
     node_map: Vec<NodeId>,
     edge_map: Vec<EdgeId>,
 }
 
-impl SubgraphIsomorphism {
+impl Morphism {
     pub fn node_map(&self) -> &[NodeId] {
         &self.node_map
     }
@@ -26,7 +26,7 @@ impl<O, A> Hypergraph<O, A> {
         pattern: &Hypergraph<OP, AP>,
         node_eq: FN,
         edge_eq: FE,
-    ) -> Vec<SubgraphIsomorphism>
+    ) -> Vec<Morphism>
     where
         FN: Fn(&OP, &O) -> bool,
         FE: Fn(&AP, &A) -> bool,
@@ -44,7 +44,7 @@ impl<O, A> Hypergraph<O, A> {
         pattern: &Hypergraph<OP, AP>,
         node_eq: FN,
         edge_eq: FE,
-    ) -> Vec<SubgraphIsomorphism>
+    ) -> Vec<Morphism>
     where
         FN: Fn(&OP, &O) -> bool,
         FE: Fn(&AP, &A) -> bool,
@@ -58,7 +58,7 @@ impl<O: PartialEq, A: PartialEq> Hypergraph<O, A> {
     pub fn find_subgraph_isomorphisms(
         &self,
         pattern: &Hypergraph<O, A>,
-    ) -> Vec<SubgraphIsomorphism> {
+    ) -> Vec<Morphism> {
         self.find_subgraph_isomorphisms_by(pattern, |a, b| a == b, |a, b| a == b)
     }
 
@@ -66,7 +66,7 @@ impl<O: PartialEq, A: PartialEq> Hypergraph<O, A> {
     pub fn find_subgraph_homomorphisms(
         &self,
         pattern: &Hypergraph<O, A>,
-    ) -> Vec<SubgraphIsomorphism> {
+    ) -> Vec<Morphism> {
         self.find_subgraph_homomorphisms_by(pattern, |a, b| a == b, |a, b| a == b)
     }
 }
@@ -76,7 +76,7 @@ fn find_subgraph_homomorphisms_impl<OP, AP, O, A, FN, FE>(
     pattern: &Hypergraph<OP, AP>,
     node_eq: &FN,
     edge_eq: &FE,
-) -> Vec<SubgraphIsomorphism>
+) -> Vec<Morphism>
 where
     FN: Fn(&OP, &O) -> bool,
     FE: Fn(&AP, &A) -> bool,
@@ -89,7 +89,7 @@ fn find_subgraph_isomorphisms_impl<OP, AP, O, A, FN, FE>(
     pattern: &Hypergraph<OP, AP>,
     node_eq: &FN,
     edge_eq: &FE,
-) -> Vec<SubgraphIsomorphism>
+) -> Vec<Morphism>
 where
     FN: Fn(&OP, &O) -> bool,
     FE: Fn(&AP, &A) -> bool,
@@ -103,7 +103,7 @@ fn find_subgraph_matches_impl<OP, AP, O, A, FN, FE>(
     node_eq: &FN,
     edge_eq: &FE,
     injective: bool,
-) -> Vec<SubgraphIsomorphism>
+) -> Vec<Morphism>
 where
     FN: Fn(&OP, &O) -> bool,
     FE: Fn(&AP, &A) -> bool,
@@ -279,7 +279,7 @@ fn backtrack_edges<OP, AP, O, A, FN>(
     context: &MatchContext<'_, OP, AP, O, A, FN>,
     edge_index: usize,
     state: &mut MatchState,
-    matches: &mut Vec<SubgraphIsomorphism>,
+    matches: &mut Vec<Morphism>,
 ) where
     FN: Fn(&OP, &O) -> bool,
 {
@@ -389,7 +389,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
     context: &MatchContext<'_, OP, AP, O, A, FN>,
     idx: usize,
     state: &mut MatchState,
-    matches: &mut Vec<SubgraphIsomorphism>,
+    matches: &mut Vec<Morphism>,
 ) where
     FN: Fn(&OP, &O) -> bool,
 {
@@ -404,7 +404,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
             .iter()
             .map(|edge| edge.expect("pattern edges must be mapped"))
             .collect();
-        matches.push(SubgraphIsomorphism { node_map, edge_map });
+        matches.push(Morphism { node_map, edge_map });
         return;
     }
 
