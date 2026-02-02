@@ -265,3 +265,43 @@ fn test_subgraph_isomorphisms_isolated_nodes_duplicate_labels() {
     let matches = target.find_subgraph_isomorphisms(&pattern);
     assert_eq!(matches.len(), 6);
 }
+
+#[test]
+fn test_subgraph_homomorphisms_allow_node_merging() {
+    let mut target = Hypergraph::empty();
+    let n0 = target.new_node(0);
+    target.new_edge('f', (vec![n0], vec![n0]));
+
+    let mut pattern = Hypergraph::empty();
+    let p0 = pattern.new_node(0);
+    let p1 = pattern.new_node(0);
+    pattern.new_edge('f', (vec![p0], vec![p1]));
+
+    let iso_matches = target.find_subgraph_isomorphisms(&pattern);
+    assert!(iso_matches.is_empty());
+
+    let homo_matches = target.find_subgraph_homomorphisms(&pattern);
+    assert_eq!(homo_matches.len(), 1);
+    assert_eq!(homo_matches[0].node_map()[0], n0);
+    assert_eq!(homo_matches[0].node_map()[1], n0);
+}
+
+#[test]
+fn test_subgraph_homomorphisms_allow_edge_merging() {
+    let mut target = Hypergraph::empty();
+    let n0 = target.new_node(0);
+    let n1 = target.new_node(0);
+    target.new_edge('h', (vec![n0], vec![n1]));
+
+    let mut pattern = Hypergraph::empty();
+    let p0 = pattern.new_node(0);
+    let p1 = pattern.new_node(0);
+    pattern.new_edge('h', (vec![p0], vec![p1]));
+    pattern.new_edge('h', (vec![p0], vec![p1]));
+
+    let iso_matches = target.find_subgraph_isomorphisms(&pattern);
+    assert!(iso_matches.is_empty());
+
+    let homo_matches = target.find_subgraph_homomorphisms(&pattern);
+    assert_eq!(homo_matches.len(), 1);
+}

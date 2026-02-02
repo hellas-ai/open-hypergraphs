@@ -72,7 +72,6 @@
 //! connected nodes, e.g., x0 and y0. this allows both *checking* (of e.g. equality) and
 //! *inference*: inequal types might be *unified* into a single type.
 pub mod category;
-pub mod csp;
 pub mod functor;
 pub mod hypergraph;
 pub mod subgraph;

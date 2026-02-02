@@ -1,4 +1,3 @@
-use super::csp::{Csp, VarId};
 use super::hypergraph::{EdgeId, Hypergraph, NodeId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,7 +19,7 @@ impl SubgraphIsomorphism {
 impl<O, A> Hypergraph<O, A> {
     /// Find all subgraph isomorphisms from `pattern` into `self`.
     ///
-    /// This encodes the matching problem as a small CSP and enumerates solutions.
+    /// This uses an edge-first backtracking search specialized to hypergraphs.
     /// The quotient map is ignored; run `quotient` first if you want strict matching.
     pub fn find_subgraph_isomorphisms_by<OP, AP, FN, FE>(
         &self,
@@ -37,7 +36,7 @@ impl<O, A> Hypergraph<O, A> {
 
     /// Find all subgraph homomorphisms from `pattern` into `self`.
     ///
-    /// This encodes the matching problem as a small CSP and enumerates solutions,
+    /// This uses an edge-first backtracking search specialized to hypergraphs,
     /// but does not enforce injectivity (mono) on nodes or edges.
     /// The quotient map is ignored; run `quotient` first if you want strict matching.
     pub fn find_subgraph_homomorphisms_by<OP, AP, FN, FE>(
@@ -109,8 +108,8 @@ where
     FN: Fn(&OP, &O) -> bool,
     FE: Fn(&AP, &A) -> bool,
 {
-    // Quick cardinality check before doing any work.
-    if pattern.nodes.len() > target.nodes.len() || pattern.edges.len() > target.edges.len() {
+    let options = MatchOptions { injective };
+    if !cardinality_feasible(pattern, target, &options) {
         return Vec::new();
     }
 
@@ -138,118 +137,389 @@ where
         edge_candidates.push(candidates);
     }
 
-    // Feasibility checks used here:
-    // - Degree compatibility: in/out degree of each pattern node must not exceed the target's.
+    // Precompute degrees for pruning in the injective case.
     let (pattern_in, pattern_out) = node_degrees(pattern);
     let (target_in, target_out) = node_degrees(target);
 
-    // Build a small CSP: variables are pattern nodes and pattern edges.
-    // Constraints encode label/arity matching, incidence, and injectivity.
-    let mut csp = Csp::new();
+    // Explore edges with fewer candidates first (and higher arity as a tie-breaker).
+    // Rationale: "fail fast" ordering reduces backtracking when constraints are tight.
+    let mut edge_order: Vec<usize> = (0..pattern.edges.len()).collect();
+    edge_order.sort_by_key(|&edge_idx| {
+        let arity =
+            pattern.adjacency[edge_idx].sources.len() + pattern.adjacency[edge_idx].targets.len();
+        (edge_candidates[edge_idx].len(), std::cmp::Reverse(arity))
+    });
 
-    let mut node_vars = Vec::with_capacity(pattern.nodes.len());
-    for (p_idx, p_label) in pattern.nodes.iter().enumerate() {
-        let mut domain = Vec::new();
-        for (t_idx, t_label) in target.nodes.iter().enumerate() {
-            // Allow only label-compatible target nodes with sufficient degree.
-            if !node_eq(p_label, t_label) {
-                continue;
-            }
-            if !degree_compatible(
-                p_idx,
-                t_idx,
-                &pattern_in,
-                &pattern_out,
-                &target_in,
-                &target_out,
+    // Track isolated nodes so we can assign them after edge mapping.
+    let mut node_in_edge = vec![false; pattern.nodes.len()];
+    for edge in &pattern.adjacency {
+        for node in edge.sources.iter().chain(edge.targets.iter()) {
+            node_in_edge[node.0] = true;
+        }
+    }
+    let isolated_nodes: Vec<usize> = node_in_edge
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, used)| if *used { None } else { Some(idx) })
+        .collect();
+
+    let mut state = MatchState::new(pattern, target);
+    let context = MatchContext::new(
+        target,
+        pattern,
+        node_eq,
+        &edge_order,
+        &edge_candidates,
+        &isolated_nodes,
+        &pattern_in,
+        &pattern_out,
+        &target_in,
+        &target_out,
+        &options,
+    );
+    let mut matches = Vec::new();
+
+    backtrack_edges(&context, 0, &mut state, &mut matches);
+
+    matches
+}
+
+fn cardinality_feasible<OP, AP, O, A>(
+    pattern: &Hypergraph<OP, AP>,
+    target: &Hypergraph<O, A>,
+    options: &MatchOptions,
+) -> bool {
+    if !options.injective {
+        return true;
+    }
+    pattern.nodes.len() <= target.nodes.len() && pattern.edges.len() <= target.edges.len()
+}
+
+struct MatchOptions {
+    injective: bool,
+}
+
+struct MatchContext<'a, OP, AP, O, A, FN>
+where
+    FN: Fn(&OP, &O) -> bool,
+{
+    target: &'a Hypergraph<O, A>,
+    pattern: &'a Hypergraph<OP, AP>,
+    node_eq: &'a FN,
+    edge_order: &'a [usize],
+    edge_candidates: &'a [Vec<usize>],
+    isolated_nodes: &'a [usize],
+    pattern_in: &'a [usize],
+    pattern_out: &'a [usize],
+    target_in: &'a [usize],
+    target_out: &'a [usize],
+    options: &'a MatchOptions,
+}
+
+impl<'a, OP, AP, O, A, FN> MatchContext<'a, OP, AP, O, A, FN>
+where
+    FN: Fn(&OP, &O) -> bool,
+{
+    fn new(
+        target: &'a Hypergraph<O, A>,
+        pattern: &'a Hypergraph<OP, AP>,
+        node_eq: &'a FN,
+        edge_order: &'a [usize],
+        edge_candidates: &'a [Vec<usize>],
+        isolated_nodes: &'a [usize],
+        pattern_in: &'a [usize],
+        pattern_out: &'a [usize],
+        target_in: &'a [usize],
+        target_out: &'a [usize],
+        options: &'a MatchOptions,
+    ) -> Self {
+        Self {
+            target,
+            pattern,
+            node_eq,
+            edge_order,
+            edge_candidates,
+            isolated_nodes,
+            pattern_in,
+            pattern_out,
+            target_in,
+            target_out,
+            options,
+        }
+    }
+}
+
+struct MatchState {
+    node_map: Vec<Option<NodeId>>,
+    edge_map: Vec<Option<EdgeId>>,
+    used_target_nodes: Vec<bool>,
+    used_target_edges: Vec<bool>,
+    pattern_mapped_in: Vec<usize>,
+    pattern_mapped_out: Vec<usize>,
+    target_mapped_in: Vec<usize>,
+    target_mapped_out: Vec<usize>,
+}
+
+impl MatchState {
+    fn new<OP, AP, O, A>(pattern: &Hypergraph<OP, AP>, target: &Hypergraph<O, A>) -> Self {
+        Self {
+            node_map: vec![None; pattern.nodes.len()],
+            edge_map: vec![None; pattern.edges.len()],
+            used_target_nodes: vec![false; target.nodes.len()],
+            used_target_edges: vec![false; target.edges.len()],
+            pattern_mapped_in: vec![0usize; pattern.nodes.len()],
+            pattern_mapped_out: vec![0usize; pattern.nodes.len()],
+            target_mapped_in: vec![0usize; target.nodes.len()],
+            target_mapped_out: vec![0usize; target.nodes.len()],
+        }
+    }
+}
+
+fn backtrack_edges<OP, AP, O, A, FN>(
+    context: &MatchContext<'_, OP, AP, O, A, FN>,
+    edge_index: usize,
+    state: &mut MatchState,
+    matches: &mut Vec<SubgraphIsomorphism>,
+) where
+    FN: Fn(&OP, &O) -> bool,
+{
+    // If all edges are mapped, fill in remaining isolated nodes.
+    if edge_index == context.edge_order.len() {
+        backtrack_isolated_nodes(context, 0, state, matches);
+        return;
+    }
+
+    let p_edge_idx = context.edge_order[edge_index];
+    let p_adj = &context.pattern.adjacency[p_edge_idx];
+
+    for &t_edge_idx in &context.edge_candidates[p_edge_idx] {
+        if context.options.injective && state.used_target_edges[t_edge_idx] {
+            continue;
+        }
+        let t_adj = &context.target.adjacency[t_edge_idx];
+
+        let mut newly_mapped = Vec::new();
+        let mut ok = true;
+
+        for (p_node, t_node) in p_adj.sources.iter().zip(t_adj.sources.iter()) {
+            if !try_map_node(
+                context,
+                p_node.0,
+                t_node.0,
+                0,
+                1,
+                state,
+                &mut newly_mapped,
             ) {
-                continue;
+                ok = false;
+                break;
             }
-            domain.push(t_idx);
         }
-        // Empty domain means no match for this pattern node.
-        if domain.is_empty() {
-            return Vec::new();
-        }
-        // Create a variable for this pattern node.
-        let v = csp.add_var(domain);
-        node_vars.push(v);
-    }
 
-    let mut edge_vars = Vec::with_capacity(pattern.edges.len());
-    for candidates in &edge_candidates {
-        // Edge variables are restricted to target edges with compatible label + arity.
-        if candidates.is_empty() && !pattern.edges.is_empty() {
-            return Vec::new();
-        }
-        let e = csp.add_var(candidates.clone());
-        edge_vars.push(e);
-    }
-
-    // Injective node/edge mapping for isomorphisms.
-    if injective {
-        csp.add_all_different(node_vars.clone());
-        csp.add_all_different(edge_vars.clone());
-    }
-
-    // Edge incidence constraints: edge variables and the nodes they touch must align.
-    for (p_edge_idx, p_adj) in pattern.adjacency.iter().enumerate() {
-        let edge_var = edge_vars[p_edge_idx];
-        let source_vars: Vec<VarId> = p_adj.sources.iter().map(|n| node_vars[n.0]).collect();
-        let target_vars: Vec<VarId> = p_adj.targets.iter().map(|n| node_vars[n.0]).collect();
-        let candidates = &edge_candidates[p_edge_idx];
-        let target_adjacency = &target.adjacency;
-
-        // Constraint spans one edge var plus all of its incident node vars.
-        let mut vars = Vec::with_capacity(1 + source_vars.len() + target_vars.len());
-        vars.push(edge_var);
-        vars.extend(source_vars.iter().copied());
-        vars.extend(target_vars.iter().copied());
-
-        // Feasible if the chosen target edge (or some candidate, if unassigned)
-        // matches all assigned incident node vars positionally.
-        csp.add_predicate(vars, move |assignment| {
-            let edge_value = assignment[edge_var];
-
-            let compatible = |t_edge_idx: usize, assignment: &[Option<usize>]| -> bool {
-                let t_adj = &target_adjacency[t_edge_idx];
-                for (var_id, t_node) in source_vars.iter().zip(t_adj.sources.iter()) {
-                    if let Some(value) = assignment[*var_id] {
-                        if value != t_node.0 {
-                            return false;
-                        }
-                    }
+        if ok {
+            for (p_node, t_node) in p_adj.targets.iter().zip(t_adj.targets.iter()) {
+                if !try_map_node(
+                    context,
+                    p_node.0,
+                    t_node.0,
+                    1,
+                    0,
+                    state,
+                    &mut newly_mapped,
+                ) {
+                    ok = false;
+                    break;
                 }
-                for (var_id, t_node) in target_vars.iter().zip(t_adj.targets.iter()) {
-                    if let Some(value) = assignment[*var_id] {
-                        if value != t_node.0 {
-                            return false;
-                        }
-                    }
-                }
-                true
-            };
-
-            match edge_value {
-                Some(t_edge_idx) => compatible(t_edge_idx, assignment),
-                None => candidates
-                    .iter()
-                    .copied()
-                    .any(|t_edge_idx| compatible(t_edge_idx, assignment)),
             }
-        });
+        }
+
+        if ok {
+            state.edge_map[p_edge_idx] = Some(EdgeId(t_edge_idx));
+            if context.options.injective {
+                state.used_target_edges[t_edge_idx] = true;
+                apply_edge_incidence(
+                    &p_adj.sources,
+                    &p_adj.targets,
+                    &mut state.pattern_mapped_in,
+                    &mut state.pattern_mapped_out,
+                    1,
+                );
+                apply_edge_incidence(
+                    &t_adj.sources,
+                    &t_adj.targets,
+                    &mut state.target_mapped_in,
+                    &mut state.target_mapped_out,
+                    1,
+                );
+            }
+
+            backtrack_edges(context, edge_index + 1, state, matches);
+
+            state.edge_map[p_edge_idx] = None;
+            if context.options.injective {
+                state.used_target_edges[t_edge_idx] = false;
+                apply_edge_incidence(
+                    &p_adj.sources,
+                    &p_adj.targets,
+                    &mut state.pattern_mapped_in,
+                    &mut state.pattern_mapped_out,
+                    -1,
+                );
+                apply_edge_incidence(
+                    &t_adj.sources,
+                    &t_adj.targets,
+                    &mut state.target_mapped_in,
+                    &mut state.target_mapped_out,
+                    -1,
+                );
+            }
+        }
+
+        for p_node_idx in newly_mapped.drain(..) {
+            let t_node_idx = state.node_map[p_node_idx].unwrap().0;
+            state.node_map[p_node_idx] = None;
+            if context.options.injective {
+                state.used_target_nodes[t_node_idx] = false;
+            }
+        }
+    }
+}
+
+fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
+    context: &MatchContext<'_, OP, AP, O, A, FN>,
+    idx: usize,
+    state: &mut MatchState,
+    matches: &mut Vec<SubgraphIsomorphism>,
+) where
+    FN: Fn(&OP, &O) -> bool,
+{
+    if idx == context.isolated_nodes.len() {
+        let node_map = state
+            .node_map
+            .iter()
+            .map(|node| node.expect("pattern nodes must be mapped"))
+            .collect();
+        let edge_map = state
+            .edge_map
+            .iter()
+            .map(|edge| edge.expect("pattern edges must be mapped"))
+            .collect();
+        matches.push(SubgraphIsomorphism { node_map, edge_map });
+        return;
     }
 
-    let solutions = csp.solve_all();
-    solutions
-        .into_iter()
-        .map(|solution| {
-            // Convert a CSP assignment into explicit node/edge maps.
-            let node_map = node_vars.iter().map(|&var| NodeId(solution[var])).collect();
-            let edge_map = edge_vars.iter().map(|&var| EdgeId(solution[var])).collect();
-            SubgraphIsomorphism { node_map, edge_map }
-        })
-        .collect()
+    let p_node_idx = context.isolated_nodes[idx];
+    for t_node_idx in 0..context.target.nodes.len() {
+        if context.options.injective && state.used_target_nodes[t_node_idx] {
+            continue;
+        }
+        if !degree_feasible(
+            p_node_idx,
+            t_node_idx,
+            0,
+            0,
+            context.pattern_in,
+            context.pattern_out,
+            context.target_in,
+            context.target_out,
+            &state.pattern_mapped_in,
+            &state.pattern_mapped_out,
+            &state.target_mapped_in,
+            &state.target_mapped_out,
+            context.options.injective,
+        ) {
+            continue;
+        }
+        if !(context.node_eq)(
+            &context.pattern.nodes[p_node_idx],
+            &context.target.nodes[t_node_idx],
+        ) {
+            continue;
+        }
+
+        state.node_map[p_node_idx] = Some(NodeId(t_node_idx));
+        if context.options.injective {
+            state.used_target_nodes[t_node_idx] = true;
+        }
+
+        backtrack_isolated_nodes(context, idx + 1, state, matches);
+
+        if context.options.injective {
+            state.used_target_nodes[t_node_idx] = false;
+        }
+        state.node_map[p_node_idx] = None;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn try_map_node<OP, AP, O, A, FN>(
+    context: &MatchContext<'_, OP, AP, O, A, FN>,
+    p_node_idx: usize,
+    t_node_idx: usize,
+    add_in: usize,
+    add_out: usize,
+    state: &mut MatchState,
+    newly_mapped: &mut Vec<usize>,
+) -> bool
+where
+    FN: Fn(&OP, &O) -> bool,
+{
+    if let Some(existing) = state.node_map[p_node_idx] {
+        if existing.0 != t_node_idx {
+            return false;
+        }
+        if context.options.injective {
+            return degree_feasible(
+                p_node_idx,
+                t_node_idx,
+                add_in,
+                add_out,
+                context.pattern_in,
+                context.pattern_out,
+                context.target_in,
+                context.target_out,
+                &state.pattern_mapped_in,
+                &state.pattern_mapped_out,
+                &state.target_mapped_in,
+                &state.target_mapped_out,
+                context.options.injective,
+            );
+        }
+        return true;
+    }
+    if context.options.injective && state.used_target_nodes[t_node_idx] {
+        return false;
+    }
+    if !(context.node_eq)(
+        &context.pattern.nodes[p_node_idx],
+        &context.target.nodes[t_node_idx],
+    ) {
+        return false;
+    }
+    if !degree_feasible(
+        p_node_idx,
+        t_node_idx,
+        add_in,
+        add_out,
+        context.pattern_in,
+        context.pattern_out,
+        context.target_in,
+        context.target_out,
+        &state.pattern_mapped_in,
+        &state.pattern_mapped_out,
+        &state.target_mapped_in,
+        &state.target_mapped_out,
+        context.options.injective,
+    ) {
+        return false;
+    }
+
+    state.node_map[p_node_idx] = Some(NodeId(t_node_idx));
+    if context.options.injective {
+        state.used_target_nodes[t_node_idx] = true;
+    }
+    newly_mapped.push(p_node_idx);
+    true
 }
 
 fn node_degrees<O, A>(graph: &Hypergraph<O, A>) -> (Vec<usize>, Vec<usize>) {
@@ -266,18 +536,68 @@ fn node_degrees<O, A>(graph: &Hypergraph<O, A>) -> (Vec<usize>, Vec<usize>) {
     (in_deg, out_deg)
 }
 
-fn degree_compatible(
+fn apply_edge_incidence(
+    sources: &[NodeId],
+    targets: &[NodeId],
+    mapped_in: &mut [usize],
+    mapped_out: &mut [usize],
+    delta: i32,
+) {
+    if delta >= 0 {
+        let add = delta as usize;
+        for node in sources {
+            mapped_out[node.0] += add;
+        }
+        for node in targets {
+            mapped_in[node.0] += add;
+        }
+    } else {
+        let sub = (-delta) as usize;
+        for node in sources {
+            mapped_out[node.0] -= sub;
+        }
+        for node in targets {
+            mapped_in[node.0] -= sub;
+        }
+    }
+}
+
+fn degree_feasible(
     p_node_idx: usize,
     t_node_idx: usize,
+    add_in: usize,
+    add_out: usize,
     pattern_in: &[usize],
     pattern_out: &[usize],
     target_in: &[usize],
     target_out: &[usize],
+    pattern_mapped_in: &[usize],
+    pattern_mapped_out: &[usize],
+    target_mapped_in: &[usize],
+    target_mapped_out: &[usize],
+    injective: bool,
 ) -> bool {
+    if !injective {
+        return true;
+    }
+    // Basic degree bound: a pattern node cannot map to a target node with fewer in/out edges.
     if pattern_in[p_node_idx] > target_in[t_node_idx]
         || pattern_out[p_node_idx] > target_out[t_node_idx]
     {
         return false;
     }
-    true
+
+    // Remaining incident edges on the pattern node after this tentative assignment.
+    let pattern_remaining_in =
+        pattern_in[p_node_idx].saturating_sub(pattern_mapped_in[p_node_idx] + add_in);
+    let pattern_remaining_out =
+        pattern_out[p_node_idx].saturating_sub(pattern_mapped_out[p_node_idx] + add_out);
+    // Remaining capacity on the target node to host those edges.
+    let target_remaining_in =
+        target_in[t_node_idx].saturating_sub(target_mapped_in[t_node_idx] + add_in);
+    let target_remaining_out =
+        target_out[t_node_idx].saturating_sub(target_mapped_out[t_node_idx] + add_out);
+
+    // Feasible if the target has enough unused incident capacity to fit the pattern.
+    pattern_remaining_in <= target_remaining_in && pattern_remaining_out <= target_remaining_out
 }
