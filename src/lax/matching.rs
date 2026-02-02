@@ -273,6 +273,55 @@ impl MatchState {
             target_mapped_out: vec![0usize; target.nodes.len()],
         }
     }
+
+    fn commit_edge_mapping(
+        &mut self,
+        p_edge_idx: usize,
+        t_edge_idx: usize,
+        p_sources: &[NodeId],
+        p_targets: &[NodeId],
+        t_sources: &[NodeId],
+        t_targets: &[NodeId],
+        options: &MatchOptions,
+    ) {
+        // Record the edge mapping and update incremental counters if injective.
+        self.edge_map[p_edge_idx] = Some(EdgeId(t_edge_idx));
+        if options.injective {
+            self.used_target_edges[t_edge_idx] = true;
+            add_edge_incidence(p_sources, p_targets, &mut self.pattern_mapped_in, &mut self.pattern_mapped_out);
+            add_edge_incidence(t_sources, t_targets, &mut self.target_mapped_in, &mut self.target_mapped_out);
+        }
+    }
+
+    fn rollback_edge_mapping(
+        &mut self,
+        p_edge_idx: usize,
+        t_edge_idx: usize,
+        p_sources: &[NodeId],
+        p_targets: &[NodeId],
+        t_sources: &[NodeId],
+        t_targets: &[NodeId],
+        options: &MatchOptions,
+    ) {
+        // Undo the edge mapping and counters.
+        self.edge_map[p_edge_idx] = None;
+        if options.injective {
+            self.used_target_edges[t_edge_idx] = false;
+            remove_edge_incidence(p_sources, p_targets, &mut self.pattern_mapped_in, &mut self.pattern_mapped_out);
+            remove_edge_incidence(t_sources, t_targets, &mut self.target_mapped_in, &mut self.target_mapped_out);
+        }
+    }
+
+    fn rollback_new_nodes(&mut self, newly_mapped: &mut Vec<usize>, options: &MatchOptions) {
+        // Undo node bindings created while exploring a candidate edge.
+        for p_node_idx in newly_mapped.drain(..) {
+            let t_node_idx = self.node_map[p_node_idx].unwrap().0;
+            self.node_map[p_node_idx] = None;
+            if options.injective {
+                self.used_target_nodes[t_node_idx] = false;
+            }
+        }
+    }
 }
 
 fn backtrack_edges<OP, AP, O, A, FN>(
@@ -298,6 +347,7 @@ fn backtrack_edges<OP, AP, O, A, FN>(
         }
         let t_adj = &context.target.adjacency[t_edge_idx];
 
+        // Track nodes that are newly bound by this edge so we can undo them on failure/return.
         let mut newly_mapped = Vec::new();
         let mut ok = true;
 
@@ -334,54 +384,31 @@ fn backtrack_edges<OP, AP, O, A, FN>(
         }
 
         if ok {
-            state.edge_map[p_edge_idx] = Some(EdgeId(t_edge_idx));
-            if context.options.injective {
-                state.used_target_edges[t_edge_idx] = true;
-                apply_edge_incidence(
-                    &p_adj.sources,
-                    &p_adj.targets,
-                    &mut state.pattern_mapped_in,
-                    &mut state.pattern_mapped_out,
-                    1,
-                );
-                apply_edge_incidence(
-                    &t_adj.sources,
-                    &t_adj.targets,
-                    &mut state.target_mapped_in,
-                    &mut state.target_mapped_out,
-                    1,
-                );
-            }
+            state.commit_edge_mapping(
+                p_edge_idx,
+                t_edge_idx,
+                &p_adj.sources,
+                &p_adj.targets,
+                &t_adj.sources,
+                &t_adj.targets,
+                context.options,
+            );
 
             backtrack_edges(context, edge_index + 1, state, matches);
 
-            state.edge_map[p_edge_idx] = None;
-            if context.options.injective {
-                state.used_target_edges[t_edge_idx] = false;
-                apply_edge_incidence(
-                    &p_adj.sources,
-                    &p_adj.targets,
-                    &mut state.pattern_mapped_in,
-                    &mut state.pattern_mapped_out,
-                    -1,
-                );
-                apply_edge_incidence(
-                    &t_adj.sources,
-                    &t_adj.targets,
-                    &mut state.target_mapped_in,
-                    &mut state.target_mapped_out,
-                    -1,
-                );
-            }
+            state.rollback_edge_mapping(
+                p_edge_idx,
+                t_edge_idx,
+                &p_adj.sources,
+                &p_adj.targets,
+                &t_adj.sources,
+                &t_adj.targets,
+                context.options,
+            );
         }
 
-        for p_node_idx in newly_mapped.drain(..) {
-            let t_node_idx = state.node_map[p_node_idx].unwrap().0;
-            state.node_map[p_node_idx] = None;
-            if context.options.injective {
-                state.used_target_nodes[t_node_idx] = false;
-            }
-        }
+        // Roll back any provisional node bindings from this edge attempt.
+        state.rollback_new_nodes(&mut newly_mapped, context.options);
     }
 }
 
@@ -536,29 +563,31 @@ fn node_degrees<O, A>(graph: &Hypergraph<O, A>) -> (Vec<usize>, Vec<usize>) {
     (in_deg, out_deg)
 }
 
-fn apply_edge_incidence(
+fn add_edge_incidence(
     sources: &[NodeId],
     targets: &[NodeId],
     mapped_in: &mut [usize],
     mapped_out: &mut [usize],
-    delta: i32,
 ) {
-    if delta >= 0 {
-        let add = delta as usize;
-        for node in sources {
-            mapped_out[node.0] += add;
-        }
-        for node in targets {
-            mapped_in[node.0] += add;
-        }
-    } else {
-        let sub = (-delta) as usize;
-        for node in sources {
-            mapped_out[node.0] -= sub;
-        }
-        for node in targets {
-            mapped_in[node.0] -= sub;
-        }
+    for node in sources {
+        mapped_out[node.0] += 1;
+    }
+    for node in targets {
+        mapped_in[node.0] += 1;
+    }
+}
+
+fn remove_edge_incidence(
+    sources: &[NodeId],
+    targets: &[NodeId],
+    mapped_in: &mut [usize],
+    mapped_out: &mut [usize],
+) {
+    for node in sources {
+        mapped_out[node.0] -= 1;
+    }
+    for node in targets {
+        mapped_in[node.0] -= 1;
     }
 }
 
