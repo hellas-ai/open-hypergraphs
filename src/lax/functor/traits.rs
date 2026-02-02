@@ -42,7 +42,7 @@ pub fn define_lax_map_arrow<O1: Clone, A1, O2: Clone, A2: Clone>(
 
     // Below here is the same as 'spider_map_arrow' in strict functor impl
     // Steps 1: build spider maps with lax composition
-    Some(spider_map_arrow(&f, &fw, fx))
+    spider_map_arrow(&f, &fw, fx)
 }
 
 /// Like `map_arrow`, but also returns a relation mapping
@@ -65,7 +65,7 @@ pub fn map_arrow_witness<O1: Clone, A1, O2: Clone, A2: Clone>(
 
     // Below here is the same as 'spider_map_arrow' in strict functor impl
     // Steps 1: build spider maps with lax composition
-    let result = spider_map_arrow(&f, &fw, fx);
+    let result = spider_map_arrow(&f, &fw, fx)?;
 
     // Step 2: identify the nodes of `i` within the composite.
     // Since:
@@ -84,11 +84,9 @@ pub fn map_arrow_witness<O1: Clone, A1, O2: Clone, A2: Clone>(
     let n: usize = fw.iter().map(|v| v.len()).sum();
     let total_result_nodes = result.hypergraph.nodes.len();
 
-    let witness_values =
-        FiniteFunction::new(VecArray((n..2 * n).collect()), total_result_nodes).unwrap();
-    let fw_sizes =
-        FiniteFunction::new(VecArray(fw.iter().map(|v| v.len()).collect()), n + 1).unwrap();
-    let witness = IndexedCoproduct::new(fw_sizes, witness_values).unwrap();
+    let witness_values = FiniteFunction::new(VecArray((n..2 * n).collect()), total_result_nodes)?;
+    let fw_sizes = FiniteFunction::new(VecArray(fw.iter().map(|v| v.len()).collect()), n + 1)?;
+    let witness = IndexedCoproduct::new(fw_sizes, witness_values)?;
 
     Some((result, witness))
 }
@@ -101,13 +99,13 @@ fn spider_map_arrow<O1, A1, O2: Clone, A2: Clone>(
     f: &OpenHypergraph<O1, A1>,
     fw: &[Vec<O2>],
     fx: OpenHypergraph<O2, A2>,
-) -> OpenHypergraph<O2, A2> {
+) -> Option<OpenHypergraph<O2, A2>> {
     let fw_flat: Vec<O2> = fw.iter().flat_map(|v| v.iter().cloned()).collect();
     let fw_total = fw_flat.len();
 
     // Compute injections through fw segments (= map_half_spider in strict functor)
-    let fs = map_half_spider(fw, &f.sources);
-    let ft = map_half_spider(fw, &f.targets);
+    let fs = map_half_spider(fw, &f.sources)?;
+    let ft = map_half_spider(fw, &f.targets)?;
 
     let all_edge_sources: Vec<NodeId> = f
         .hypergraph
@@ -121,24 +119,18 @@ fn spider_map_arrow<O1, A1, O2: Clone, A2: Clone>(
         .iter()
         .flat_map(|adj| adj.targets.iter().copied())
         .collect();
-    let e_s = map_half_spider(fw, &all_edge_sources);
-    let e_t = map_half_spider(fw, &all_edge_targets);
+    let e_s = map_half_spider(fw, &all_edge_sources)?;
+    let e_t = map_half_spider(fw, &all_edge_targets)?;
 
     // Build i, sx, yt
     let id_fn = FiniteFunction::identity(fw_total);
 
     let i = OpenHypergraph::<O2, A2>::identity(fw_flat.clone());
-
-    let sx =
-        OpenHypergraph::<O2, A2>::spider(fs, (&id_fn + &e_s).unwrap(), fw_flat.clone()).unwrap();
-
-    let yt = OpenHypergraph::<O2, A2>::spider((&id_fn + &e_t).unwrap(), ft, fw_flat).unwrap();
+    let sx = OpenHypergraph::<O2, A2>::spider(fs, (&id_fn + &e_s)?, fw_flat.clone())?;
+    let yt = OpenHypergraph::<O2, A2>::spider((&id_fn + &e_t)?, ft, fw_flat)?;
 
     // Compose laxly: sx ; (i ⊗ fx) ; yt
-    sx.lax_compose(&i.tensor(&fx))
-        .unwrap()
-        .lax_compose(&yt)
-        .unwrap()
+    Some(sx.lax_compose(&i.tensor(&fx))?.lax_compose(&yt)?)
 }
 
 /// Lax analogue of [`crate::strict::functor::map_half_spider`].
@@ -146,20 +138,19 @@ fn spider_map_arrow<O1, A1, O2: Clone, A2: Clone>(
 /// Given mapped objects `fw` (as nested lists) and a list of node references,
 /// compute the injection through the segment structure of `fw`.
 /// Each `NodeId(j)` expands to the indices of `F(w_j)` in the flattened `fw`.
-fn map_half_spider<O>(fw: &[Vec<O>], node_ids: &[NodeId]) -> FiniteFunction {
+fn map_half_spider<O>(fw: &[Vec<O>], node_ids: &[NodeId]) -> Option<FiniteFunction> {
     let fw_total: usize = fw.iter().map(|v| v.len()).sum();
 
     // Encode segment sizes as a FiniteFunction
     // (same role as fw.sources in the strict functor's IndexedCoproduct)
     let fw_sizes =
-        FiniteFunction::new(VecArray(fw.iter().map(|v| v.len()).collect()), fw_total + 1).unwrap();
+        FiniteFunction::new(VecArray(fw.iter().map(|v| v.len()).collect()), fw_total + 1)?;
 
     // Convert NodeIds to a FiniteFunction targeting the node set
     let node_count = fw.len();
-    let f =
-        FiniteFunction::new(VecArray(node_ids.iter().map(|n| n.0).collect()), node_count).unwrap();
+    let f = FiniteFunction::new(VecArray(node_ids.iter().map(|n| n.0).collect()), node_count)?;
 
-    fw_sizes.injections(&f).unwrap()
+    fw_sizes.injections(&f)
 }
 
 /// Fold all the operations `x₀, x₁, ...` of an OpenHypergraph together to get their tensoring
