@@ -55,18 +55,12 @@ impl<O, A> Hypergraph<O, A> {
 
 impl<O: PartialEq, A: PartialEq> Hypergraph<O, A> {
     /// Find all subgraph isomorphisms from `pattern` into `self` by label equality.
-    pub fn find_subgraph_isomorphisms(
-        &self,
-        pattern: &Hypergraph<O, A>,
-    ) -> Vec<Morphism> {
+    pub fn find_subgraph_isomorphisms(&self, pattern: &Hypergraph<O, A>) -> Vec<Morphism> {
         self.find_subgraph_isomorphisms_by(pattern, |a, b| a == b, |a, b| a == b)
     }
 
     /// Find all subgraph homomorphisms from `pattern` into `self` by label equality.
-    pub fn find_subgraph_homomorphisms(
-        &self,
-        pattern: &Hypergraph<O, A>,
-    ) -> Vec<Morphism> {
+    pub fn find_subgraph_homomorphisms(&self, pattern: &Hypergraph<O, A>) -> Vec<Morphism> {
         self.find_subgraph_homomorphisms_by(pattern, |a, b| a == b, |a, b| a == b)
     }
 }
@@ -288,8 +282,18 @@ impl MatchState {
         self.edge_map[p_edge_idx] = Some(EdgeId(t_edge_idx));
         if options.injective {
             self.used_target_edges[t_edge_idx] = true;
-            add_edge_incidence(p_sources, p_targets, &mut self.pattern_mapped_in, &mut self.pattern_mapped_out);
-            add_edge_incidence(t_sources, t_targets, &mut self.target_mapped_in, &mut self.target_mapped_out);
+            add_edge_incidence(
+                p_sources,
+                p_targets,
+                &mut self.pattern_mapped_in,
+                &mut self.pattern_mapped_out,
+            );
+            add_edge_incidence(
+                t_sources,
+                t_targets,
+                &mut self.target_mapped_in,
+                &mut self.target_mapped_out,
+            );
         }
     }
 
@@ -307,20 +311,55 @@ impl MatchState {
         self.edge_map[p_edge_idx] = None;
         if options.injective {
             self.used_target_edges[t_edge_idx] = false;
-            remove_edge_incidence(p_sources, p_targets, &mut self.pattern_mapped_in, &mut self.pattern_mapped_out);
-            remove_edge_incidence(t_sources, t_targets, &mut self.target_mapped_in, &mut self.target_mapped_out);
+            remove_edge_incidence(
+                p_sources,
+                p_targets,
+                &mut self.pattern_mapped_in,
+                &mut self.pattern_mapped_out,
+            );
+            remove_edge_incidence(
+                t_sources,
+                t_targets,
+                &mut self.target_mapped_in,
+                &mut self.target_mapped_out,
+            );
         }
     }
 
-    fn rollback_new_nodes(&mut self, newly_mapped: &mut Vec<usize>, options: &MatchOptions) {
+    fn rollback_new_nodes(&mut self, newly_mapped: Vec<usize>, options: &MatchOptions) {
         // Undo node bindings created while exploring a candidate edge.
-        for p_node_idx in newly_mapped.drain(..) {
+        for p_node_idx in newly_mapped {
             let t_node_idx = self.node_map[p_node_idx].unwrap().0;
             self.node_map[p_node_idx] = None;
             if options.injective {
                 self.used_target_nodes[t_node_idx] = false;
             }
         }
+    }
+
+    fn commit_edge_nodes<OP, AP, O, A, FN>(
+        &mut self,
+        context: &MatchContext<'_, OP, AP, O, A, FN>,
+        p_adj: &super::hypergraph::Hyperedge,
+        t_adj: &super::hypergraph::Hyperedge,
+    ) -> Option<Vec<usize>>
+    where
+        FN: Fn(&OP, &O) -> bool,
+    {
+        let mut newly_mapped = Vec::new();
+        for (p_node, t_node) in p_adj.sources.iter().zip(t_adj.sources.iter()) {
+            if !try_map_node(context, p_node.0, t_node.0, 0, 1, self, &mut newly_mapped) {
+                self.rollback_new_nodes(newly_mapped, context.options);
+                return None;
+            }
+        }
+        for (p_node, t_node) in p_adj.targets.iter().zip(t_adj.targets.iter()) {
+            if !try_map_node(context, p_node.0, t_node.0, 1, 0, self, &mut newly_mapped) {
+                self.rollback_new_nodes(newly_mapped, context.options);
+                return None;
+            }
+        }
+        Some(newly_mapped)
     }
 }
 
@@ -347,68 +386,34 @@ fn backtrack_edges<OP, AP, O, A, FN>(
         }
         let t_adj = &context.target.adjacency[t_edge_idx];
 
-        // Track nodes that are newly bound by this edge so we can undo them on failure/return.
-        let mut newly_mapped = Vec::new();
-        let mut ok = true;
+        let Some(newly_mapped) = state.commit_edge_nodes(context, p_adj, t_adj) else {
+            continue;
+        };
 
-        for (p_node, t_node) in p_adj.sources.iter().zip(t_adj.sources.iter()) {
-            if !try_map_node(
-                context,
-                p_node.0,
-                t_node.0,
-                0,
-                1,
-                state,
-                &mut newly_mapped,
-            ) {
-                ok = false;
-                break;
-            }
-        }
+        state.commit_edge_mapping(
+            p_edge_idx,
+            t_edge_idx,
+            &p_adj.sources,
+            &p_adj.targets,
+            &t_adj.sources,
+            &t_adj.targets,
+            context.options,
+        );
 
-        if ok {
-            for (p_node, t_node) in p_adj.targets.iter().zip(t_adj.targets.iter()) {
-                if !try_map_node(
-                    context,
-                    p_node.0,
-                    t_node.0,
-                    1,
-                    0,
-                    state,
-                    &mut newly_mapped,
-                ) {
-                    ok = false;
-                    break;
-                }
-            }
-        }
+        backtrack_edges(context, edge_index + 1, state, matches);
 
-        if ok {
-            state.commit_edge_mapping(
-                p_edge_idx,
-                t_edge_idx,
-                &p_adj.sources,
-                &p_adj.targets,
-                &t_adj.sources,
-                &t_adj.targets,
-                context.options,
-            );
-
-            backtrack_edges(context, edge_index + 1, state, matches);
-
-            state.rollback_edge_mapping(
-                p_edge_idx,
-                t_edge_idx,
-                &p_adj.sources,
-                &p_adj.targets,
-                &t_adj.sources,
-                &t_adj.targets,
-                context.options,
-            );
-        }
+        state.rollback_edge_mapping(
+            p_edge_idx,
+            t_edge_idx,
+            &p_adj.sources,
+            &p_adj.targets,
+            &t_adj.sources,
+            &t_adj.targets,
+            context.options,
+        );
 
         // Roll back any provisional node bindings from this edge attempt.
-        state.rollback_new_nodes(&mut newly_mapped, context.options);
+        state.rollback_new_nodes(newly_mapped, context.options);
     }
 }
 
