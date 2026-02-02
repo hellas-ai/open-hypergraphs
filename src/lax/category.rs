@@ -32,7 +32,7 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
     }
 }
 
-impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
+impl<O: Clone, A: Clone> OpenHypergraph<O, A> {
     /// Compose two open hypergraphs, unifying the boundary nodes without checking labels.
     ///
     /// Returns None when the boundary arities do not match.
@@ -60,30 +60,7 @@ impl<O: Clone + PartialEq, A: Clone> Monoidal for OpenHypergraph<O, A> {
     }
 
     fn tensor(&self, other: &Self) -> Self {
-        let hypergraph = self.hypergraph.coproduct(&other.hypergraph);
-
-        // renumber all nodes
-        let n = self.hypergraph.nodes.len();
-
-        let sources = self
-            .sources
-            .iter()
-            .cloned()
-            .chain(other.sources.iter().map(|&i| NodeId(i.0 + n)))
-            .collect();
-
-        let targets = self
-            .targets
-            .iter()
-            .cloned()
-            .chain(other.targets.iter().map(|&i| NodeId(i.0 + n)))
-            .collect();
-
-        OpenHypergraph {
-            sources,
-            targets,
-            hypergraph,
-        }
+        OpenHypergraph::tensor(self, other)
     }
 }
 
@@ -113,9 +90,7 @@ impl<O: Clone + PartialEq, A: Clone + PartialEq> Spider<VecKind> for OpenHypergr
         t: crate::finite_function::FiniteFunction<VecKind>,
         w: Self::Object,
     ) -> Option<Self> {
-        let w = SemifiniteFunction(VecArray(w));
-        let f = crate::strict::open_hypergraph::OpenHypergraph::spider(s, t, w)?;
-        Some(OpenHypergraph::from_strict(f))
+        OpenHypergraph::spider(s, t, w)
     }
 }
 

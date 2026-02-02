@@ -27,12 +27,30 @@ pub trait Functor<O1, A1, O2, A2> {
     fn map_arrow(&self, f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2>;
 }
 
+pub fn define_lax_map_arrow<O1: Clone, A1, O2: Clone, A2: Clone>(
+    functor: &impl Functor<O1, A1, O2, A2>,
+    f: &OpenHypergraph<O1, A1>,
+) -> Option<OpenHypergraph<O2, A2>> {
+    // The input must be strict (no pending identifications in the quotient map).
+    if !f.hypergraph.is_strict() {
+        return None;
+    }
+
+    // Compute tensored operations and mapped objects
+    let fx = map_operations(functor, f);
+    let fw = map_objects(functor, f);
+
+    // Below here is the same as 'spider_map_arrow' in strict functor impl
+    // Steps 1: build spider maps with lax composition
+    Some(spider_map_arrow(&f, &fw, fx))
+}
+
 /// Like `map_arrow`, but also returns a relation mapping
 /// nodes of the input term to nodes of the output term.
 ///
 /// The [`IndexedCoproduct`] models this relation as a mapping from an input node to zero or more
 /// output nodes (i.e., a relation)
-pub fn map_arrow_witness<O1: Clone, A1, O2: Clone + PartialEq, A2: Clone + PartialEq>(
+pub fn map_arrow_witness<O1: Clone, A1, O2: Clone, A2: Clone>(
     functor: &impl Functor<O1, A1, O2, A2>,
     f: &OpenHypergraph<O1, A1>,
 ) -> Option<(OpenHypergraph<O2, A2>, IndexedCoproduct<FiniteFunction>)> {
@@ -79,7 +97,7 @@ pub fn map_arrow_witness<O1: Clone, A1, O2: Clone + PartialEq, A2: Clone + Parti
 ///
 /// Given an arrow `f`, its mapped objects `fw`, and its mapped operations `fx`,
 /// build the spider decomposition `sx ; (i ⊗ fx) ; yt` and compose laxly.
-fn spider_map_arrow<O1, A1, O2: Clone + PartialEq, A2: Clone + PartialEq>(
+fn spider_map_arrow<O1, A1, O2: Clone, A2: Clone>(
     f: &OpenHypergraph<O1, A1>,
     fw: &[Vec<O2>],
     fx: OpenHypergraph<O2, A2>,
@@ -146,7 +164,7 @@ fn map_half_spider<O>(fw: &[Vec<O>], node_ids: &[NodeId]) -> FiniteFunction {
 
 /// Fold all the operations `x₀, x₁, ...` of an OpenHypergraph together to get their tensoring
 /// `F(x₀) ● F(x₁) ● ...`
-fn map_operations<O1: Clone, A1, O2: Clone + PartialEq, A2: Clone>(
+fn map_operations<O1: Clone, A1, O2: Clone, A2: Clone>(
     functor: &impl Functor<O1, A1, O2, A2>,
     f: &OpenHypergraph<O1, A1>,
 ) -> OpenHypergraph<O2, A2> {

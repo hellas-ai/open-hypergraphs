@@ -97,7 +97,7 @@ impl Functor<(), Arr, (), Arr> for ExpandDefinitions {
             }
             Arr::Sub => {
                 // (id ⊗ neg) ; add
-                let id = OpenHypergraph::<(), Arr>::identity(vec![()]);
+                let id = OpenHypergraph::identity(vec![()]);
                 let neg = OpenHypergraph::singleton(Arr::Neg, vec![()], vec![()]);
                 let add = OpenHypergraph::singleton(Arr::Add, vec![(), ()], vec![()]);
                 id.tensor(&neg).compose(&add).unwrap()

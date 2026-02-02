@@ -1,6 +1,6 @@
 //! Cospans of Hypergraphs.
 use super::hypergraph::*;
-use crate::array::vec::VecKind;
+use crate::strict::vec::{FiniteFunction, VecKind};
 
 /// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
@@ -135,13 +135,55 @@ impl<O, A> OpenHypergraph<O, A> {
     }
 }
 
-impl<O: Clone, A> OpenHypergraph<O, A> {
+impl<O, A> OpenHypergraph<O, A> {
     pub fn identity(a: Vec<O>) -> Self {
         let mut f = OpenHypergraph::empty();
         f.sources = (0..a.len()).map(NodeId).collect();
         f.targets = (0..a.len()).map(NodeId).collect();
         f.hypergraph.nodes = a;
         f
+    }
+
+    pub fn spider(s: FiniteFunction, t: FiniteFunction, w: Vec<O>) -> Option<Self> {
+        // s and t must have target equal to the number of supplied nodes
+        if s.target != t.target || s.target != w.len() {
+            return None;
+        }
+
+        let mut f = OpenHypergraph::empty();
+        f.hypergraph.nodes = w;
+        f.sources = s.table.0.into_iter().map(NodeId).collect();
+        f.targets = t.table.0.into_iter().map(NodeId).collect();
+        Some(f)
+    }
+}
+
+impl<O: Clone, A: Clone> OpenHypergraph<O, A> {
+    pub fn tensor(&self, other: &Self) -> Self {
+        let hypergraph = Hypergraph::coproduct(&self.hypergraph, &other.hypergraph);
+
+        // renumber all nodes
+        let n = self.hypergraph.nodes.len();
+
+        let sources = self
+            .sources
+            .iter()
+            .cloned()
+            .chain(other.sources.iter().map(|&i| NodeId(i.0 + n)))
+            .collect();
+
+        let targets = self
+            .targets
+            .iter()
+            .cloned()
+            .chain(other.targets.iter().map(|&i| NodeId(i.0 + n)))
+            .collect();
+
+        OpenHypergraph {
+            sources,
+            targets,
+            hypergraph,
+        }
     }
 }
 

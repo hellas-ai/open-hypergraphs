@@ -4,7 +4,6 @@
 //! Concretely, any operation labeled [`HasVar::var`] is mapped to a *spider*:
 //! An [`OpenHypergraph`] with the same interfaces, but whose hypergraph is a single node. If the
 //! operation has no sources and targets, it's mapped to the empty [`OpenHypergraph`].
-use crate::category::*;
 use crate::finite_function::FiniteFunction;
 use crate::lax::functor::*;
 use crate::lax::var::*;
