@@ -21,11 +21,7 @@ impl<O: Clone + PartialEq, A: Clone> Arrow for OpenHypergraph<O, A> {
     }
 
     fn identity(a: Self::Object) -> Self {
-        let mut f = OpenHypergraph::empty();
-        let node_ids: Vec<NodeId> = a.iter().map(|o| f.new_node(o.clone())).collect();
-        f.sources = node_ids.clone();
-        f.targets = node_ids.clone();
-        f
+        OpenHypergraph::identity(a)
     }
 
     fn compose(&self, other: &Self) -> Option<Self> {
