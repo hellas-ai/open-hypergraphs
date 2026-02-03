@@ -1,6 +1,6 @@
 [package]
 name = "open-hypergraphs"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2021"
 description = "Data-Parallel Algorithms for Open Hypergraphs"
 license = "MIT OR Apache-2.0"
