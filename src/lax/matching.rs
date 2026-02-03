@@ -16,6 +16,49 @@ impl Morphism {
     }
 }
 
+pub trait MatchTrace {
+    fn on_event(&self, _event: MatchEvent) {}
+}
+
+pub struct NoopTrace;
+
+impl MatchTrace for NoopTrace {}
+
+static NOOP_TRACE: NoopTrace = NoopTrace;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MatchEvent {
+    EnterFrame {
+        depth: usize,
+        frame_id: usize,
+    },
+    Decision {
+        pick_edge: Option<usize>,
+        pick_node: Option<usize>,
+        choice_features: &'static str,
+        candidate_count: usize,
+        heuristic_tag: &'static str,
+        depth: usize,
+    },
+    Branch {
+        include_edge: Option<usize>,
+        include_node: Option<usize>,
+        depth: usize,
+    },
+    PropagationSummary {
+        depth: usize,
+    },
+    Prune {
+        reason: &'static str,
+        depth: usize,
+    },
+    Solution,
+    ExitFrame {
+        depth: usize,
+        frame_id: usize,
+    },
+}
+
 impl<O, A> Hypergraph<O, A> {
     /// Find all subgraph isomorphisms from `pattern` into `self`.
     ///
@@ -26,12 +69,14 @@ impl<O, A> Hypergraph<O, A> {
         pattern: &Hypergraph<OP, AP>,
         node_eq: FN,
         edge_eq: FE,
+        trace: Option<&dyn MatchTrace>,
     ) -> Vec<Morphism>
     where
         FN: Fn(&OP, &O) -> bool,
         FE: Fn(&AP, &A) -> bool,
     {
-        find_subgraph_isomorphisms_impl(self, pattern, &node_eq, &edge_eq)
+        let trace = trace.unwrap_or(&NOOP_TRACE);
+        find_subgraph_isomorphisms_impl(self, pattern, &node_eq, &edge_eq, trace)
     }
 
     /// Find all subgraph homomorphisms from `pattern` into `self`.
@@ -44,24 +89,34 @@ impl<O, A> Hypergraph<O, A> {
         pattern: &Hypergraph<OP, AP>,
         node_eq: FN,
         edge_eq: FE,
+        trace: Option<&dyn MatchTrace>,
     ) -> Vec<Morphism>
     where
         FN: Fn(&OP, &O) -> bool,
         FE: Fn(&AP, &A) -> bool,
     {
-        find_subgraph_homomorphisms_impl(self, pattern, &node_eq, &edge_eq)
+        let trace = trace.unwrap_or(&NOOP_TRACE);
+        find_subgraph_homomorphisms_impl(self, pattern, &node_eq, &edge_eq, trace)
     }
 }
 
 impl<O: PartialEq, A: PartialEq> Hypergraph<O, A> {
     /// Find all subgraph isomorphisms from `pattern` into `self` by label equality.
-    pub fn find_subgraph_isomorphisms(&self, pattern: &Hypergraph<O, A>) -> Vec<Morphism> {
-        self.find_subgraph_isomorphisms_by(pattern, |a, b| a == b, |a, b| a == b)
+    pub fn find_subgraph_isomorphisms(
+        &self,
+        pattern: &Hypergraph<O, A>,
+        trace: Option<&dyn MatchTrace>,
+    ) -> Vec<Morphism> {
+        self.find_subgraph_isomorphisms_by(pattern, |a, b| a == b, |a, b| a == b, trace)
     }
 
     /// Find all subgraph homomorphisms from `pattern` into `self` by label equality.
-    pub fn find_subgraph_homomorphisms(&self, pattern: &Hypergraph<O, A>) -> Vec<Morphism> {
-        self.find_subgraph_homomorphisms_by(pattern, |a, b| a == b, |a, b| a == b)
+    pub fn find_subgraph_homomorphisms(
+        &self,
+        pattern: &Hypergraph<O, A>,
+        trace: Option<&dyn MatchTrace>,
+    ) -> Vec<Morphism> {
+        self.find_subgraph_homomorphisms_by(pattern, |a, b| a == b, |a, b| a == b, trace)
     }
 }
 
@@ -70,12 +125,13 @@ fn find_subgraph_homomorphisms_impl<OP, AP, O, A, FN, FE>(
     pattern: &Hypergraph<OP, AP>,
     node_eq: &FN,
     edge_eq: &FE,
+    trace: &dyn MatchTrace,
 ) -> Vec<Morphism>
 where
     FN: Fn(&OP, &O) -> bool,
     FE: Fn(&AP, &A) -> bool,
 {
-    find_subgraph_matches_impl(target, pattern, node_eq, edge_eq, false)
+    find_subgraph_matches_impl(target, pattern, node_eq, edge_eq, false, trace)
 }
 
 fn find_subgraph_isomorphisms_impl<OP, AP, O, A, FN, FE>(
@@ -83,12 +139,13 @@ fn find_subgraph_isomorphisms_impl<OP, AP, O, A, FN, FE>(
     pattern: &Hypergraph<OP, AP>,
     node_eq: &FN,
     edge_eq: &FE,
+    trace: &dyn MatchTrace,
 ) -> Vec<Morphism>
 where
     FN: Fn(&OP, &O) -> bool,
     FE: Fn(&AP, &A) -> bool,
 {
-    find_subgraph_matches_impl(target, pattern, node_eq, edge_eq, true)
+    find_subgraph_matches_impl(target, pattern, node_eq, edge_eq, true, trace)
 }
 
 fn find_subgraph_matches_impl<OP, AP, O, A, FN, FE>(
@@ -97,6 +154,7 @@ fn find_subgraph_matches_impl<OP, AP, O, A, FN, FE>(
     node_eq: &FN,
     edge_eq: &FE,
     injective: bool,
+    trace: &dyn MatchTrace,
 ) -> Vec<Morphism>
 where
     FN: Fn(&OP, &O) -> bool,
@@ -170,6 +228,7 @@ where
         &target_in,
         &target_out,
         &options,
+        trace,
     );
     let mut matches = Vec::new();
 
@@ -208,6 +267,7 @@ where
     target_in: &'a [usize],
     target_out: &'a [usize],
     options: &'a MatchOptions,
+    trace: &'a dyn MatchTrace,
 }
 
 impl<'a, OP, AP, O, A, FN> MatchContext<'a, OP, AP, O, A, FN>
@@ -226,6 +286,7 @@ where
         target_in: &'a [usize],
         target_out: &'a [usize],
         options: &'a MatchOptions,
+        trace: &'a dyn MatchTrace,
     ) -> Self {
         Self {
             target,
@@ -239,6 +300,7 @@ where
             target_in,
             target_out,
             options,
+            trace,
         }
     }
 }
@@ -252,6 +314,7 @@ struct MatchState {
     pattern_mapped_out: Vec<usize>,
     target_mapped_in: Vec<usize>,
     target_mapped_out: Vec<usize>,
+    next_frame_id: usize,
 }
 
 impl MatchState {
@@ -265,7 +328,19 @@ impl MatchState {
             pattern_mapped_out: vec![0usize; pattern.nodes.len()],
             target_mapped_in: vec![0usize; target.nodes.len()],
             target_mapped_out: vec![0usize; target.nodes.len()],
+            next_frame_id: 0,
         }
+    }
+
+    fn enter_frame(&mut self, trace: &dyn MatchTrace, depth: usize) -> usize {
+        let frame_id = self.next_frame_id;
+        self.next_frame_id += 1;
+        trace.on_event(MatchEvent::EnterFrame { depth, frame_id });
+        frame_id
+    }
+
+    fn exit_frame(&self, trace: &dyn MatchTrace, depth: usize, frame_id: usize) {
+        trace.on_event(MatchEvent::ExitFrame { depth, frame_id });
     }
 
     fn commit_edge_mapping(
@@ -342,19 +417,38 @@ impl MatchState {
         context: &MatchContext<'_, OP, AP, O, A, FN>,
         p_adj: &super::hypergraph::Hyperedge,
         t_adj: &super::hypergraph::Hyperedge,
+        depth: usize,
     ) -> Option<Vec<usize>>
     where
         FN: Fn(&OP, &O) -> bool,
     {
         let mut newly_mapped = Vec::new();
         for (p_node, t_node) in p_adj.sources.iter().zip(t_adj.sources.iter()) {
-            if !try_map_node(context, p_node.0, t_node.0, 0, 1, self, &mut newly_mapped) {
+            if !try_map_node(
+                context,
+                p_node.0,
+                t_node.0,
+                0,
+                1,
+                self,
+                &mut newly_mapped,
+                depth,
+            ) {
                 self.rollback_new_nodes(newly_mapped, context.options);
                 return None;
             }
         }
         for (p_node, t_node) in p_adj.targets.iter().zip(t_adj.targets.iter()) {
-            if !try_map_node(context, p_node.0, t_node.0, 1, 0, self, &mut newly_mapped) {
+            if !try_map_node(
+                context,
+                p_node.0,
+                t_node.0,
+                1,
+                0,
+                self,
+                &mut newly_mapped,
+                depth,
+            ) {
                 self.rollback_new_nodes(newly_mapped, context.options);
                 return None;
             }
@@ -371,22 +465,45 @@ fn backtrack_edges<OP, AP, O, A, FN>(
 ) where
     FN: Fn(&OP, &O) -> bool,
 {
+    let frame_id = state.enter_frame(context.trace, edge_index);
     // If all edges are mapped, fill in remaining isolated nodes.
     if edge_index == context.edge_order.len() {
         backtrack_isolated_nodes(context, 0, state, matches);
+        state.exit_frame(context.trace, edge_index, frame_id);
         return;
     }
 
     let p_edge_idx = context.edge_order[edge_index];
     let p_adj = &context.pattern.adjacency[p_edge_idx];
+    context.trace.on_event(MatchEvent::Decision {
+        pick_edge: Some(p_edge_idx),
+        pick_node: None,
+        choice_features: "edge_order",
+        candidate_count: context.edge_candidates[p_edge_idx].len(),
+        heuristic_tag: "min_candidates_then_arity",
+        depth: edge_index,
+    });
 
     for &t_edge_idx in &context.edge_candidates[p_edge_idx] {
+        context.trace.on_event(MatchEvent::Branch {
+            include_edge: Some(t_edge_idx),
+            include_node: None,
+            depth: edge_index,
+        });
         if context.options.injective && state.used_target_edges[t_edge_idx] {
+            context.trace.on_event(MatchEvent::Prune {
+                reason: "edge_used",
+                depth: edge_index,
+            });
             continue;
         }
         let t_adj = &context.target.adjacency[t_edge_idx];
 
-        let Some(newly_mapped) = state.commit_edge_nodes(context, p_adj, t_adj) else {
+        let Some(newly_mapped) = state.commit_edge_nodes(context, p_adj, t_adj, edge_index) else {
+            context.trace.on_event(MatchEvent::Prune {
+                reason: "node_mapping_failed",
+                depth: edge_index,
+            });
             continue;
         };
 
@@ -399,6 +516,9 @@ fn backtrack_edges<OP, AP, O, A, FN>(
             &t_adj.targets,
             context.options,
         );
+        context
+            .trace
+            .on_event(MatchEvent::PropagationSummary { depth: edge_index });
 
         backtrack_edges(context, edge_index + 1, state, matches);
 
@@ -415,6 +535,7 @@ fn backtrack_edges<OP, AP, O, A, FN>(
         // Roll back any provisional node bindings from this edge attempt.
         state.rollback_new_nodes(newly_mapped, context.options);
     }
+    state.exit_frame(context.trace, edge_index, frame_id);
 }
 
 fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
@@ -425,6 +546,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
 ) where
     FN: Fn(&OP, &O) -> bool,
 {
+    let frame_id = state.enter_frame(context.trace, idx);
     if idx == context.isolated_nodes.len() {
         let node_map = state
             .node_map
@@ -437,21 +559,43 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
             .map(|edge| edge.expect("pattern edges must be mapped"))
             .collect();
         matches.push(Morphism { node_map, edge_map });
+        context.trace.on_event(MatchEvent::Solution);
+        state.exit_frame(context.trace, idx, frame_id);
         return;
     }
 
     let p_node_idx = context.isolated_nodes[idx];
+    context.trace.on_event(MatchEvent::Decision {
+        pick_edge: None,
+        pick_node: Some(p_node_idx),
+        choice_features: "isolated_nodes",
+        candidate_count: context.target.nodes.len(),
+        heuristic_tag: "isolated_nodes_order",
+        depth: idx,
+    });
     for t_node_idx in 0..context.target.nodes.len() {
         if context.options.injective && state.used_target_nodes[t_node_idx] {
+            context.trace.on_event(MatchEvent::Prune {
+                reason: "node_used",
+                depth: idx,
+            });
             continue;
         }
         if !degree_feasible(context, state, p_node_idx, t_node_idx, 0, 0) {
+            context.trace.on_event(MatchEvent::Prune {
+                reason: "degree_infeasible",
+                depth: idx,
+            });
             continue;
         }
         if !(context.node_eq)(
             &context.pattern.nodes[p_node_idx],
             &context.target.nodes[t_node_idx],
         ) {
+            context.trace.on_event(MatchEvent::Prune {
+                reason: "label_mismatch",
+                depth: idx,
+            });
             continue;
         }
 
@@ -459,6 +603,14 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         if context.options.injective {
             state.used_target_nodes[t_node_idx] = true;
         }
+        context.trace.on_event(MatchEvent::Branch {
+            include_edge: None,
+            include_node: Some(t_node_idx),
+            depth: idx,
+        });
+        context
+            .trace
+            .on_event(MatchEvent::PropagationSummary { depth: idx });
 
         backtrack_isolated_nodes(context, idx + 1, state, matches);
 
@@ -466,7 +618,13 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
             state.used_target_nodes[t_node_idx] = false;
         }
         state.node_map[p_node_idx] = None;
+        context.trace.on_event(MatchEvent::Branch {
+            include_edge: None,
+            include_node: Some(t_node_idx),
+            depth: idx,
+        });
     }
+    state.exit_frame(context.trace, idx, frame_id);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -478,12 +636,17 @@ fn try_map_node<OP, AP, O, A, FN>(
     add_out: usize,
     state: &mut MatchState,
     newly_mapped: &mut Vec<usize>,
+    depth: usize,
 ) -> bool
 where
     FN: Fn(&OP, &O) -> bool,
 {
     if let Some(existing) = state.node_map[p_node_idx] {
         if existing.0 != t_node_idx {
+            context.trace.on_event(MatchEvent::Prune {
+                reason: "node_mapped_conflict",
+                depth,
+            });
             return false;
         }
         if context.options.injective {
@@ -492,15 +655,27 @@ where
         return true;
     }
     if context.options.injective && state.used_target_nodes[t_node_idx] {
+        context.trace.on_event(MatchEvent::Prune {
+            reason: "node_used",
+            depth,
+        });
         return false;
     }
     if !(context.node_eq)(
         &context.pattern.nodes[p_node_idx],
         &context.target.nodes[t_node_idx],
     ) {
+        context.trace.on_event(MatchEvent::Prune {
+            reason: "label_mismatch",
+            depth,
+        });
         return false;
     }
     if !degree_feasible(context, state, p_node_idx, t_node_idx, add_in, add_out) {
+        context.trace.on_event(MatchEvent::Prune {
+            reason: "degree_infeasible",
+            depth,
+        });
         return false;
     }
 
@@ -509,6 +684,14 @@ where
         state.used_target_nodes[t_node_idx] = true;
     }
     newly_mapped.push(p_node_idx);
+    context.trace.on_event(MatchEvent::Branch {
+        include_edge: None,
+        include_node: Some(t_node_idx),
+        depth,
+    });
+    context
+        .trace
+        .on_event(MatchEvent::PropagationSummary { depth });
     true
 }
 
@@ -576,13 +759,13 @@ where
     }
 
     // Remaining incident edges on the pattern node after this tentative assignment.
-    let pattern_remaining_in = context.pattern_in[p_node_idx]
-        .saturating_sub(state.pattern_mapped_in[p_node_idx] + add_in);
+    let pattern_remaining_in =
+        context.pattern_in[p_node_idx].saturating_sub(state.pattern_mapped_in[p_node_idx] + add_in);
     let pattern_remaining_out = context.pattern_out[p_node_idx]
         .saturating_sub(state.pattern_mapped_out[p_node_idx] + add_out);
     // Remaining capacity on the target node to host those edges.
-    let target_remaining_in = context.target_in[t_node_idx]
-        .saturating_sub(state.target_mapped_in[t_node_idx] + add_in);
+    let target_remaining_in =
+        context.target_in[t_node_idx].saturating_sub(state.target_mapped_in[t_node_idx] + add_in);
     let target_remaining_out = context.target_out[t_node_idx]
         .saturating_sub(state.target_mapped_out[t_node_idx] + add_out);
 

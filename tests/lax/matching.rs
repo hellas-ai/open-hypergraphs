@@ -14,7 +14,7 @@ fn test_subgraph_isomorphisms_single_edge() {
     let p1 = pattern.new_node(1);
     pattern.new_edge('f', (vec![p0], vec![p1]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 2);
     assert!(matches.iter().all(|m| m.node_map()[1] == NodeId(1)));
 
@@ -46,7 +46,7 @@ fn test_subgraph_isomorphisms_order_sensitive() {
     let p1 = pattern.new_node(1);
     pattern.new_edge('f', (vec![p1, p0], vec![]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert!(matches.is_empty());
 }
 
@@ -61,7 +61,7 @@ fn test_subgraph_isomorphisms_isolated_nodes() {
     pattern.new_node(1);
     pattern.new_node(2);
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     // The pattern's 2-label must map to the unique 2 in the target; the 1-label can map to either 1.
     assert_eq!(matches.len(), 2);
     assert!(matches.iter().all(|m| m.node_map()[1] == NodeId(1)));
@@ -90,7 +90,7 @@ fn test_subgraph_isomorphisms_shared_nodes() {
     pattern.new_edge('g', (vec![p0], vec![p1]));
     pattern.new_edge('h', (vec![p1], vec![p2]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 1);
 }
 
@@ -107,7 +107,7 @@ fn test_subgraph_isomorphisms_arity_mismatch() {
     let p2 = pattern.new_node(2);
     pattern.new_edge('f', (vec![p0, p1], vec![p2]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert!(matches.is_empty());
 }
 
@@ -125,7 +125,7 @@ fn test_subgraph_isomorphisms_degree_feasible_prune() {
     pattern.new_edge('a', (vec![p0], vec![p1]));
     pattern.new_edge('b', (vec![p0], vec![p2]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert!(matches.is_empty());
 }
 
@@ -136,7 +136,7 @@ fn test_subgraph_isomorphisms_empty_pattern() {
     target.new_node(2);
 
     let pattern: Hypergraph<i32, char> = Hypergraph::empty();
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 1);
     assert!(matches[0].node_map().is_empty());
     assert!(matches[0].edge_map().is_empty());
@@ -154,7 +154,7 @@ fn test_subgraph_isomorphisms_multi_incidence_sources() {
     let p1 = pattern.new_node(1);
     pattern.new_edge('f', (vec![p0, p0], vec![p1]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].node_map()[0], n0);
     assert_eq!(matches[0].node_map()[1], n1);
@@ -183,7 +183,7 @@ fn test_subgraph_isomorphisms_multiple_matches_complex_target() {
     pattern.new_edge('f', (vec![p0], vec![p1]));
     pattern.new_edge('g', (vec![p1], vec![p2]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 4);
     assert!(matches.iter().all(|m| m.node_map()[2] == n4));
 }
@@ -198,7 +198,7 @@ fn test_subgraph_isomorphisms_node_in_sources_and_targets() {
     let p0 = pattern.new_node(0);
     pattern.new_edge('g', (vec![p0], vec![p0]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].node_map()[0], n0);
     assert_eq!(matches[0].edge_map()[0], EdgeId(0));
@@ -217,7 +217,7 @@ fn test_subgraph_isomorphisms_identical_edges_injective() {
     let p1 = pattern.new_node(1);
     pattern.new_edge('h', (vec![p0], vec![p1]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 2);
     let mut edge_ids = matches
         .iter()
@@ -241,7 +241,7 @@ fn test_subgraph_isomorphisms_two_identical_edges_bijective() {
     pattern.new_edge('h', (vec![p0], vec![p1]));
     pattern.new_edge('h', (vec![p0], vec![p1]));
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 2);
     let mut edge_maps = matches
         .iter()
@@ -262,7 +262,7 @@ fn test_subgraph_isomorphisms_isolated_nodes_duplicate_labels() {
     pattern.new_node(1);
     pattern.new_node(1);
 
-    let matches = target.find_subgraph_isomorphisms(&pattern);
+    let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 6);
 }
 
@@ -277,10 +277,10 @@ fn test_subgraph_homomorphisms_allow_node_merging() {
     let p1 = pattern.new_node(0);
     pattern.new_edge('f', (vec![p0], vec![p1]));
 
-    let iso_matches = target.find_subgraph_isomorphisms(&pattern);
+    let iso_matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert!(iso_matches.is_empty());
 
-    let homo_matches = target.find_subgraph_homomorphisms(&pattern);
+    let homo_matches = target.find_subgraph_homomorphisms(&pattern, None);
     assert_eq!(homo_matches.len(), 1);
     assert_eq!(homo_matches[0].node_map()[0], n0);
     assert_eq!(homo_matches[0].node_map()[1], n0);
@@ -299,9 +299,9 @@ fn test_subgraph_homomorphisms_allow_edge_merging() {
     pattern.new_edge('h', (vec![p0], vec![p1]));
     pattern.new_edge('h', (vec![p0], vec![p1]));
 
-    let iso_matches = target.find_subgraph_isomorphisms(&pattern);
+    let iso_matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert!(iso_matches.is_empty());
 
-    let homo_matches = target.find_subgraph_homomorphisms(&pattern);
+    let homo_matches = target.find_subgraph_homomorphisms(&pattern, None);
     assert_eq!(homo_matches.len(), 1);
 }
