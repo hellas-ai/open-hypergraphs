@@ -33,16 +33,16 @@ pub enum MatchEvent {
         frame_id: usize,
     },
     Decision {
-        pick_edge: Option<usize>,
-        pick_node: Option<usize>,
+        pattern_edge: Option<usize>,
+        pattern_node: Option<usize>,
         choice_features: &'static str,
         candidate_count: usize,
         heuristic_tag: &'static str,
         depth: usize,
     },
     Branch {
-        include_edge: Option<usize>,
-        include_node: Option<usize>,
+        target_edge: Option<usize>,
+        target_node: Option<usize>,
         depth: usize,
     },
     PropagationSummary {
@@ -50,6 +50,7 @@ pub enum MatchEvent {
     },
     Prune {
         reason: &'static str,
+        detail: &'static str,
         depth: usize,
     },
     Solution,
@@ -468,6 +469,14 @@ fn backtrack_edges<OP, AP, O, A, FN>(
     let frame_id = state.enter_frame(context.trace, edge_index);
     // If all edges are mapped, fill in remaining isolated nodes.
     if edge_index == context.edge_order.len() {
+        context.trace.on_event(MatchEvent::Decision {
+            pattern_edge: None,
+            pattern_node: None,
+            choice_features: "no_more_pattern_edges",
+            candidate_count: 0,
+            heuristic_tag: "edge_order",
+            depth: edge_index,
+        });
         backtrack_isolated_nodes(context, 0, state, matches);
         state.exit_frame(context.trace, edge_index, frame_id);
         return;
@@ -476,8 +485,8 @@ fn backtrack_edges<OP, AP, O, A, FN>(
     let p_edge_idx = context.edge_order[edge_index];
     let p_adj = &context.pattern.adjacency[p_edge_idx];
     context.trace.on_event(MatchEvent::Decision {
-        pick_edge: Some(p_edge_idx),
-        pick_node: None,
+        pattern_edge: Some(p_edge_idx),
+        pattern_node: None,
         choice_features: "edge_order",
         candidate_count: context.edge_candidates[p_edge_idx].len(),
         heuristic_tag: "min_candidates_then_arity",
@@ -486,13 +495,14 @@ fn backtrack_edges<OP, AP, O, A, FN>(
 
     for &t_edge_idx in &context.edge_candidates[p_edge_idx] {
         context.trace.on_event(MatchEvent::Branch {
-            include_edge: Some(t_edge_idx),
-            include_node: None,
+            target_edge: Some(t_edge_idx),
+            target_node: None,
             depth: edge_index,
         });
         if context.options.injective && state.used_target_edges[t_edge_idx] {
             context.trace.on_event(MatchEvent::Prune {
                 reason: "edge_used",
+                detail: "injective_edge_reuse",
                 depth: edge_index,
             });
             continue;
@@ -502,6 +512,7 @@ fn backtrack_edges<OP, AP, O, A, FN>(
         let Some(newly_mapped) = state.commit_edge_nodes(context, p_adj, t_adj, edge_index) else {
             context.trace.on_event(MatchEvent::Prune {
                 reason: "node_mapping_failed",
+                detail: "edge_incidence_conflict",
                 depth: edge_index,
             });
             continue;
@@ -566,8 +577,8 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
 
     let p_node_idx = context.isolated_nodes[idx];
     context.trace.on_event(MatchEvent::Decision {
-        pick_edge: None,
-        pick_node: Some(p_node_idx),
+        pattern_edge: None,
+        pattern_node: Some(p_node_idx),
         choice_features: "isolated_nodes",
         candidate_count: context.target.nodes.len(),
         heuristic_tag: "isolated_nodes_order",
@@ -577,6 +588,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         if context.options.injective && state.used_target_nodes[t_node_idx] {
             context.trace.on_event(MatchEvent::Prune {
                 reason: "node_used",
+                detail: "injective_node_reuse",
                 depth: idx,
             });
             continue;
@@ -584,6 +596,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         if !degree_feasible(context, state, p_node_idx, t_node_idx, 0, 0) {
             context.trace.on_event(MatchEvent::Prune {
                 reason: "degree_infeasible",
+                detail: "degree_capacity",
                 depth: idx,
             });
             continue;
@@ -594,6 +607,7 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         ) {
             context.trace.on_event(MatchEvent::Prune {
                 reason: "label_mismatch",
+                detail: "node_label",
                 depth: idx,
             });
             continue;
@@ -604,8 +618,8 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
             state.used_target_nodes[t_node_idx] = true;
         }
         context.trace.on_event(MatchEvent::Branch {
-            include_edge: None,
-            include_node: Some(t_node_idx),
+            target_edge: None,
+            target_node: Some(t_node_idx),
             depth: idx,
         });
         context
@@ -619,8 +633,8 @@ fn backtrack_isolated_nodes<OP, AP, O, A, FN>(
         }
         state.node_map[p_node_idx] = None;
         context.trace.on_event(MatchEvent::Branch {
-            include_edge: None,
-            include_node: Some(t_node_idx),
+            target_edge: None,
+            target_node: Some(t_node_idx),
             depth: idx,
         });
     }
@@ -641,10 +655,19 @@ fn try_map_node<OP, AP, O, A, FN>(
 where
     FN: Fn(&OP, &O) -> bool,
 {
+    context.trace.on_event(MatchEvent::Decision {
+        pattern_edge: None,
+        pattern_node: Some(p_node_idx),
+        choice_features: "edge_incidence",
+        candidate_count: 1,
+        heuristic_tag: "edge_incidence",
+        depth,
+    });
     if let Some(existing) = state.node_map[p_node_idx] {
         if existing.0 != t_node_idx {
             context.trace.on_event(MatchEvent::Prune {
                 reason: "node_mapped_conflict",
+                detail: "edge_incidence_conflict",
                 depth,
             });
             return false;
@@ -657,6 +680,7 @@ where
     if context.options.injective && state.used_target_nodes[t_node_idx] {
         context.trace.on_event(MatchEvent::Prune {
             reason: "node_used",
+            detail: "injective_node_reuse",
             depth,
         });
         return false;
@@ -667,6 +691,7 @@ where
     ) {
         context.trace.on_event(MatchEvent::Prune {
             reason: "label_mismatch",
+            detail: "node_label",
             depth,
         });
         return false;
@@ -674,6 +699,7 @@ where
     if !degree_feasible(context, state, p_node_idx, t_node_idx, add_in, add_out) {
         context.trace.on_event(MatchEvent::Prune {
             reason: "degree_infeasible",
+            detail: "degree_capacity",
             depth,
         });
         return false;
@@ -685,8 +711,8 @@ where
     }
     newly_mapped.push(p_node_idx);
     context.trace.on_event(MatchEvent::Branch {
-        include_edge: None,
-        include_node: Some(t_node_idx),
+        target_edge: None,
+        target_node: Some(t_node_idx),
         depth,
     });
     context
