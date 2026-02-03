@@ -68,7 +68,7 @@ impl MatchTrace for PrintTrace {
                 self.indent.set(self.indent.get() + 1);
                 self.frame_stack.borrow_mut().push(frame_id);
             }
-            MatchEvent::ExitFrame { depth, frame_id } => {
+            MatchEvent::ExitFrame { depth: _, frame_id } => {
                 let indent = self.indent.get().saturating_sub(1);
                 self.indent.set(indent);
                 println!(
@@ -99,7 +99,7 @@ impl MatchTrace for PrintTrace {
                 choice_features,
                 candidate_count,
                 heuristic_tag,
-                depth,
+                depth: _,
             } => {
                 let current = self.frame_stack.borrow().last().copied();
                 if let Some(frame_id) = current {
@@ -123,7 +123,7 @@ impl MatchTrace for PrintTrace {
             MatchEvent::Branch {
                 target_edge,
                 target_node,
-                depth,
+                depth: _,
             } => {
                 let current = self.frame_stack.borrow().last().copied();
                 if let Some(frame_id) = current {

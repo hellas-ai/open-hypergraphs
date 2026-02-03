@@ -1,5 +1,39 @@
 use open_hypergraphs::lax::{EdgeId, Hypergraph, NodeId};
 
+fn assert_is_morphism<O, A, OP, AP>(
+    target: &Hypergraph<O, A>,
+    pattern: &Hypergraph<OP, AP>,
+    morphism: &open_hypergraphs::lax::matching::Morphism,
+    node_eq: impl Fn(&OP, &O) -> bool,
+    edge_eq: impl Fn(&AP, &A) -> bool,
+) {
+    // Node labels must be preserved.
+    for (p_idx, p_label) in pattern.nodes.iter().enumerate() {
+        let t_idx = morphism.node_map()[p_idx].0;
+        assert!(node_eq(p_label, &target.nodes[t_idx]));
+    }
+
+    // Edge labels and incidence (ordered sources/targets) must be preserved.
+    for (p_edge_idx, p_label) in pattern.edges.iter().enumerate() {
+        let t_edge_idx = morphism.edge_map()[p_edge_idx].0;
+        assert!(edge_eq(p_label, &target.edges[t_edge_idx]));
+
+        let p_adj = &pattern.adjacency[p_edge_idx];
+        let t_adj = &target.adjacency[t_edge_idx];
+        assert_eq!(p_adj.sources.len(), t_adj.sources.len());
+        assert_eq!(p_adj.targets.len(), t_adj.targets.len());
+
+        for (p_node, t_node) in p_adj.sources.iter().zip(t_adj.sources.iter()) {
+            let mapped = morphism.node_map()[p_node.0];
+            assert_eq!(mapped, *t_node);
+        }
+        for (p_node, t_node) in p_adj.targets.iter().zip(t_adj.targets.iter()) {
+            let mapped = morphism.node_map()[p_node.0];
+            assert_eq!(mapped, *t_node);
+        }
+    }
+}
+
 #[test]
 fn test_subgraph_isomorphisms_single_edge() {
     let mut target = Hypergraph::empty();
@@ -26,6 +60,7 @@ fn test_subgraph_isomorphisms_single_edge() {
     assert_eq!(sources, vec![0, 2]);
 
     for m in matches {
+        assert_is_morphism(&target, &pattern, &m, |a, b| a == b, |a, b| a == b);
         if m.node_map()[0] == NodeId(0) {
             assert_eq!(m.edge_map()[0], EdgeId(0));
         } else {
@@ -72,6 +107,9 @@ fn test_subgraph_isomorphisms_isolated_nodes() {
         .collect::<Vec<_>>();
     sources.sort();
     assert_eq!(sources, vec![0, 2]);
+    for m in matches {
+        assert_is_morphism(&target, &pattern, &m, |a, b| a == b, |a, b| a == b);
+    }
 }
 
 #[test]
@@ -156,6 +194,7 @@ fn test_subgraph_isomorphisms_multi_incidence_sources() {
 
     let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 1);
+    assert_is_morphism(&target, &pattern, &matches[0], |a, b| a == b, |a, b| a == b);
     assert_eq!(matches[0].node_map()[0], n0);
     assert_eq!(matches[0].node_map()[1], n1);
     assert_eq!(matches[0].edge_map()[0], EdgeId(0));
@@ -200,6 +239,7 @@ fn test_subgraph_isomorphisms_node_in_sources_and_targets() {
 
     let matches = target.find_subgraph_isomorphisms(&pattern, None);
     assert_eq!(matches.len(), 1);
+    assert_is_morphism(&target, &pattern, &matches[0], |a, b| a == b, |a, b| a == b);
     assert_eq!(matches[0].node_map()[0], n0);
     assert_eq!(matches[0].edge_map()[0], EdgeId(0));
 }
@@ -225,6 +265,9 @@ fn test_subgraph_isomorphisms_identical_edges_injective() {
         .collect::<Vec<_>>();
     edge_ids.sort();
     assert_eq!(edge_ids, vec![0, 1]);
+    for m in matches {
+        assert_is_morphism(&target, &pattern, &m, |a, b| a == b, |a, b| a == b);
+    }
 }
 
 #[test]
@@ -249,6 +292,9 @@ fn test_subgraph_isomorphisms_two_identical_edges_bijective() {
         .collect::<Vec<_>>();
     edge_maps.sort();
     assert_eq!(edge_maps, vec![(0, 1), (1, 0)]);
+    for m in matches {
+        assert_is_morphism(&target, &pattern, &m, |a, b| a == b, |a, b| a == b);
+    }
 }
 
 #[test]
@@ -284,6 +330,7 @@ fn test_subgraph_homomorphisms_allow_node_merging() {
     assert_eq!(homo_matches.len(), 1);
     assert_eq!(homo_matches[0].node_map()[0], n0);
     assert_eq!(homo_matches[0].node_map()[1], n0);
+    assert_is_morphism(&target, &pattern, &homo_matches[0], |a, b| a == b, |a, b| a == b);
 }
 
 #[test]
@@ -304,4 +351,5 @@ fn test_subgraph_homomorphisms_allow_edge_merging() {
 
     let homo_matches = target.find_subgraph_homomorphisms(&pattern, None);
     assert_eq!(homo_matches.len(), 1);
+    assert_is_morphism(&target, &pattern, &homo_matches[0], |a, b| a == b, |a, b| a == b);
 }
