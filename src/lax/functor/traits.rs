@@ -3,11 +3,6 @@ use crate::array::vec::VecArray;
 use crate::lax::*;
 use crate::strict::vec::{FiniteFunction, IndexedCoproduct};
 
-// Problems:
-//  1. No ownership of OpenHypergraph ⇒ have to copy in to_strict!
-//  2. Sized constraint coming from to_dyn_functor
-//  3. Can't give nice default impl - constraints from `define_map_arrow` / `to_dyn_functor`
-
 /// An easier-to-implement `Functor` trait for lax `OpenHypergraph`
 pub trait Functor<O1, A1, O2, A2> {
     /// Map a generating object of the theory
@@ -27,7 +22,9 @@ pub trait Functor<O1, A1, O2, A2> {
     fn map_arrow(&self, f: &OpenHypergraph<O1, A1>) -> OpenHypergraph<O2, A2>;
 }
 
-pub fn define_lax_map_arrow<O1: Clone, A1, O2: Clone, A2: Clone>(
+/// Define `map_arrow` for a [`Functor`] with `map_object` and `map_operation` already defined.
+/// This will fail if the input term is not quotiented.
+pub fn try_define_map_arrow<O1: Clone, A1, O2: Clone, A2: Clone>(
     functor: &impl Functor<O1, A1, O2, A2>,
     f: &OpenHypergraph<O1, A1>,
 ) -> Option<OpenHypergraph<O2, A2>> {

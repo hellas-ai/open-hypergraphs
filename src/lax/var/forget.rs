@@ -77,7 +77,7 @@ impl<O: Clone + PartialEq, A: HasVar + Clone + PartialEq> Functor<O, A, O, A> fo
     }
 
     fn map_arrow(&self, f: &OpenHypergraph<O, A>) -> OpenHypergraph<O, A> {
-        define_map_arrow(self, f)
+        dyn_functor::define_map_arrow(self, f)
     }
 }
 
@@ -130,6 +130,6 @@ impl<O: Clone + PartialEq + std::fmt::Debug, A: HasVar + Clone + PartialEq + std
     }
 
     fn map_arrow(&self, f: &OpenHypergraph<O, A>) -> OpenHypergraph<O, A> {
-        define_map_arrow(self, f)
+        dyn_functor::define_map_arrow(self, f)
     }
 }
