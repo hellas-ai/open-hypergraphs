@@ -330,7 +330,13 @@ fn test_subgraph_homomorphisms_allow_node_merging() {
     assert_eq!(homo_matches.len(), 1);
     assert_eq!(homo_matches[0].node_map()[0], n0);
     assert_eq!(homo_matches[0].node_map()[1], n0);
-    assert_is_morphism(&target, &pattern, &homo_matches[0], |a, b| a == b, |a, b| a == b);
+    assert_is_morphism(
+        &target,
+        &pattern,
+        &homo_matches[0],
+        |a, b| a == b,
+        |a, b| a == b,
+    );
 }
 
 #[test]
@@ -351,5 +357,11 @@ fn test_subgraph_homomorphisms_allow_edge_merging() {
 
     let homo_matches = target.find_subgraph_homomorphisms(&pattern, None);
     assert_eq!(homo_matches.len(), 1);
-    assert_is_morphism(&target, &pattern, &homo_matches[0], |a, b| a == b, |a, b| a == b);
+    assert_is_morphism(
+        &target,
+        &pattern,
+        &homo_matches[0],
+        |a, b| a == b,
+        |a, b| a == b,
+    );
 }
