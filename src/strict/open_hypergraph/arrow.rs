@@ -289,3 +289,14 @@ where
             .finish()
     }
 }
+
+impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O>,
+{
+    /// Returns true if there is no directed path from any node to itself.
+    pub fn is_acyclic(&self) -> bool {
+        self.h.is_acyclic()
+    }
+}
