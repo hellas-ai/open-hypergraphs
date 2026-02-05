@@ -170,6 +170,34 @@ impl<O, A> Hypergraph<O, A> {
         node_id
     }
 
+    /// The number of occurrences of `node` as a target across all hyperedges.
+    pub fn in_degree(&self, node: NodeId) -> usize {
+        assert!(
+            node.0 < self.nodes.len(),
+            "node id {:?} is out of bounds",
+            node
+        );
+
+        self.adjacency
+            .iter()
+            .map(|edge| edge.targets.iter().filter(|&&t| t == node).count())
+            .sum()
+    }
+
+    /// The number of occurrences of `node` as a source across all hyperedges.
+    pub fn out_degree(&self, node: NodeId) -> usize {
+        assert!(
+            node.0 < self.nodes.len(),
+            "node id {:?} is out of bounds",
+            node
+        );
+
+        self.adjacency
+            .iter()
+            .map(|edge| edge.sources.iter().filter(|&&s| s == node).count())
+            .sum()
+    }
+
     /// Set the nodes of a Hypergraph, possibly changing types.
     /// Returns None if new nodes array had different length.
     pub fn with_nodes<T, F: FnOnce(Vec<O>) -> Vec<T>>(self, f: F) -> Option<Hypergraph<T, A>> {
