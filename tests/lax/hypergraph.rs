@@ -227,7 +227,7 @@ fn test_in_out_degree_counts_multiplicity() {
 #[test]
 #[should_panic]
 fn test_in_degree_panics_on_out_of_range() {
-    let mut h = Hypergraph::empty();
+    let mut h: Hypergraph<i32, i32> = Hypergraph::empty();
     h.nodes = vec![1];
     h.adjacency = vec![];
 
@@ -237,7 +237,7 @@ fn test_in_degree_panics_on_out_of_range() {
 #[test]
 #[should_panic]
 fn test_out_degree_panics_on_out_of_range() {
-    let mut h = Hypergraph::empty();
+    let mut h: Hypergraph<i32, i32> = Hypergraph::empty();
     h.nodes = vec![1];
     h.adjacency = vec![];
 
