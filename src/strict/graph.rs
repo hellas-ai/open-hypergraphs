@@ -1,6 +1,3 @@
-////////////////////////////////////////////////////////////////////////////////
-// Graph methods
-
 use crate::array::{Array, ArrayKind, NaturalArray, OrdArray};
 use crate::category::Arrow;
 use crate::finite_function::FiniteFunction;

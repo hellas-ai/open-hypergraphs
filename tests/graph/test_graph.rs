@@ -50,6 +50,7 @@ fn test_operation_adjacency_simple_example() {
     let strict = lax.to_hypergraph();
     let adjacency = graph::operation_adjacency(&strict);
 
-    assert_eq!(adjacency.sources.table, VecArray(vec![1, 0]));
-    assert_eq!(adjacency.values.table, VecArray(vec![1]));
+    let got: Vec<Vec<usize>> = adjacency.into_iter().map(|ff| ff.table.0).collect();
+    let expected = vec![vec![1], vec![]];
+    assert_eq!(got, expected);
 }
