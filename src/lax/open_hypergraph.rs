@@ -134,12 +134,6 @@ impl<O, A> OpenHypergraph<O, A> {
         }
     }
 
-    /// Returns true if there is no directed path from any node to itself.
-    ///
-    /// This forwards to the internal hypergraph.
-    pub fn is_acyclic(&self) -> bool {
-        self.hypergraph.is_acyclic()
-    }
 }
 
 impl<O, A> OpenHypergraph<O, A> {

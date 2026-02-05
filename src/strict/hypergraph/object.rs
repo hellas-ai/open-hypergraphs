@@ -1,4 +1,4 @@
-use crate::array::{Array, ArrayKind, NaturalArray};
+use crate::array::{vec::VecKind, Array, ArrayKind, NaturalArray};
 use crate::category::*;
 use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
@@ -165,6 +165,65 @@ where
             w: self.w.clone(),
             x: self.x.clone(),
         }
+    }
+}
+
+impl<O, A> Hypergraph<VecKind, O, A> {
+    /// Returns true if there is no directed path from any node to itself.
+    ///
+    /// This treats each hyperedge as directed connections from every source node to every target
+    /// node, and runs a DFS cycle check over the induced node-level adjacency.
+    pub fn is_acyclic(&self) -> bool {
+        let node_count = self.w.0.len();
+        if node_count == 0 {
+            return true;
+        }
+
+        let mut adjacency = vec![Vec::<usize>::new(); node_count];
+        for (sources, targets) in self.s.clone().into_iter().zip(self.t.clone().into_iter()) {
+            for &source in sources.table.iter() {
+                for &target in targets.table.iter() {
+                    adjacency[source].push(target);
+                }
+            }
+        }
+
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum VisitState {
+            Unvisited,
+            Visiting,
+            Done,
+        }
+
+        let mut state = vec![VisitState::Unvisited; node_count];
+
+        fn visit(v: usize, adjacency: &[Vec<usize>], state: &mut [VisitState]) -> bool {
+            if state[v] == VisitState::Visiting {
+                return false;
+            }
+            if state[v] == VisitState::Done {
+                return true;
+            }
+            state[v] = VisitState::Visiting;
+            for &next in &adjacency[v] {
+                if state[next] == VisitState::Visiting {
+                    return false;
+                }
+                if state[next] == VisitState::Unvisited && !visit(next, adjacency, state) {
+                    return false;
+                }
+            }
+            state[v] = VisitState::Done;
+            true
+        }
+
+        for v in 0..node_count {
+            if state[v] == VisitState::Unvisited && !visit(v, &adjacency, &mut state) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 

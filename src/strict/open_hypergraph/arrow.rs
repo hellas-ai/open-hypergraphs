@@ -1,4 +1,5 @@
 use crate::array::*;
+use crate::array::vec::VecKind;
 use crate::category::*;
 use crate::finite_function::*;
 use crate::operations::*;
@@ -287,5 +288,12 @@ where
             .field("t", &self.t)
             .field("h", &self.h)
             .finish()
+    }
+}
+
+impl<O, A> OpenHypergraph<VecKind, O, A> {
+    /// Returns true if there is no directed path from any node to itself.
+    pub fn is_acyclic(&self) -> bool {
+        self.h.is_acyclic()
     }
 }
