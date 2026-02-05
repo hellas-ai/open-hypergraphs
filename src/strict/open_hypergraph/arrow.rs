@@ -1,4 +1,3 @@
-use crate::array::vec::{VecArray, VecKind};
 use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
@@ -291,18 +290,6 @@ where
     }
 }
 
-impl<O: Clone, A> OpenHypergraph<VecKind, O, A> {
-    /// Image of the source interface map `m -> G` (deduplicated, order-preserving).
-    pub fn in_nodes(&self) -> Vec<usize> {
-        interface_image(&self.s.table, self.h.w.len())
-    }
-
-    /// Image of the target interface map `n -> G` (deduplicated, order-preserving).
-    pub fn out_nodes(&self) -> Vec<usize> {
-        interface_image(&self.t.table, self.h.w.len())
-    }
-}
-
 impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
@@ -340,17 +327,4 @@ where
         (in_degrees + in_counts - ones.clone()).zero().len() == ones.len()
             && (out_degrees + out_counts - ones).zero().len() == self.h.w.len()
     }
-}
-
-fn interface_image(nodes: &VecArray<usize>, node_count: usize) -> Vec<usize> {
-    let mut seen = vec![false; node_count];
-    let mut image = Vec::new();
-    for &node in nodes.iter() {
-        assert!(node < node_count, "node id {} is out of bounds", node);
-        if !seen[node] {
-            seen[node] = true;
-            image.push(node);
-        }
-    }
-    image
 }

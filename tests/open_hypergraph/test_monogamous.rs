@@ -8,19 +8,6 @@ use open_hypergraphs::strict::open_hypergraph::OpenHypergraph;
 use crate::theory::meaningless::{Arr, Obj};
 
 #[test]
-fn test_in_out_nodes_are_images() {
-    let w = SemifiniteFunction(VecArray(vec![0i8, 1i8, 2i8]));
-    let h: Hypergraph<VecKind, Obj, Arr> = Hypergraph::discrete(w);
-    let s = FiniteFunction::new(VecArray(vec![0, 2, 2]), 3).unwrap();
-    let t = FiniteFunction::new(VecArray(vec![1, 1]), 3).unwrap();
-
-    let g = OpenHypergraph::new(s, t, h).unwrap();
-
-    assert_eq!(g.in_nodes(), vec![0, 2]);
-    assert_eq!(g.out_nodes(), vec![1]);
-}
-
-#[test]
 fn test_is_monogamous_true() {
     let f: OpenHypergraph<VecKind, Obj, Arr> = OpenHypergraph::singleton(
         0u8,
