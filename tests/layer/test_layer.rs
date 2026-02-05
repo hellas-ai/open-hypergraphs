@@ -2,7 +2,8 @@ use open_hypergraphs::array::vec::*;
 use open_hypergraphs::finite_function::*;
 use open_hypergraphs::indexed_coproduct::*;
 use open_hypergraphs::semifinite::*;
-use open_hypergraphs::strict::layer::{converse, indegree, layer, operation_adjacency};
+use open_hypergraphs::strict::graph::{converse, indegree, operation_adjacency};
+use open_hypergraphs::strict::layer::layer;
 use open_hypergraphs::strict::open_hypergraph::*;
 
 #[derive(Clone, PartialEq, Debug)]
