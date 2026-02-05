@@ -133,7 +133,6 @@ impl<O, A> OpenHypergraph<O, A> {
             hypergraph: self.hypergraph.map_edges(f),
         }
     }
-
 }
 
 impl<O, A> OpenHypergraph<O, A> {

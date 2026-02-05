@@ -1,5 +1,5 @@
-use crate::array::*;
 use crate::array::vec::VecKind;
+use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
 use crate::operations::*;

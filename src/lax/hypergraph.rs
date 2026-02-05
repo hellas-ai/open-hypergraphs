@@ -334,7 +334,6 @@ impl<O, A> Hypergraph<O, A> {
         }
         self.quotient = (quotient_left, quotient_right);
     }
-
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
