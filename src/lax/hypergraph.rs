@@ -334,6 +334,62 @@ impl<O, A> Hypergraph<O, A> {
         }
         self.quotient = (quotient_left, quotient_right);
     }
+
+    /// Returns true if there is no directed path from any node to itself.
+    ///
+    pub fn is_acyclic(&self) -> bool {
+        let node_count = self.nodes.len();
+        if node_count == 0 {
+            return true;
+        }
+
+        let mut adjacency = vec![Vec::<usize>::new(); node_count];
+        for edge in &self.adjacency {
+            for &source in &edge.sources {
+                for &target in &edge.targets {
+                    adjacency[source.0].push(target.0);
+                }
+            }
+        }
+
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum VisitState {
+            Unvisited,
+            Visiting,
+            Done,
+        }
+
+        // run a DFS cycle check over the nodes
+        let mut state = vec![VisitState::Unvisited; node_count];
+
+        fn visit(v: usize, adjacency: &[Vec<usize>], state: &mut [VisitState]) -> bool {
+            if state[v] == VisitState::Visiting {
+                return false;
+            }
+            if state[v] == VisitState::Done {
+                return true;
+            }
+            state[v] = VisitState::Visiting;
+            for &next in &adjacency[v] {
+                if state[next] == VisitState::Visiting {
+                    return false;
+                }
+                if state[next] == VisitState::Unvisited && !visit(next, adjacency, state) {
+                    return false;
+                }
+            }
+            state[v] = VisitState::Done;
+            true
+        }
+
+        for v in 0..node_count {
+            if state[v] == VisitState::Unvisited && !visit(v, &adjacency, &mut state) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {

@@ -199,3 +199,54 @@ fn test_delete_edge_panics_on_out_of_bounds() {
 
     h.delete_edge(&[EdgeId(1)]);
 }
+
+#[test]
+fn test_is_acyclic_true() {
+    let mut h = Hypergraph::empty();
+    h.nodes = vec![0, 1, 2];
+    h.edges = vec![10, 11];
+    h.adjacency = vec![
+        Hyperedge {
+            sources: vec![NodeId(0)],
+            targets: vec![NodeId(1)],
+        },
+        Hyperedge {
+            sources: vec![NodeId(1)],
+            targets: vec![NodeId(2)],
+        },
+    ];
+
+    assert!(h.is_acyclic());
+}
+
+#[test]
+fn test_is_acyclic_false_cycle() {
+    let mut h = Hypergraph::empty();
+    h.nodes = vec![0, 1];
+    h.edges = vec![10, 11];
+    h.adjacency = vec![
+        Hyperedge {
+            sources: vec![NodeId(0)],
+            targets: vec![NodeId(1)],
+        },
+        Hyperedge {
+            sources: vec![NodeId(1)],
+            targets: vec![NodeId(0)],
+        },
+    ];
+
+    assert!(!h.is_acyclic());
+}
+
+#[test]
+fn test_is_acyclic_false_self_loop() {
+    let mut h = Hypergraph::empty();
+    h.nodes = vec![0];
+    h.edges = vec![10];
+    h.adjacency = vec![Hyperedge {
+        sources: vec![NodeId(0)],
+        targets: vec![NodeId(0)],
+    }];
+
+    assert!(!h.is_acyclic());
+}
