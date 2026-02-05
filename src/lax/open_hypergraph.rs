@@ -1,6 +1,6 @@
 //! Cospans of Hypergraphs.
 use super::hypergraph::*;
-use crate::array::vec::VecKind;
+use crate::strict::vec::{FiniteFunction, VecKind};
 
 /// A lax OpenHypergraph is a cospan of lax hypergraphs:
 /// a hypergraph equipped with two finite maps representing the *interfaces*.
@@ -135,10 +135,68 @@ impl<O, A> OpenHypergraph<O, A> {
     }
 }
 
+impl<O, A> OpenHypergraph<O, A> {
+    pub fn identity(a: Vec<O>) -> Self {
+        let mut f = OpenHypergraph::empty();
+        f.sources = (0..a.len()).map(NodeId).collect();
+        f.targets = (0..a.len()).map(NodeId).collect();
+        f.hypergraph.nodes = a;
+        f
+    }
+
+    pub fn spider(s: FiniteFunction, t: FiniteFunction, w: Vec<O>) -> Option<Self> {
+        // s and t must have target equal to the number of supplied nodes
+        if s.target != t.target || s.target != w.len() {
+            return None;
+        }
+
+        let mut f = OpenHypergraph::empty();
+        f.hypergraph.nodes = w;
+        f.sources = s.table.0.into_iter().map(NodeId).collect();
+        f.targets = t.table.0.into_iter().map(NodeId).collect();
+        Some(f)
+    }
+}
+
+impl<O: Clone, A: Clone> OpenHypergraph<O, A> {
+    pub fn tensor(&self, other: &Self) -> Self {
+        let hypergraph = Hypergraph::coproduct(&self.hypergraph, &other.hypergraph);
+
+        // renumber all nodes
+        let n = self.hypergraph.nodes.len();
+
+        let sources = self
+            .sources
+            .iter()
+            .cloned()
+            .chain(other.sources.iter().map(|&i| NodeId(i.0 + n)))
+            .collect();
+
+        let targets = self
+            .targets
+            .iter()
+            .cloned()
+            .chain(other.targets.iter().map(|&i| NodeId(i.0 + n)))
+            .collect();
+
+        OpenHypergraph {
+            sources,
+            targets,
+            hypergraph,
+        }
+    }
+}
+
 impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
     /// Apply the quotient map to identify nodes in the internal [`Hypergraph`].
     /// This deletes the internal quotient map, resulting in a *strict* [`OpenHypergraph`].
     pub fn quotient(&mut self) {
+        self.quotient_witness();
+    }
+
+    /// Like [`Self::quotient`], but also returns the coequalizer [`crate::finite_function::FiniteFunction`]
+    /// mapping pre-quotient node indices to post-quotient node indices.
+    pub fn quotient_witness(&mut self) -> crate::finite_function::FiniteFunction<VecKind> {
         // mutably quotient self.hypergraph, returning the coequalizer q
         let q = self.hypergraph.quotient();
 
@@ -150,6 +208,8 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
         self.targets
             .iter_mut()
             .for_each(|x| *x = NodeId(q.table[x.0]));
+
+        q
     }
 
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::strict::OpenHypergraph`] by
