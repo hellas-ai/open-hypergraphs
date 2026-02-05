@@ -1,4 +1,4 @@
-use crate::array::{vec::VecKind, Array, ArrayKind, NaturalArray};
+use crate::array::{Array, ArrayKind, NaturalArray};
 use crate::category::*;
 use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
@@ -122,17 +122,25 @@ where
     }
 }
 
-impl<O: Clone, A> Hypergraph<VecKind, O, A> {
+impl<K: ArrayKind, O, A> Hypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O>,
+{
     /// The number of occurrences of `node` as a target across all hyperedges.
-    pub fn in_degree(&self, node: usize) -> usize {
-        assert!(node < self.w.len(), "node id {} is out of bounds", node);
-        self.t.values.table.iter().filter(|&&t| t == node).count()
+    pub fn in_degree(&self, node: K::I) -> K::I {
+        let node = node.clone();
+        assert!(node < self.w.len(), "node id {:?} is out of bounds", node);
+        let counts = (self.t.values.table.as_ref() as &K::Type<K::I>).bincount(self.w.len());
+        counts.get(node)
     }
 
     /// The number of occurrences of `node` as a source across all hyperedges.
-    pub fn out_degree(&self, node: usize) -> usize {
-        assert!(node < self.w.len(), "node id {} is out of bounds", node);
-        self.s.values.table.iter().filter(|&&s| s == node).count()
+    pub fn out_degree(&self, node: K::I) -> K::I {
+        let node = node.clone();
+        assert!(node < self.w.len(), "node id {:?} is out of bounds", node);
+        let counts = (self.s.values.table.as_ref() as &K::Type<K::I>).bincount(self.w.len());
+        counts.get(node)
     }
 }
 

@@ -8,7 +8,7 @@ use crate::strict::hypergraph::{Hypergraph, InvalidHypergraph};
 
 use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     fn from(value: InvalidHypergraph<K>) -> Self {
@@ -301,7 +301,13 @@ impl<O: Clone, A> OpenHypergraph<VecKind, O, A> {
     pub fn out_nodes(&self) -> Vec<usize> {
         interface_image(&self.t.table, self.h.w.len())
     }
+}
 
+impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O>,
+{
     /// Whether this open hypergraph is monogamous.
     ///
     /// An open hypergraph `m -f-> G <-g- n` is monogamous if `f` and `g` are monic and:
@@ -310,37 +316,29 @@ impl<O: Clone, A> OpenHypergraph<VecKind, O, A> {
     pub fn is_monogamous(&self) -> bool {
         let node_count = self.h.w.len();
 
-        let in_set = match interface_set_if_mono(&self.s.table, node_count) {
-            Some(set) => set,
-            None => return false,
-        };
-        let out_set = match interface_set_if_mono(&self.t.table, node_count) {
-            Some(set) => set,
-            None => return false,
-        };
-
-        for node in 0..node_count {
-            let in_degree = self.h.in_degree(node);
-            let out_degree = self.h.out_degree(node);
-
-            if in_set[node] {
-                if in_degree != 0 {
-                    return false;
-                }
-            } else if in_degree != 1 {
-                return false;
-            }
-
-            if out_set[node] {
-                if out_degree != 0 {
-                    return false;
-                }
-            } else if out_degree != 1 {
-                return false;
-            }
+        // Check injectivity of the source interface map (no node appears twice).
+        let in_counts = (self.s.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        if in_counts.max().map(|m| m > K::I::one()).unwrap_or(false) {
+            return false;
         }
 
-        true
+        // Check injectivity of the target interface map (no node appears twice).
+        let out_counts = (self.t.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        if out_counts.max().map(|m| m > K::I::one()).unwrap_or(false) {
+            return false;
+        }
+
+        // Compute degrees of each node from hyperedges (multiplicity counted).
+        let in_degrees =
+            (self.h.t.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        let out_degrees =
+            (self.h.s.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        let ones = K::Index::fill(K::I::one(), node_count);
+
+        // Monogamy condition: for each node, degree is 0 iff on the interface, else 1.
+        // Equivalent to elementwise: degree + interface_count == 1.
+        (in_degrees + in_counts - ones.clone()).zero().len() == ones.len()
+            && (out_degrees + out_counts - ones).zero().len() == self.h.w.len()
     }
 }
 
@@ -355,18 +353,4 @@ fn interface_image(nodes: &VecArray<usize>, node_count: usize) -> Vec<usize> {
         }
     }
     image
-}
-
-fn interface_set_if_mono(nodes: &VecArray<usize>, node_count: usize) -> Option<Vec<bool>> {
-    let mut seen = vec![false; node_count];
-    for &node in nodes.iter() {
-        if node >= node_count {
-            return None;
-        }
-        if seen[node] {
-            return None;
-        }
-        seen[node] = true;
-    }
-    Some(seen)
 }
