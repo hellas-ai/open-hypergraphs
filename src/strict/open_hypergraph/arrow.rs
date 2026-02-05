@@ -1,3 +1,4 @@
+use crate::array::vec::{VecArray, VecKind};
 use crate::array::*;
 use crate::category::*;
 use crate::finite_function::*;
@@ -288,4 +289,84 @@ where
             .field("h", &self.h)
             .finish()
     }
+}
+
+impl<O: Clone, A> OpenHypergraph<VecKind, O, A> {
+    /// Image of the source interface map `m -> G` (deduplicated, order-preserving).
+    pub fn in_nodes(&self) -> Vec<usize> {
+        interface_image(&self.s.table, self.h.w.len())
+    }
+
+    /// Image of the target interface map `n -> G` (deduplicated, order-preserving).
+    pub fn out_nodes(&self) -> Vec<usize> {
+        interface_image(&self.t.table, self.h.w.len())
+    }
+
+    /// Whether this open hypergraph is monogamous.
+    ///
+    /// An open hypergraph `m -f-> G <-g- n` is monogamous if `f` and `g` are monic and:
+    /// - for all nodes v, in-degree(v) is 0 if v in in(G), else 1
+    /// - for all nodes v, out-degree(v) is 0 if v in out(G), else 1
+    pub fn is_monogamous(&self) -> bool {
+        let node_count = self.h.w.len();
+
+        let in_set = match interface_set_if_mono(&self.s.table, node_count) {
+            Some(set) => set,
+            None => return false,
+        };
+        let out_set = match interface_set_if_mono(&self.t.table, node_count) {
+            Some(set) => set,
+            None => return false,
+        };
+
+        for node in 0..node_count {
+            let in_degree = self.h.in_degree(node);
+            let out_degree = self.h.out_degree(node);
+
+            if in_set[node] {
+                if in_degree != 0 {
+                    return false;
+                }
+            } else if in_degree != 1 {
+                return false;
+            }
+
+            if out_set[node] {
+                if out_degree != 0 {
+                    return false;
+                }
+            } else if out_degree != 1 {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+fn interface_image(nodes: &VecArray<usize>, node_count: usize) -> Vec<usize> {
+    let mut seen = vec![false; node_count];
+    let mut image = Vec::new();
+    for &node in nodes.iter() {
+        assert!(node < node_count, "node id {} is out of bounds", node);
+        if !seen[node] {
+            seen[node] = true;
+            image.push(node);
+        }
+    }
+    image
+}
+
+fn interface_set_if_mono(nodes: &VecArray<usize>, node_count: usize) -> Option<Vec<bool>> {
+    let mut seen = vec![false; node_count];
+    for &node in nodes.iter() {
+        if node >= node_count {
+            return None;
+        }
+        if seen[node] {
+            return None;
+        }
+        seen[node] = true;
+    }
+    Some(seen)
 }

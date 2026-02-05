@@ -1,4 +1,4 @@
-use crate::array::{Array, ArrayKind, NaturalArray};
+use crate::array::{vec::VecKind, Array, ArrayKind, NaturalArray};
 use crate::category::*;
 use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
@@ -119,6 +119,20 @@ where
         let t = IndexedCoproduct::new(b.sources, inj1).expect("invalid Operations?");
         let w = a.values + b.values;
         Hypergraph { s, t, w, x }
+    }
+}
+
+impl<O: Clone, A> Hypergraph<VecKind, O, A> {
+    /// The number of occurrences of `node` as a target across all hyperedges.
+    pub fn in_degree(&self, node: usize) -> usize {
+        assert!(node < self.w.len(), "node id {} is out of bounds", node);
+        self.t.values.table.iter().filter(|&&t| t == node).count()
+    }
+
+    /// The number of occurrences of `node` as a source across all hyperedges.
+    pub fn out_degree(&self, node: usize) -> usize {
+        assert!(node < self.w.len(), "node id {} is out of bounds", node);
+        self.s.values.table.iter().filter(|&&s| s == node).count()
     }
 }
 

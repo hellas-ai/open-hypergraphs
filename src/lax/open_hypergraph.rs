@@ -92,58 +92,6 @@ impl<O, A> OpenHypergraph<O, A> {
         self.hypergraph.add_edge_target(edge_id, w)
     }
 
-    /// Image of the source interface map `m -> G` (deduplicated, order-preserving).
-    pub fn in_nodes(&self) -> Vec<NodeId> {
-        interface_image(&self.sources, self.hypergraph.nodes.len())
-    }
-
-    /// Image of the target interface map `n -> G` (deduplicated, order-preserving).
-    pub fn out_nodes(&self) -> Vec<NodeId> {
-        interface_image(&self.targets, self.hypergraph.nodes.len())
-    }
-
-    /// Whether this open hypergraph is monogamous.
-    ///
-    /// An open hypergraph `m -f-> G <-g- n` is monogamous if `f` and `g` are monic and:
-    /// - for all nodes v, in-degree(v) is 0 if v in in(G), else 1
-    /// - for all nodes v, out-degree(v) is 0 if v in out(G), else 1
-    pub fn is_monogamous(&self) -> bool {
-        let node_count = self.hypergraph.nodes.len();
-
-        let in_set = match interface_set_if_mono(&self.sources, node_count) {
-            Some(set) => set,
-            None => return false,
-        };
-        let out_set = match interface_set_if_mono(&self.targets, node_count) {
-            Some(set) => set,
-            None => return false,
-        };
-
-        for i in 0..node_count {
-            let node = NodeId(i);
-            let in_degree = self.hypergraph.in_degree(node);
-            let out_degree = self.hypergraph.out_degree(node);
-
-            if in_set[i] {
-                if in_degree != 0 {
-                    return false;
-                }
-            } else if in_degree != 1 {
-                return false;
-            }
-
-            if out_set[i] {
-                if out_degree != 0 {
-                    return false;
-                }
-            } else if out_degree != 1 {
-                return false;
-            }
-        }
-
-        true
-    }
-
     /// Set the nodes of the OpenHypergraph, possibly changing types.
     /// Returns None if new nodes array had different length.
     pub fn with_nodes<T, F: FnOnce(Vec<O>) -> Vec<T>>(self, f: F) -> Option<OpenHypergraph<T, A>> {
@@ -185,37 +133,6 @@ impl<O, A> OpenHypergraph<O, A> {
             hypergraph: self.hypergraph.map_edges(f),
         }
     }
-}
-
-fn interface_image(nodes: &[NodeId], node_count: usize) -> Vec<NodeId> {
-    let mut seen = vec![false; node_count];
-    let mut image = Vec::new();
-    for &node in nodes {
-        assert!(
-            node.0 < node_count,
-            "node id {:?} is out of bounds",
-            node
-        );
-        if !seen[node.0] {
-            seen[node.0] = true;
-            image.push(node);
-        }
-    }
-    image
-}
-
-fn interface_set_if_mono(nodes: &[NodeId], node_count: usize) -> Option<Vec<bool>> {
-    let mut seen = vec![false; node_count];
-    for &node in nodes {
-        if node.0 >= node_count {
-            return None;
-        }
-        if seen[node.0] {
-            return None;
-        }
-        seen[node.0] = true;
-    }
-    Some(seen)
 }
 
 impl<O, A> OpenHypergraph<O, A> {
