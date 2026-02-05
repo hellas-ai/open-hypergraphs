@@ -1,4 +1,3 @@
-use open_hypergraphs::array::vec::VecArray;
 use open_hypergraphs::lax::{Hyperedge, Hypergraph as LaxHypergraph, NodeId};
 use open_hypergraphs::strict::graph;
 
