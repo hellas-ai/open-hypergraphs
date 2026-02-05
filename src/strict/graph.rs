@@ -7,7 +7,6 @@ use crate::finite_function::FiniteFunction;
 use crate::indexed_coproduct::HasLen;
 use crate::indexed_coproduct::IndexedCoproduct;
 use crate::strict::hypergraph::Hypergraph;
-use crate::strict::open_hypergraph::OpenHypergraph;
 use num_traits::{One, Zero};
 
 /// Compute the *converse* of an [`IndexedCoproduct`] thought of as a "multirelation".
@@ -47,18 +46,18 @@ where
     IndexedCoproduct::new(sources, values).unwrap()
 }
 
-/// Return the adjacency map for an [`OpenHypergraph`] `f`.
+/// Return the adjacency map for a [`Hypergraph`] `h`.
 ///
-/// If `X` is the finite set of operations in `f`, then `operation_adjacency(f)` computes the
+/// If `X` is the finite set of operations in `h`, then `operation_adjacency(h)` computes the
 /// indexed coproduct `adjacency : X → X*`, where the list `adjacency(x)` is all operations reachable in
 /// a single step from operation `x`.
 pub fn operation_adjacency<K: ArrayKind, O, A>(
-    f: &OpenHypergraph<K, O, A>,
+    h: &Hypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    f.h.t.flatmap(&converse(&f.h.s))
+    h.t.flatmap(&converse(&h.s))
 }
 
 /// Return the node-level adjacency map for a [`Hypergraph`].
@@ -158,6 +157,7 @@ where
     (order.into(), unvisited)
 }
 
+/// Compute indegree of all nodes in a multigraph.
 pub fn indegree<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> FiniteFunction<K>
@@ -169,6 +169,20 @@ where
     dense_relative_indegree(adjacency, &FiniteFunction::<K>::identity(adjacency.len()))
 }
 
+/// Using the adjacency information in `adjacency`, compute the indegree of all nodes reachable from `f`.
+///
+/// More formally, define:
+///
+/// ```text
+/// a : Σ_{n ∈ A} s(n) → N  // the adjacency information of each
+/// f : K → N               // a subset of `K` nodes
+/// ```
+///
+/// Then `dense_relative_indegree(a, f)` computes the indegree from `f` of all `N` nodes.
+///
+/// # Returns
+///
+/// A finite function `N → E+1` denoting indegree of each node in `N` relative to `f`.
 pub fn dense_relative_indegree<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
     f: &FiniteFunction<K>,
@@ -188,6 +202,18 @@ where
     FiniteFunction::new(table, target).unwrap()
 }
 
+/// Using the adjacency information in `adjacency`, compute the indegree of all nodes reachable from `f`.
+///
+/// More formally, let:
+///
+/// - `a : Σ_{n ∈ A} s(n) → N` denote the adjacency information of each
+/// - `f : K → N` be a subset of `K` nodes
+///
+/// Then `sparse_relative_indegree(a, f)` computes:
+///
+/// - `g : R → N`, the subset of (R)eachable nodes reachable from `f`
+/// - `i : R → E+1`, the *indegree* of nodes in `R`.
+///
 pub fn sparse_relative_indegree<K: ArrayKind>(
     a: &IndexedCoproduct<K, FiniteFunction<K>>,
     f: &FiniteFunction<K>,
@@ -220,12 +246,16 @@ pub fn filter<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index
     predicate.repeat(values.get_range(..))
 }
 
-// FiniteFunction helpers
-pub fn zero<K: ArrayKind>(f: &FiniteFunction<K>) -> K::Index
+/// Given an array of indices `values` in `{0..N}` and a predicate `N → 2`, select select values `i` for
+/// which `predicate(i) = 1`.
+#[allow(dead_code)]
+fn filter_by_dense<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    (f.table.as_ref() as &K::Type<K::I>).zero()
+    predicate
+        .gather(values.get_range(..))
+        .repeat(values.get_range(..))
 }
 
 /// Given a FiniteFunction `X → L`, compute its converse,
@@ -238,4 +268,15 @@ where
 {
     let c = converse(&IndexedCoproduct::elements(order));
     c.into_iter().map(|x| x.table)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Array trait helpers
+
+// FiniteFunction helpers
+pub fn zero<K: ArrayKind>(f: &FiniteFunction<K>) -> K::Index
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    (f.table.as_ref() as &K::Type<K::I>).zero()
 }

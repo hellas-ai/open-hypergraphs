@@ -114,7 +114,7 @@ fn test_indegree() {
     //      └───┘
     println!("singleton");
     let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
-    let a = operation_adjacency(&f);
+    let a = operation_adjacency(&f.h);
     let i = indegree(&a);
     assert_eq!(i.table, VecArray(vec![0]));
 
@@ -129,7 +129,7 @@ fn test_indegree() {
     println!("(g | g) >> f");
     let g = OpenHypergraph::singleton(G, y.clone(), y.clone());
     let h = (&(&g | &g) >> &f).unwrap();
-    let a = operation_adjacency(&h);
+    let a = operation_adjacency(&h.h);
     let i = indegree(&a);
     assert_eq!(i.table, VecArray(vec![0, 0, 2]));
 
@@ -144,7 +144,7 @@ fn test_indegree() {
     println!("f >> f_op");
     let f_op = OpenHypergraph::singleton(F, y.clone(), x.clone());
     let h = (&f >> &f_op).unwrap();
-    let a = operation_adjacency(&h);
+    let a = operation_adjacency(&h.h);
     let i = indegree(&a);
     assert_eq!(i.table, VecArray(vec![0, 1]));
 
@@ -156,7 +156,7 @@ fn test_indegree() {
     //    └───┘         └───┘
     println!("f_op >> f");
     let h = (&f_op >> &f).unwrap();
-    let a = operation_adjacency(&h);
+    let a = operation_adjacency(&h.h);
     let i = indegree(&a);
     assert_eq!(i.table, VecArray(vec![0, 2]));
 }
@@ -191,7 +191,7 @@ fn test_operation_adjacency() {
     // ●────│   │
     //      └───┘
     let f = OpenHypergraph::<VecKind, _, _>::singleton(F, x.clone(), y.clone());
-    let result = operation_adjacency::<VecKind, Obj, Arr>(&f);
+    let result = operation_adjacency::<VecKind, Obj, Arr>(&f.h);
     assert_eq!(result.sources.table, VecArray(vec![0]));
     assert_eq!(result.values.table, VecArray(vec![]));
 
@@ -205,7 +205,7 @@ fn test_operation_adjacency() {
     //      └───┘
     let g = OpenHypergraph::singleton(G, y.clone(), y.clone());
     let h = (&(&g | &g) >> &f).unwrap();
-    let result = operation_adjacency::<VecKind, Obj, Arr>(&h);
+    let result = operation_adjacency::<VecKind, Obj, Arr>(&h.h);
     assert_eq!(result.sources.table, VecArray(vec![1, 1, 0]));
     assert_eq!(result.values.table, VecArray(vec![2, 2]));
 
@@ -219,7 +219,7 @@ fn test_operation_adjacency() {
     //
     let f_op = OpenHypergraph::singleton(F, y.clone(), x.clone());
     let h = (&f >> &f_op).unwrap();
-    let result = operation_adjacency(&h);
+    let result = operation_adjacency(&h.h);
     assert_eq!(result.sources.table, VecArray(vec![1, 0]));
     assert_eq!(result.values.table, VecArray(vec![1]));
 
@@ -230,7 +230,7 @@ fn test_operation_adjacency() {
     //    │   │────●────│   │
     //    └───┘         └───┘
     let h = (&f_op >> &f).unwrap();
-    let result = operation_adjacency(&h);
+    let result = operation_adjacency(&h.h);
     assert_eq!(result.sources.table, VecArray(vec![2, 0]));
     assert_eq!(result.values.table, VecArray(vec![1, 1]));
 }

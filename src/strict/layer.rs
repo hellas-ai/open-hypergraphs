@@ -22,7 +22,7 @@ where
     K::Type<A>: Array<K, A>,
     K::Type<K::I>: NaturalArray<K>,
 {
-    let a = graph::operation_adjacency(f);
+    let a = graph::operation_adjacency(&f.h);
     let (ordering, completed) = graph::kahn(&a);
     (
         FiniteFunction::new(ordering, f.h.x.0.len()).unwrap(),

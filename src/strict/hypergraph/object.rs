@@ -168,7 +168,6 @@ where
     }
 }
 
-
 // NOTE: manual Debug required because we need to specify array bounds.
 impl<K: ArrayKind, O: Debug, A: Debug> Debug for Hypergraph<K, O, A>
 where
