@@ -214,6 +214,22 @@ impl<K: ArrayKind> FiniteFunction<K> {
         let table = Array::from_slice(extended_table.get_range(..self.source()));
         FiniteFunction { table, target }
     }
+
+}
+
+impl<K: ArrayKind> FiniteFunction<K>
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    /// Check if this finite function is injective.
+    pub fn is_injective(&self) -> bool {
+        if self.source().is_zero() {
+            return true;
+        }
+
+        let counts = self.table.bincount(self.target.clone());
+        counts.max().map_or(true, |m| m <= K::I::one())
+    }
 }
 
 /// Compute the universal map for a coequalizer `q : B → Q` and arrow `f : B → T`, generalised to

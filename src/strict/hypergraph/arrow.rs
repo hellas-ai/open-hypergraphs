@@ -1,8 +1,54 @@
 use super::object::Hypergraph;
-use crate::array::{Array, ArrayKind};
+use crate::array::{Array, ArrayKind, NaturalArray};
 use crate::finite_function::FiniteFunction;
+use crate::indexed_coproduct::IndexedCoproduct;
+use crate::strict::graph::{
+    node_adjacency, node_adjacency_from_incidence, sparse_relative_indegree,
+};
 
 use core::fmt::Debug;
+use num_traits::{One, Zero};
+
+fn successors<K: ArrayKind>(
+    adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
+    frontier: &K::Index,
+) -> K::Index
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    if frontier.is_empty() {
+        return K::Index::empty();
+    }
+
+    let f = FiniteFunction::new(frontier.clone(), adjacency.len()).unwrap();
+    let (g, _) = sparse_relative_indegree(adjacency, &f);
+    g.table
+}
+
+fn filter_unvisited<K: ArrayKind>(visited: &K::Index, candidates: &K::Index) -> K::Index
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    if candidates.is_empty() {
+        return K::Index::empty();
+    }
+
+    let visited_on_candidates = visited.gather(candidates.get_range(..));
+    let unvisited_ix = visited_on_candidates.zero();
+    candidates.gather(unvisited_ix.get_range(..))
+}
+
+fn all_in_mask<K: ArrayKind>(mask: &K::Index, values: &K::Index) -> bool
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    if values.is_empty() {
+        return true;
+    }
+
+    let hits = mask.gather(values.get_range(..));
+    hits.sum() == values.len()
+}
 
 #[derive(Debug)]
 pub enum InvalidHypergraphArrow {
@@ -71,6 +117,120 @@ where
         // Types of operations are also preserved under w and x.
         //assert_eq!(g.s.values >> g.w, h.s.indexed_values(f.x) >> h.w);
         //assert_eq!(g.t.values >> g.w, h.t.indexed_values(f.x) >> h.w);
+    }
+
+    /// True when this arrow is injective on both nodes and edges.
+    pub fn is_monomorphism(&self) -> bool
+    where
+        K::Type<K::I>: NaturalArray<K>,
+    {
+        self.w.is_injective() && self.x.is_injective()
+    }
+
+    /// True when this arrow is injective on nodes and edges and has no dangling edges in the image.
+    pub fn is_subobject(&self) -> bool
+    where
+        K::Type<K::I>: NaturalArray<K>,
+    {
+        if !self.is_monomorphism() {
+            return false;
+        }
+
+        let g = &self.target;
+        // node_mask[i] = 1 iff node i is in the image
+        let mut node_mask = K::Index::fill(K::I::zero(), g.w.len());
+        node_mask.scatter_assign_constant(&self.w.table, K::I::one());
+
+        // restrict target incidence to selected edges
+        let s_in = g.s.map_indexes(&self.x).unwrap();
+        let t_in = g.t.map_indexes(&self.x).unwrap();
+        let s_vals = s_in.values.table;
+        let t_vals = t_in.values.table;
+
+        all_in_mask::<K>(&node_mask, &s_vals) && all_in_mask::<K>(&node_mask, &t_vals)
+    }
+
+    /// Check convexity of a subgraph `H → G`.
+    ///
+    pub fn is_convex_subgraph(&self) -> bool
+    where
+        K::Type<K::I>: NaturalArray<K>,
+    {
+        if !self.is_subobject() {
+            return false;
+        }
+
+        let g = &self.target;
+        let n_nodes = g.w.len();
+        let n_edges = g.x.len();
+
+        // Build the complement set of edges (those not in the image of x).
+        let mut edge_mask = K::Index::fill(K::I::zero(), n_edges.clone());
+        edge_mask.scatter_assign_constant(&self.x.table, K::I::one());
+        let outside_edge_ix = edge_mask.zero();
+        let outside_edges = FiniteFunction::new(outside_edge_ix, n_edges).unwrap();
+
+        // Adjacency restricted to edges in the subobject (inside edges).
+        let s_in = g.s.map_indexes(&self.x).unwrap();
+        let t_in = g.t.map_indexes(&self.x).unwrap();
+        let adj_in = node_adjacency_from_incidence(&s_in, &t_in);
+
+        // Adjacency restricted to edges outside the subobject.
+        let s_out = g.s.map_indexes(&outside_edges).unwrap();
+        let t_out = g.t.map_indexes(&outside_edges).unwrap();
+        let adj_out = node_adjacency_from_incidence(&s_out, &t_out);
+
+        // Full adjacency (used after we've already left the subobject).
+        let adj_all = node_adjacency(g);
+
+        // Two-layer reachability:
+        // - layer 0: paths that have used only inside edges
+        // - layer 1: paths that have used at least one outside edge
+        //
+        // Convexity fails iff some selected node is reachable in layer 1.
+        let mut visited0 = K::Index::fill(K::I::zero(), n_nodes.clone());
+        let mut visited1 = K::Index::fill(K::I::zero(), n_nodes.clone());
+        let mut frontier0 = self.w.table.clone();
+        let mut frontier1 = K::Index::empty();
+
+        // Seed search from the selected nodes.
+        visited0.scatter_assign_constant(&frontier0, K::I::one());
+
+        while !frontier0.is_empty() || !frontier1.is_empty() {
+            // From layer 0, inside edges stay in layer 0.
+            let next0: K::Index = successors::<K>(&adj_in, &frontier0);
+            // From layer 0, outside edges move to layer 1.
+            let next1_from0 = successors::<K>(&adj_out, &frontier0);
+            // From layer 1, any edge keeps you in layer 1.
+            let next1_from1 = successors::<K>(&adj_all, &frontier1);
+
+            // Avoid revisiting nodes we've already seen in the same layer.
+            let next0: K::Index = filter_unvisited::<K>(&visited0, &next0);
+
+            let next1: K::Index = {
+                let merged = next1_from0.concatenate(&next1_from1);
+                if merged.is_empty() {
+                    K::Index::empty()
+                } else {
+                    let (unique, _) = merged.sparse_bincount();
+                    filter_unvisited::<K>(&visited1, &unique)
+                }
+            };
+
+            if next0.is_empty() && next1.is_empty() {
+                break;
+            }
+
+            // Mark and advance frontiers.
+            visited0.scatter_assign_constant(&next0, K::I::one());
+            visited1.scatter_assign_constant(&next1, K::I::one());
+            frontier0 = next0;
+            frontier1 = next1;
+        }
+
+        // If any selected node is reachable in layer 1, it's not convex.
+        let reached_selected = visited1.gather(self.w.table.get_range(..));
+        !reached_selected.max().map_or(false, |m| m >= K::I::one())
     }
 }
 

@@ -68,7 +68,21 @@ pub fn node_adjacency<K: ArrayKind, O, A>(
 where
     K::Type<K::I>: NaturalArray<K>,
 {
-    converse(&h.s).flatmap(&h.t)
+    node_adjacency_from_incidence(&h.s, &h.t)
+}
+
+/// Return the node-level adjacency map from incidence data.
+///
+/// If `W` is the finite set of nodes, then the result is an indexed coproduct
+/// `adjacency : W → W*`, where `adjacency(w)` is all nodes reachable in a single step from `w`.
+pub fn node_adjacency_from_incidence<K: ArrayKind>(
+    s: &IndexedCoproduct<K, FiniteFunction<K>>,
+    t: &IndexedCoproduct<K, FiniteFunction<K>>,
+) -> IndexedCoproduct<K, FiniteFunction<K>>
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    converse(s).flatmap(t)
 }
 
 /// A kahn-ish algorithm for topological sorting of an adjacency relation, encoded as an
