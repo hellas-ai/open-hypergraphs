@@ -8,6 +8,7 @@ pub mod open_hypergraph;
 
 pub mod eval;
 pub mod functor;
+pub mod graph;
 pub mod layer;
 
 pub use crate::array::*;
