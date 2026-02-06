@@ -214,7 +214,6 @@ impl<K: ArrayKind> FiniteFunction<K> {
         let table = Array::from_slice(extended_table.get_range(..self.source()));
         FiniteFunction { table, target }
     }
-
 }
 
 impl<K: ArrayKind> FiniteFunction<K>
