@@ -122,14 +122,6 @@ where
         self.sources.source()
     }
 
-    /// Canonical map from coproduct values to their index.
-    /// For `Σ_{i∈I} s(i)`, this is the projection `Σ_{i∈I} s(i) -> I`.
-    pub fn sources_to_index(&self) -> FiniteFunction<K> {
-        let idx = K::Index::arange(&K::I::zero(), &self.len());
-        let table = self.sources.table.repeat(idx.get_range(..));
-        FiniteFunction::new(table, self.len()).expect("by construction")
-    }
-
     /// Like [`IndexedCoproduct::flatmap`], but where the values of `other` are already mapped.
     ///
     /// Conceptually, suppose we have
