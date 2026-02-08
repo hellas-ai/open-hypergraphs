@@ -167,23 +167,6 @@ where
     }
 }
 
-impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
-where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<O>: Array<K, O> + PartialEq,
-    K::Type<A>: Array<K, A> + PartialEq,
-{
-    /// Build the boundary arrow `n+m -> G` where `n+m` is discrete.
-    pub fn boundary_arrow(&self) -> HypergraphArrow<K, O, A> {
-        let boundary = self.source().coproduct(&self.target());
-        let source = Hypergraph::discrete(boundary);
-        let w = (&self.s + &self.t).expect("invalid open hypergraph: cospan legs not coproductible");
-        let x = FiniteFunction::<K>::initial(self.h.x.len());
-        HypergraphArrow::new(source, self.h.clone(), w, x)
-            .expect("invalid open hypergraph: boundary arrow not natural")
-    }
-}
-
 impl<K: ArrayKind, O, A> Arrow for OpenHypergraph<K, O, A>
 where
     K::Type<K::I>: NaturalArray<K>,
