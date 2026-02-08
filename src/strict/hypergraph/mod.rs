@@ -2,5 +2,8 @@
 //! and arrows by [`arrow::HypergraphArrow`].
 pub mod arrow;
 mod object;
+mod subobject;
+#[cfg(test)]
+mod subobject_tests;
 
 pub use object::*;

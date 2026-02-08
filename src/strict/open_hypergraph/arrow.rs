@@ -3,7 +3,7 @@ use crate::category::*;
 use crate::finite_function::*;
 use crate::operations::*;
 use crate::semifinite::*;
-use crate::strict::hypergraph::{Hypergraph, InvalidHypergraph};
+use crate::strict::hypergraph::{arrow::HypergraphArrow, Hypergraph, InvalidHypergraph};
 
 use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
@@ -120,6 +120,21 @@ where
         let h = Hypergraph::discrete(w);
         Some(OpenHypergraph { s, t, h })
     }
+
+    pub fn is_monogamous(&self) -> bool
+    where
+        K::Type<bool>: Array<K, bool>,
+    {
+        // TODO: implement monogamy check
+        // Note: when implemented, monogamy should also imply boundary legs are injective.
+        debug_assert!(self.s.is_injective() && self.t.is_injective());
+        true
+    }
+
+    pub fn is_acyclic(&self) -> bool {
+        // TODO: implement acyclicity check
+        true
+    }
 }
 
 impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
@@ -149,6 +164,23 @@ where
         let h = self.tensor(other).h.coequalize_vertices(&q).unwrap();
 
         Some(OpenHypergraph { s, t, h })
+    }
+}
+
+impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A> + PartialEq,
+{
+    /// Build the boundary arrow `n+m -> G` where `n+m` is discrete.
+    pub fn boundary_arrow(&self) -> HypergraphArrow<K, O, A> {
+        let boundary = self.source().coproduct(&self.target());
+        let source = Hypergraph::discrete(boundary);
+        let w = (&self.s + &self.t).expect("invalid open hypergraph: cospan legs not coproductible");
+        let x = FiniteFunction::<K>::initial(self.h.x.len());
+        HypergraphArrow::new(source, self.h.clone(), w, x)
+            .expect("invalid open hypergraph: boundary arrow not natural")
     }
 }
 

@@ -112,6 +112,98 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Self::initial(self.target.clone())
     }
 
+    /// Check if this finite function is injective (no repeated targets).
+    pub fn is_injective(&self) -> bool
+    where
+        K::Type<bool>: Array<K, bool>,
+    {
+        let mut seen = K::Type::<bool>::fill(false, self.target.clone());
+        let mut i = K::I::zero();
+        while i < self.table.len() {
+            let w = self.table.get(i.clone());
+            if seen.get(w.clone()) {
+                return false;
+            }
+            let value = K::Type::<bool>::fill(true, K::I::one());
+            seen.set_range(w.clone()..w.clone() + K::I::one(), &value);
+            i = i + K::I::one();
+        }
+        true
+    }
+
+    /// Return the injection of the complement of `im(self)` into the same target.
+    pub fn complement_injection(&self) -> FiniteFunction<K>
+    where
+        K::Type<bool>: Array<K, bool>,
+        for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
+    {
+        let mut in_image = K::Type::<bool>::fill(false, self.target.clone());
+        if self.table.len() != K::I::zero() {
+            in_image.scatter_assign_constant(&self.table, true);
+        }
+
+        let mut kept = Vec::<K::I>::new();
+        let mut i = K::I::zero();
+        while i < in_image.len() {
+            if !in_image.get(i.clone()) {
+                kept.push(i.clone());
+            }
+            i = i + K::I::one();
+        }
+
+        let slice: K::Slice<'_, K::I> = kept.as_slice().into();
+        let table = K::Index::from_slice(slice);
+        FiniteFunction {
+            table,
+            target: self.target.clone(),
+        }
+    }
+
+    /// Compute the pullback of `f : A -> C` and `g : B -> C`.
+    /// Returns projections `p1 : P -> A` and `p2 : P -> B` for the pullback object `P`.
+    pub fn pullback(
+        f: &FiniteFunction<K>,
+        g: &FiniteFunction<K>,
+    ) -> Option<(FiniteFunction<K>, FiniteFunction<K>)>
+    where
+        K::Type<K::I>: NaturalArray<K>,
+        for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
+    {
+        if f.target() != g.target() {
+            return None;
+        }
+
+        let mut left = Vec::<K::I>::new();
+        let mut right = Vec::<K::I>::new();
+
+        let mut b = K::I::zero();
+        while b < g.source() {
+            let gb = g.table.get(b.clone());
+            let mut a = K::I::zero();
+            while a < f.source() {
+                if f.table.get(a.clone()) == gb {
+                    left.push(a.clone());
+                    right.push(b.clone());
+                }
+                a = a + K::I::one();
+            }
+            b = b + K::I::one();
+        }
+
+        let left_table = {
+            let slice: K::Slice<'_, K::I> = left.as_slice().into();
+            K::Index::from_slice(slice)
+        };
+        let right_table = {
+            let slice: K::Slice<'_, K::I> = right.as_slice().into();
+            K::Index::from_slice(slice)
+        };
+
+        let p1 = FiniteFunction::new(left_table, f.source())?;
+        let p2 = FiniteFunction::new(right_table, g.source())?;
+        Some((p1, p2))
+    }
+
     pub fn coequalizer(&self, other: &Self) -> Option<FiniteFunction<K>> {
         // if self is parallel to other
         if self.source() != other.source() || self.target() != other.target() {

@@ -122,6 +122,14 @@ where
         self.sources.source()
     }
 
+    /// Canonical map from coproduct values to their index.
+    /// For `Σ_{i∈I} s(i)`, this is the projection `Σ_{i∈I} s(i) -> I`.
+    pub fn sources_to_index(&self) -> FiniteFunction<K> {
+        let idx = K::Index::arange(&K::I::zero(), &self.len());
+        let table = self.sources.table.repeat(idx.get_range(..));
+        FiniteFunction::new(table, self.len()).expect("by construction")
+    }
+
     /// Like [`IndexedCoproduct::flatmap`], but where the values of `other` are already mapped.
     ///
     /// Conceptually, suppose we have
@@ -254,6 +262,60 @@ where
 
         IndexedCoproduct::from_semifinite(SemifiniteFunction(sources_table.into()), values).unwrap()
     }
+
+    pub fn remove_segments(
+        &self,
+        remove_segment_mask: &K::Type<bool>,
+    ) -> Option<IndexedCoproduct<K, FiniteFunction<K>>>
+    where
+        K::Type<bool>: Array<K, bool>,
+        for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
+    {
+        let n_ops = self.len();
+        let ptr = self.sources.table.cumulative_sum();
+        let values = &self.values.table;
+
+        let mut new_lengths = Vec::<K::I>::new();
+        let mut new_values = Vec::<K::I>::new();
+
+        let mut op = K::I::zero();
+        while op < n_ops {
+            if !remove_segment_mask.get(op.clone()) {
+                let start = ptr.get(op.clone());
+                let end = ptr.get(op.clone() + K::I::one());
+                new_lengths.push(end.clone() - start.clone());
+
+                let mut k = start;
+                while k < end {
+                    new_values.push(values.get(k.clone()));
+                    k = k + K::I::one();
+                }
+            }
+            op = op + K::I::one();
+        }
+
+        let sources = SemifiniteFunction(array_from_vec::<K, K::I>(&new_lengths));
+        let values = FiniteFunction::new(index_from_vec::<K>(&new_values), self.values.target())?;
+        IndexedCoproduct::from_semifinite(sources, values)
+    }
+}
+
+fn array_from_vec<K: ArrayKind, T: Clone>(v: &Vec<T>) -> K::Type<T>
+where
+    K::Type<T>: Array<K, T>,
+    for<'a> K::Slice<'a, T>: From<&'a [T]>,
+{
+    let slice: K::Slice<'_, T> = v.as_slice().into();
+    K::Type::from_slice(slice)
+}
+
+fn index_from_vec<K: ArrayKind>(v: &Vec<K::I>) -> K::Index
+where
+    K::Index: Array<K, K::I>,
+    for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
+{
+    let slice: K::Slice<'_, K::I> = v.as_slice().into();
+    K::Index::from_slice(slice)
 }
 
 // Special case methods for SemifiniteFunction
