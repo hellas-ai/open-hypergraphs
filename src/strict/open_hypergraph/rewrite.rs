@@ -464,8 +464,7 @@ where
     let g = (&g_in + &g_out)?;
 
     // Compute the pushout hypergraph and the two induced arrows.
-    let (h, left_arrow, _right_arrow) =
-        Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
+    let (h, left_arrow, _right_arrow) = Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
 
     // Rebuild the host boundary maps (prefix of context boundaries).
     let s_host = slice_map(&context.s, K::I::zero(), host_inputs)?;

@@ -4,8 +4,8 @@ use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
 use crate::operations::Operations;
 use crate::semifinite::*;
-use crate::strict::hypergraph::subobject::SubgraphMorphism;
 use crate::strict::hypergraph::arrow::HypergraphArrow;
+use crate::strict::hypergraph::subobject::SubgraphMorphism;
 
 use core::fmt::Debug;
 use core::ops::Add;
@@ -196,7 +196,8 @@ where
         let x_right = FiniteFunction::inj1(left.x.len(), right.x.len());
 
         let left_arrow = HypergraphArrow::new(left.clone(), target.clone(), w_left, x_left).ok()?;
-        let right_arrow = HypergraphArrow::new(right.clone(), target.clone(), w_right, x_right).ok()?;
+        let right_arrow =
+            HypergraphArrow::new(right.clone(), target.clone(), w_right, x_right).ok()?;
 
         Some((target, left_arrow, right_arrow))
     }

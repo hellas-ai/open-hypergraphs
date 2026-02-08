@@ -70,32 +70,11 @@ fn make_map(indices: &[usize], target: usize) -> FiniteFunction<VecKind> {
 #[test]
 fn apply_rewrite_replaces_matched_edge() {
     // Host: edge 0 labeled 20 from wire 0 -> 1, with boundary 0 input, 1 output.
-    let host = make_open_hypergraph(
-        &[vec![0]],
-        &[vec![1]],
-        vec![10, 11],
-        vec![20],
-        &[0],
-        &[1],
-    );
+    let host = make_open_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![20], &[0], &[1]);
 
     // LHS matches the single edge, RHS replaces it with label 21 (same boundary).
-    let lhs = make_open_hypergraph(
-        &[vec![0]],
-        &[vec![1]],
-        vec![10, 11],
-        vec![20],
-        &[0],
-        &[1],
-    );
-    let rhs = make_open_hypergraph(
-        &[vec![0]],
-        &[vec![1]],
-        vec![10, 11],
-        vec![21],
-        &[0],
-        &[1],
-    );
+    let lhs = make_open_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![20], &[0], &[1]);
+    let rhs = make_open_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![21], &[0], &[1]);
     let rule = RewriteRule::new(lhs, rhs).unwrap();
 
     let host_w_map = make_map(&[0, 1], host.h.w.len());
@@ -115,20 +94,10 @@ fn apply_rewrite_replaces_matched_edge() {
 #[test]
 fn apply_rewrite_removes_matched_subgraph_with_empty_rhs() {
     // Host: edge 0 labeled 20 from wire 0 -> 1, no boundary.
-    let host = make_open_hypergraph_empty_boundary(
-        &[vec![0]],
-        &[vec![1]],
-        vec![10, 11],
-        vec![20],
-    );
+    let host = make_open_hypergraph_empty_boundary(&[vec![0]], &[vec![1]], vec![10, 11], vec![20]);
 
     // LHS matches the whole host (empty boundary), RHS is empty.
-    let lhs = make_open_hypergraph_empty_boundary(
-        &[vec![0]],
-        &[vec![1]],
-        vec![10, 11],
-        vec![20],
-    );
+    let lhs = make_open_hypergraph_empty_boundary(&[vec![0]], &[vec![1]], vec![10, 11], vec![20]);
     let rhs = make_open_hypergraph_empty_boundary(&[], &[], vec![], vec![]);
     let rule = RewriteRule::new(lhs, rhs).unwrap();
 
