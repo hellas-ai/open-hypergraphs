@@ -112,18 +112,6 @@ where
         false
     }
 
-    pub(crate) fn complement_subgraph(&self) -> Option<SubgraphMorphism<'a, K, O, A>>
-    where
-        K::Type<K::I>: NaturalArray<K>,
-        K::Type<O>: Array<K, O>,
-        K::Type<A>: Array<K, A>,
-    {
-        // Complexity: O(|W| + |X|) to invert both masks.
-        let remove_node_mask = invert_mask::<K>(&self.remove_node_mask);
-        let remove_edge_mask = invert_mask::<K>(&self.remove_edge_mask);
-        SubgraphMorphism::from_masks(self.host, remove_node_mask, remove_edge_mask)
-    }
-
     pub(crate) fn as_hypergraph_with_injections(
         &self,
     ) -> Option<(Hypergraph<K, O, A>, FiniteFunction<K>, FiniteFunction<K>)>
@@ -204,22 +192,6 @@ where
 
         Some((remainder, kept_w_inj, kept_x_inj))
     }
-}
-
-fn invert_mask<K: ArrayKind>(mask: &K::Type<bool>) -> K::Type<bool>
-where
-    K::Type<bool>: Array<K, bool>,
-{
-    // Complexity: O(|mask|).
-    let mut out = K::Type::<bool>::fill(false, mask.len());
-    let mut i = K::I::zero();
-    while i < mask.len() {
-        let v = mask.get(i.clone());
-        let value = K::Type::<bool>::fill(!v, K::I::one());
-        out.set_range(i.clone()..i.clone() + K::I::one(), &value);
-        i = i + K::I::one();
-    }
-    out
 }
 
 fn index_from_vec<K: ArrayKind>(v: &Vec<K::I>) -> K::Index
