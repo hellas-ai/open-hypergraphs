@@ -48,31 +48,6 @@ where
         }
     }
 
-    // The maps need not be monic; we only use their images to build a monic subobject.
-    // Any non-injectivity in w_map/x_map is collapsed by taking the image masks.
-    pub(crate) fn from_maps(
-        host: &'a Hypergraph<K, O, A>,
-        w_map: &FiniteFunction<K>,
-        x_map: &FiniteFunction<K>,
-    ) -> Self
-    where
-        K::Type<K::I>: NaturalArray<K>,
-        K::Type<O>: Array<K, O>,
-        K::Type<A>: Array<K, A>,
-    {
-        // Complexity: O(|W| + |X|) to build masks from the images of w_map/x_map.
-        let mut remove_node_mask = K::Type::<bool>::fill(false, host.w.len());
-        let mut remove_edge_mask = K::Type::<bool>::fill(false, host.x.len());
-        if w_map.table.len() != K::I::zero() {
-            remove_node_mask.scatter_assign_constant(&w_map.table, true);
-        }
-        if x_map.table.len() != K::I::zero() {
-            remove_edge_mask.scatter_assign_constant(&x_map.table, true);
-        }
-
-        Self::from_masks(host, remove_node_mask, remove_edge_mask)
-    }
-
     pub(crate) fn as_hypergraph_with_injections(
         &self,
     ) -> Option<(Hypergraph<K, O, A>, FiniteFunction<K>, FiniteFunction<K>)>

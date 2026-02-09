@@ -69,10 +69,12 @@ fn make_map(indices: &[usize], target: usize) -> FiniteFunction<VecKind> {
 
 #[test]
 fn apply_rewrite_replaces_matched_edge() {
-    // Host: edge 0 labeled 20 from wire 0 -> 1, with boundary 0 input, 1 output.
+    // Host graph: two wires {0,1} with one edge (label 20) from 0 -> 1.
+    // Host boundary: input wire 0, output wire 1.
     let host = make_open_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![20], &[0], &[1]);
 
-    // LHS matches the single edge, RHS replaces it with label 21 (same boundary).
+    // Rule: LHS is the same single-edge graph, RHS replaces the edge label with 21.
+    // Boundaries are identical on both sides of the rule.
     let lhs = make_open_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![20], &[0], &[1]);
     let rhs = make_open_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![21], &[0], &[1]);
     let rule = RewriteRule::new(lhs, rhs).unwrap();
@@ -83,6 +85,7 @@ fn apply_rewrite_replaces_matched_edge() {
     let m = ConvexMatchWitness::new(rule.lhs(), &host, host_w_map, host_x_map).unwrap();
 
     let out = apply_rewrite(&rule, &host, &m).unwrap();
+    // Expected: same boundary and wires; edge label updated to 21.
     assert_eq!(out.s.table, VecArray(vec![0]));
     assert_eq!(out.t.table, VecArray(vec![1]));
     assert_eq!(out.h.w.0, VecArray(vec![10, 11]));
@@ -93,10 +96,11 @@ fn apply_rewrite_replaces_matched_edge() {
 
 #[test]
 fn apply_rewrite_removes_matched_subgraph_with_empty_rhs() {
-    // Host: edge 0 labeled 20 from wire 0 -> 1, no boundary.
+    // Host graph: two wires {0,1} with one edge (label 20) from 0 -> 1.
+    // Host boundary: empty (no inputs or outputs).
     let host = make_open_hypergraph_empty_boundary(&[vec![0]], &[vec![1]], vec![10, 11], vec![20]);
 
-    // LHS matches the whole host (empty boundary), RHS is empty.
+    // Rule: LHS is the whole host graph (empty boundary), RHS is the empty graph.
     let lhs = make_open_hypergraph_empty_boundary(&[vec![0]], &[vec![1]], vec![10, 11], vec![20]);
     let rhs = make_open_hypergraph_empty_boundary(&[], &[], vec![], vec![]);
     let rule = RewriteRule::new(lhs, rhs).unwrap();
@@ -107,6 +111,7 @@ fn apply_rewrite_removes_matched_subgraph_with_empty_rhs() {
     let m = ConvexMatchWitness::new(rule.lhs(), &host, host_w_map, host_x_map).unwrap();
 
     let out = apply_rewrite(&rule, &host, &m).unwrap();
+    // Expected: everything matched is removed, so result is the empty open hypergraph.
     assert_eq!(out.s.table.len(), 0);
     assert_eq!(out.t.table.len(), 0);
     assert_eq!(out.h.w.len(), 0);
