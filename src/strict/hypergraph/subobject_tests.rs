@@ -34,10 +34,6 @@ fn make_hypergraph(
     Hypergraph::new(s, t, w, x).unwrap()
 }
 
-fn make_map(indices: &[usize], target: usize) -> FiniteFunction<VecKind> {
-    FiniteFunction::new(VecArray(indices.to_vec()), target).unwrap()
-}
-
 #[test]
 fn subgraph_from_masks_keeps_incident_node() {
     // Graph: single node 0 with a single self-loop edge 0 -> 0.
@@ -187,63 +183,4 @@ fn subgraph_dangling_with_multi_target() {
     let (kept, _, _) = subgraph.as_hypergraph_with_injections().unwrap();
     assert_eq!(kept.w.0, host.w.0);
     assert_eq!(kept.x.0, host.x.0);
-}
-
-#[test]
-fn remainder_with_injection_removes_selected_node_and_edge() {
-    // Graph: nodes {0,1} with labels [10,11], edges {0,1} with labels [20,21].
-    // edge 0: 0 -> 1
-    // edge 1: 1 -> 1
-    // Remove node 0 and edge 0; remainder should keep node 1 and edge 1,
-    // with indices remapped so node 1 becomes 0.
-    let host = make_hypergraph(
-        &[vec![0], vec![1]],
-        &[vec![1], vec![1]],
-        vec![10, 11],
-        vec![20, 21],
-    );
-    let w_map = make_map(&[0], host.w.len());
-    let x_map = make_map(&[0], host.x.len());
-    let (rem, w_inj, x_inj) = host.remainder_with_injection(&w_map, &x_map).unwrap();
-    assert_eq!(rem.w.0, VecArray(vec![11]));
-    assert_eq!(rem.x.0, VecArray(vec![21]));
-    assert_eq!(rem.s.values.table, VecArray(vec![0]));
-    assert_eq!(rem.t.values.table, VecArray(vec![0]));
-    assert_eq!(w_inj.table, VecArray(vec![1]));
-    assert_eq!(x_inj.table, VecArray(vec![1]));
-}
-
-#[test]
-fn remainder_with_injection_keep_all_is_identity() {
-    // Graph: nodes {0,1} with edges 0:0->1 and 1:1->0. Removing nothing keeps everything.
-    let host = make_hypergraph(
-        &[vec![0], vec![1]],
-        &[vec![1], vec![0]],
-        vec![10, 11],
-        vec![20, 21],
-    );
-    let w_map = make_map(&[], host.w.len());
-    let x_map = make_map(&[], host.x.len());
-    let (rem, w_inj, x_inj) = host.remainder_with_injection(&w_map, &x_map).unwrap();
-    assert_eq!(rem.w.0, host.w.0);
-    assert_eq!(rem.x.0, host.x.0);
-    assert_eq!(rem.s.values.table, host.s.values.table);
-    assert_eq!(rem.t.values.table, host.t.values.table);
-    assert_eq!(w_inj.table, VecArray(vec![0, 1]));
-    assert_eq!(x_inj.table, VecArray(vec![0, 1]));
-}
-
-#[test]
-fn remainder_with_injection_remove_all_is_empty() {
-    // Graph: single node with a self-loop edge. Removing all yields the empty hypergraph.
-    let host = make_hypergraph(&[vec![0]], &[vec![0]], vec![10], vec![20]);
-    let w_map = make_map(&[0], host.w.len());
-    let x_map = make_map(&[0], host.x.len());
-    let (rem, w_inj, x_inj) = host.remainder_with_injection(&w_map, &x_map).unwrap();
-    assert_eq!(rem.w.len(), 0);
-    assert_eq!(rem.x.len(), 0);
-    assert_eq!(rem.s.values.table.len(), 0);
-    assert_eq!(rem.t.values.table.len(), 0);
-    assert_eq!(w_inj.table.len(), 0);
-    assert_eq!(x_inj.table.len(), 0);
 }

@@ -5,7 +5,6 @@ use crate::indexed_coproduct::*;
 use crate::operations::Operations;
 use crate::semifinite::*;
 use crate::strict::hypergraph::arrow::HypergraphArrow;
-use crate::strict::hypergraph::subobject::SubgraphMorphism;
 
 use core::fmt::Debug;
 use core::ops::Add;
@@ -138,36 +137,6 @@ where
         let w = SemifiniteFunction(coequalizer_universal(q, &self.w.0)?);
         let x = self.x.clone();
         Some(Hypergraph { s, t, w, x })
-    }
-
-    pub fn remainder_with_injection(
-        &self,
-        w_map: &FiniteFunction<K>,
-        x_map: &FiniteFunction<K>,
-    ) -> Option<(Hypergraph<K, O, A>, FiniteFunction<K>, FiniteFunction<K>)>
-    where
-        K::Type<bool>: Array<K, bool>,
-        for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
-    {
-        if w_map.target() != self.w.len() || x_map.target() != self.x.len() {
-            return None;
-        }
-
-        let remainder = SubgraphMorphism::from_maps(self, w_map, x_map);
-        remainder.as_hypergraph_with_injections()
-    }
-
-    pub(crate) fn remainder_from_masks(
-        &self,
-        remove_node_mask: K::Type<bool>,
-        remove_edge_mask: K::Type<bool>,
-    ) -> Option<(Hypergraph<K, O, A>, FiniteFunction<K>, FiniteFunction<K>)>
-    where
-        K::Type<bool>: Array<K, bool>,
-        for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
-    {
-        let remainder = SubgraphMorphism::from_masks(self, remove_node_mask, remove_edge_mask);
-        remainder.as_hypergraph_with_injections()
     }
 
     // Compute the pushout of a span of wire maps into hypergraphs.

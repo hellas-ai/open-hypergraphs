@@ -2,7 +2,7 @@
 //! and arrows by [`arrow::HypergraphArrow`].
 pub mod arrow;
 mod object;
-mod subobject;
+pub(crate) mod subobject;
 #[cfg(test)]
 mod subobject_tests;
 

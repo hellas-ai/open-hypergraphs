@@ -1,6 +1,7 @@
 use crate::array::*;
 use crate::category::Arrow;
 use crate::finite_function::FiniteFunction;
+use crate::strict::hypergraph::subobject::SubgraphMorphism;
 use crate::strict::hypergraph::Hypergraph;
 use crate::strict::open_hypergraph::OpenHypergraph;
 use num_traits::{One, Zero};
@@ -276,9 +277,8 @@ where
         remove_edge_mask.scatter_assign_constant(&m.x().table, true);
     }
 
-    let (remainder, kept_w_inj, _kept_x_inj) = host
-        .h
-        .remainder_from_masks(remove_node_mask, remove_edge_mask)?;
+    let remainder = SubgraphMorphism::from_masks(&host.h, remove_node_mask, remove_edge_mask);
+    let (remainder, kept_w_inj, _kept_x_inj) = remainder.as_hypergraph_with_injections()?;
 
     // Factor boundary maps through the remainder injection to build the context L⊥.
     let host_inputs = factor_through_injection(&host.s, &kept_w_inj)?;
