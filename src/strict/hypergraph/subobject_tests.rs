@@ -39,13 +39,18 @@ fn make_map(indices: &[usize], target: usize) -> FiniteFunction<VecKind> {
 }
 
 #[test]
-fn subgraph_from_masks_rejects_dangling() {
+fn subgraph_from_masks_keeps_incident_node() {
     // Graph: single node 0 with a single self-loop edge 0 -> 0.
-    // Remove node 0 but keep the edge, so the subgraph is dangling and rejected.
+    // Remove node 0 but keep the edge; the node is preserved because it is incident.
     let host = make_hypergraph(&[vec![0]], &[vec![0]], vec![10], vec![20]);
     let remove_node_mask = VecArray(vec![true]);
     let remove_edge_mask = VecArray(vec![false]);
-    assert!(SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).is_none());
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
+    let (kept, w_inj, x_inj) = subgraph.as_hypergraph_with_injections().unwrap();
+    assert_eq!(kept.w.0, host.w.0);
+    assert_eq!(kept.x.0, host.x.0);
+    assert_eq!(w_inj.table, VecArray(vec![0]));
+    assert_eq!(x_inj.table, VecArray(vec![0]));
 }
 
 #[test]
@@ -55,7 +60,7 @@ fn subgraph_from_masks_accepts_removing_incident_edge() {
     let host = make_hypergraph(&[vec![0]], &[vec![0]], vec![10], vec![20]);
     let remove_node_mask = VecArray(vec![true]);
     let remove_edge_mask = VecArray(vec![true]);
-    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).unwrap();
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
     let (kept, w_inj, x_inj) = subgraph.as_hypergraph_with_injections().unwrap();
     assert_eq!(kept.w.len(), 0);
     assert_eq!(kept.x.len(), 0);
@@ -77,7 +82,7 @@ fn subgraph_keep_all_preserves_sizes() {
     );
     let remove_node_mask = VecArray(vec![false, false]);
     let remove_edge_mask = VecArray(vec![false, false]);
-    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).unwrap();
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
     let (kept, w_inj, x_inj) = subgraph.as_hypergraph_with_injections().unwrap();
     assert_eq!(kept.w.len(), host.w.len());
     assert_eq!(kept.x.len(), host.x.len());
@@ -99,7 +104,7 @@ fn subgraph_remove_edge_only_keeps_nodes() {
     );
     let remove_node_mask = VecArray(vec![false, false]);
     let remove_edge_mask = VecArray(vec![true, false]);
-    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).unwrap();
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
     let (kept, w_inj, x_inj) = subgraph.as_hypergraph_with_injections().unwrap();
     assert_eq!(kept.w.len(), host.w.len());
     assert_eq!(kept.x.len(), 1);
@@ -108,12 +113,12 @@ fn subgraph_remove_edge_only_keeps_nodes() {
 }
 
 #[test]
-fn subgraph_remove_node_and_incident_edge() {
+fn subgraph_remove_node_and_incident_edge_keeps_incident_node() {
     // Graph: two nodes {0,1} and two edges.
     // Edge 0: 0 -> 1
     // Edge 1: 1 -> 0
     // We remove node 0 and also remove edge 0 (the one incident to node 0 on the source side).
-    // If edge 1 is kept, it still targets node 0, so the subgraph is dangling.
+    // Edge 1 is kept, so node 0 is preserved as an incident node.
     let host = make_hypergraph(
         &[vec![0], vec![1]],
         &[vec![1], vec![0]],
@@ -122,47 +127,66 @@ fn subgraph_remove_node_and_incident_edge() {
     );
     let remove_node_mask = VecArray(vec![true, false]);
     let remove_edge_mask = VecArray(vec![true, false]);
-    assert!(SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).is_none());
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
+    let (kept, w_inj, x_inj) = subgraph.as_hypergraph_with_injections().unwrap();
+    assert_eq!(kept.w.0, host.w.0);
+    assert_eq!(kept.x.0, VecArray(vec![21]));
+    assert_eq!(kept.s.values.table, VecArray(vec![1]));
+    assert_eq!(kept.t.values.table, VecArray(vec![0]));
+    assert_eq!(w_inj.table, VecArray(vec![0, 1]));
+    assert_eq!(x_inj.table, VecArray(vec![1]));
 }
 
 #[test]
 fn subgraph_dangling_when_removed_node_in_source() {
     // Graph: two nodes {0,1} and one edge 0 -> 1.
-    // Remove node 0 but keep the edge; the source endpoint dangles.
+    // Remove node 0 but keep the edge; node 0 is preserved as incident.
     let host = make_hypergraph(&[vec![0]], &[vec![1]], vec![10, 11], vec![20]);
     let remove_node_mask = VecArray(vec![true, false]);
     let remove_edge_mask = VecArray(vec![false]);
-    assert!(SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).is_none());
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
+    let (kept, _, _) = subgraph.as_hypergraph_with_injections().unwrap();
+    assert_eq!(kept.w.0, host.w.0);
+    assert_eq!(kept.x.0, host.x.0);
 }
 
 #[test]
 fn subgraph_dangling_when_removed_node_in_target() {
     // Graph: two nodes {0,1} and one edge 1 -> 0.
-    // Remove node 0 but keep the edge; the target endpoint dangles.
+    // Remove node 0 but keep the edge; node 0 is preserved as incident.
     let host = make_hypergraph(&[vec![1]], &[vec![0]], vec![10, 11], vec![20]);
     let remove_node_mask = VecArray(vec![true, false]);
     let remove_edge_mask = VecArray(vec![false]);
-    assert!(SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).is_none());
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
+    let (kept, _, _) = subgraph.as_hypergraph_with_injections().unwrap();
+    assert_eq!(kept.w.0, host.w.0);
+    assert_eq!(kept.x.0, host.x.0);
 }
 
 #[test]
 fn subgraph_dangling_with_multi_source() {
     // Graph: three nodes {0,1,2} and one edge [0,1] -> [2].
-    // Remove node 1 but keep the edge; one source endpoint dangles.
+    // Remove node 1 but keep the edge; node 1 is preserved as incident.
     let host = make_hypergraph(&[vec![0, 1]], &[vec![2]], vec![10, 11, 12], vec![20]);
     let remove_node_mask = VecArray(vec![false, true, false]);
     let remove_edge_mask = VecArray(vec![false]);
-    assert!(SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).is_none());
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
+    let (kept, _, _) = subgraph.as_hypergraph_with_injections().unwrap();
+    assert_eq!(kept.w.0, host.w.0);
+    assert_eq!(kept.x.0, host.x.0);
 }
 
 #[test]
 fn subgraph_dangling_with_multi_target() {
     // Graph: three nodes {0,1,2} and one edge [0] -> [1,2].
-    // Remove node 2 but keep the edge; one target endpoint dangles.
+    // Remove node 2 but keep the edge; node 2 is preserved as incident.
     let host = make_hypergraph(&[vec![0]], &[vec![1, 2]], vec![10, 11, 12], vec![20]);
     let remove_node_mask = VecArray(vec![false, false, true]);
     let remove_edge_mask = VecArray(vec![false]);
-    assert!(SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask).is_none());
+    let subgraph = SubgraphMorphism::from_masks(&host, remove_node_mask, remove_edge_mask);
+    let (kept, _, _) = subgraph.as_hypergraph_with_injections().unwrap();
+    assert_eq!(kept.w.0, host.w.0);
+    assert_eq!(kept.x.0, host.x.0);
 }
 
 #[test]

@@ -153,7 +153,7 @@ where
             return None;
         }
 
-        let remainder = SubgraphMorphism::from_maps(self, w_map, x_map)?;
+        let remainder = SubgraphMorphism::from_maps(self, w_map, x_map);
         remainder.as_hypergraph_with_injections()
     }
 
@@ -166,7 +166,7 @@ where
         K::Type<bool>: Array<K, bool>,
         for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
     {
-        let remainder = SubgraphMorphism::from_masks(self, remove_node_mask, remove_edge_mask)?;
+        let remainder = SubgraphMorphism::from_masks(self, remove_node_mask, remove_edge_mask);
         remainder.as_hypergraph_with_injections()
     }
 

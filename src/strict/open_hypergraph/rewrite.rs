@@ -275,7 +275,6 @@ where
     if m.x().table.len() != K::I::zero() {
         remove_edge_mask.scatter_assign_constant(&m.x().table, true);
     }
-    keep_incident_nodes(&host.h, &remove_edge_mask, &mut remove_node_mask);
 
     let (remainder, kept_w_inj, _kept_x_inj) = host
         .h
@@ -377,45 +376,6 @@ where
 {
     if f.table.len() != K::I::zero() {
         mask.scatter_assign_constant(&f.table, false);
-    }
-}
-
-// Ensure we keep any node incident to a remaining (non-removed) hyperedge.
-fn keep_incident_nodes<K: ArrayKind, O, A>(
-    host: &Hypergraph<K, O, A>,
-    remove_edge_mask: &K::Type<bool>,
-    remove_node_mask: &mut K::Type<bool>,
-) where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<bool>: Array<K, bool>,
-    K::Type<A>: Array<K, A>,
-{
-    let s_ptr = host.s.sources.table.cumulative_sum();
-    let t_ptr = host.t.sources.table.cumulative_sum();
-    let mut edge = K::I::zero();
-    while edge < host.x.len() {
-        if !remove_edge_mask.get(edge.clone()) {
-            let s_start = s_ptr.get(edge.clone());
-            let s_end = s_ptr.get(edge.clone() + K::I::one());
-            let mut k = s_start.clone();
-            while k < s_end {
-                let v = host.s.values.table.get(k.clone());
-                let value = K::Type::<bool>::fill(false, K::I::one());
-                remove_node_mask.set_range(v.clone()..v.clone() + K::I::one(), &value);
-                k = k + K::I::one();
-            }
-
-            let t_start = t_ptr.get(edge.clone());
-            let t_end = t_ptr.get(edge.clone() + K::I::one());
-            let mut k = t_start.clone();
-            while k < t_end {
-                let v = host.t.values.table.get(k.clone());
-                let value = K::Type::<bool>::fill(false, K::I::one());
-                remove_node_mask.set_range(v.clone()..v.clone() + K::I::one(), &value);
-                k = k + K::I::one();
-            }
-        }
-        edge = edge + K::I::one();
     }
 }
 
