@@ -311,8 +311,10 @@ impl<K: ArrayKind, O, A> RewriteRule<K, O, A> {
     }
 }
 
-// Factor a boundary map through an injection `inj : W_R -> W_H`.
-// Returns `None` if any boundary element lands outside the image of `inj`.
+// Factor a boundary map `f : B -> W_H` through an injection `inj : W_R -> W_H`.
+// here W_H is the host, and W_R the remainder.
+// If every boundary wire lies in the image of `inj`, this returns the unique
+// `f' : B -> W_R` such that `f = f' ; inj`. Otherwise returns `None`.
 fn factor_through_injection<K: ArrayKind>(
     f: &FiniteFunction<K>,
     inj: &FiniteFunction<K>,
