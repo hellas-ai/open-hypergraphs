@@ -431,8 +431,7 @@ where
     let g = (&g_in + &g_out)?;
 
     // Pushout the span to glue RHS into the hole.
-    let (h, left_arrow, _right_arrow) =
-        Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
+    let (h, left_arrow, _right_arrow) = Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
 
     // The outer interface is the prefix of the context boundary.
     // Reindex that prefix through the left arrow into the pushout.
