@@ -413,10 +413,15 @@ where
     K::Type<O>: Array<K, O> + PartialEq,
     K::Type<A>: Array<K, A> + PartialEq,
 {
-    // Build the span from boundary ports into the coproduct of wires.
+    // Slice out the LHS boundary segments from the context interface:
+    // - outputs of LHS live in the tail of context.s
+    // - inputs of LHS live in the tail of context.t
     let c_s_out = slice_map(&context.s, host_inputs.clone(), lhs_outputs.clone())?;
     let c_t_in = slice_map(&context.t, host_outputs.clone(), lhs_inputs.clone())?;
 
+    // Build the span into the coproduct of wires:
+    // - f maps LHS boundary ports into the context part
+    // - g maps LHS boundary ports into the RHS part
     let f_in = c_t_in.inject0(rhs.h.w.len());
     let f_out = c_s_out.inject0(rhs.h.w.len());
     let f = (&f_in + &f_out)?;
@@ -425,10 +430,12 @@ where
     let g_out = rhs.t.inject1(context.h.w.len());
     let g = (&g_in + &g_out)?;
 
-    // Compute the pushout hypergraph and the two induced arrows.
-    let (h, left_arrow, _right_arrow) = Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
+    // Pushout the span to glue RHS into the hole.
+    let (h, left_arrow, _right_arrow) =
+        Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
 
-    // Rebuild the host boundary maps (prefix of context boundaries).
+    // The outer interface is the prefix of the context boundary.
+    // Reindex that prefix through the left arrow into the pushout.
     let s_host = slice_map(&context.s, K::I::zero(), host_inputs)?;
     let t_host = slice_map(&context.t, K::I::zero(), host_outputs)?;
     let s = s_host.compose(&left_arrow.w)?;

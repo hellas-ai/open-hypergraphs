@@ -155,10 +155,13 @@ where
         K::Type<O>: Array<K, O> + PartialEq,
         K::Type<A>: Array<K, A> + PartialEq,
     {
+        // Coequalize the span to obtain the identification of wires.
         let q = f.coequalizer(g)?;
+        // Form the coproduct hypergraph and quotient its vertices by the coequalizer.
         let coproduct = left + right;
         let target = coproduct.coequalize_vertices(&q)?;
 
+        // Build the induced arrows from each side of the span into the pushout.
         let w_left = FiniteFunction::inj0(left.w.len(), right.w.len()).compose(&q)?;
         let w_right = FiniteFunction::inj1(left.w.len(), right.w.len()).compose(&q)?;
         let x_left = FiniteFunction::inj0(left.x.len(), right.x.len());
