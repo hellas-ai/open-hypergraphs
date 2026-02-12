@@ -112,6 +112,25 @@ impl<K: ArrayKind> FiniteFunction<K> {
         Self::initial(self.target.clone())
     }
 
+    /// Check if this finite function is injective (no repeated targets).
+    pub fn is_injective(&self) -> bool
+    where
+        K::Type<bool>: Array<K, bool>,
+    {
+        let mut seen = K::Type::<bool>::fill(false, self.target.clone());
+        let mut i = K::I::zero();
+        while i < self.table.len() {
+            let w = self.table.get(i.clone());
+            if seen.get(w.clone()) {
+                return false;
+            }
+            let value = K::Type::<bool>::fill(true, K::I::one());
+            seen.set_range(w.clone()..w.clone() + K::I::one(), &value);
+            i = i + K::I::one();
+        }
+        true
+    }
+
     pub fn coequalizer(&self, other: &Self) -> Option<FiniteFunction<K>> {
         // if self is parallel to other
         if self.source() != other.source() || self.target() != other.target() {
