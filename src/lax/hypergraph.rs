@@ -1,5 +1,7 @@
 use crate::array::vec::{VecArray, VecKind};
+use crate::category::Coproduct;
 use crate::finite_function::*;
+use crate::lax::Arrow;
 
 use core::fmt::Debug;
 
@@ -16,6 +18,156 @@ pub struct EdgeId(pub usize);
 pub struct Hyperedge {
     pub sources: Vec<NodeId>,
     pub targets: Vec<NodeId>,
+}
+
+/// A map on nodes and edges without structure preservation guarantees.
+#[derive(Clone)]
+pub struct NodeEdgeMap {
+    pub nodes: FiniteFunction<VecKind>,
+    pub edges: FiniteFunction<VecKind>,
+}
+
+impl NodeEdgeMap {
+    pub fn compose(&self, other: &NodeEdgeMap) -> Self {
+        NodeEdgeMap {
+            nodes: self.nodes.compose(&other.nodes).expect("node map compose"),
+            edges: self.edges.compose(&other.edges).expect("edge map compose"),
+        }
+    }
+
+    pub fn coproduct(&self, other: &NodeEdgeMap) -> Self {
+        NodeEdgeMap {
+            nodes: self
+                .nodes
+                .coproduct(&other.nodes)
+                .expect("node map coproduct"),
+            edges: self
+                .edges
+                .coproduct(&other.edges)
+                .expect("edge map coproduct"),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Span<'a, O, A> {
+    pub apex: &'a Hypergraph<O, A>,
+    pub left: &'a Hypergraph<O, A>,
+    pub right: &'a Hypergraph<O, A>,
+    pub left_map: &'a NodeEdgeMap,
+    pub right_map: &'a NodeEdgeMap,
+}
+
+impl<'a, O, A> Span<'a, O, A> {
+    /// Construct a lax span and validate its structural properties.
+    pub fn new(
+        apex: &'a Hypergraph<O, A>,
+        left: &'a Hypergraph<O, A>,
+        right: &'a Hypergraph<O, A>,
+        left_map: &'a NodeEdgeMap,
+        right_map: &'a NodeEdgeMap,
+    ) -> Self {
+        Span {
+            apex,
+            left,
+            right,
+            left_map,
+            right_map,
+        }
+        .validate()
+    }
+
+    /// Validate that maps are compatible with their hypergraphs.
+    pub fn validate(self) -> Self {
+        if !self.apex.edges.is_empty() {
+            panic!(
+                "apex must be discrete (no edges), got {} edge(s)",
+                self.apex.edges.len()
+            );
+        }
+        if self.left_map.nodes.source() != self.apex.nodes.len() {
+            panic!(
+                "left map node source size mismatch: got {}, expected {}",
+                self.left_map.nodes.source(),
+                self.apex.nodes.len()
+            );
+        }
+        if self.left_map.nodes.target() != self.left.nodes.len() {
+            panic!(
+                "left map node target size mismatch: got {}, expected {}",
+                self.left_map.nodes.target(),
+                self.left.nodes.len()
+            );
+        }
+        if self.left_map.edges.source() != self.apex.edges.len() {
+            panic!(
+                "left map edge source size mismatch: got {}, expected {}",
+                self.left_map.edges.source(),
+                self.apex.edges.len()
+            );
+        }
+        if self.left_map.edges.target() != self.left.edges.len() {
+            panic!(
+                "left map edge target size mismatch: got {}, expected {}",
+                self.left_map.edges.target(),
+                self.left.edges.len()
+            );
+        }
+        if self.right_map.nodes.source() != self.apex.nodes.len() {
+            panic!(
+                "right map node source size mismatch: got {}, expected {}",
+                self.right_map.nodes.source(),
+                self.apex.nodes.len()
+            );
+        }
+        if self.right_map.nodes.target() != self.right.nodes.len() {
+            panic!(
+                "right map node target size mismatch: got {}, expected {}",
+                self.right_map.nodes.target(),
+                self.right.nodes.len()
+            );
+        }
+        if self.right_map.edges.source() != self.apex.edges.len() {
+            panic!(
+                "right map edge source size mismatch: got {}, expected {}",
+                self.right_map.edges.source(),
+                self.apex.edges.len()
+            );
+        }
+        if self.right_map.edges.target() != self.right.edges.len() {
+            panic!(
+                "right map edge target size mismatch: got {}, expected {}",
+                self.right_map.edges.target(),
+                self.right.edges.len()
+            );
+        }
+
+        self
+    }
+
+    /// Compute the pushout of the span, identifying only nodes.
+    ///
+    /// NOTE: this assumes the apex is discrete (no edges), so edge identifications are ignored.
+    pub fn pushout(&self) -> Hypergraph<O, A>
+    where
+        O: Clone + PartialEq,
+        A: Clone + PartialEq,
+    {
+        debug_assert!(
+            self.apex.edges.is_empty(),
+            "pushout assumes discrete apex (no edge identifications)"
+        );
+
+        let mut pushout = self.left.coproduct(self.right);
+        let left_nodes = self.left.nodes.len();
+        for (k_idx, &l_idx) in self.left_map.nodes.table.iter().enumerate() {
+            let r_idx = self.right_map.nodes.table[k_idx] + left_nodes;
+            pushout.quotient.0.push(NodeId(l_idx));
+            pushout.quotient.1.push(NodeId(r_idx));
+        }
+        pushout.quotient();
+        pushout
+    }
 }
 
 /// Create a [`Hyperedge`] from a tuple of `(sources, targets)`.
@@ -337,6 +489,17 @@ impl<O, A> Hypergraph<O, A> {
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
+    /// Return a quotiented copy along with the coequalizer used.
+    pub fn quotiented_with(
+        mut self,
+        quotient_left: Vec<NodeId>,
+        quotient_right: Vec<NodeId>,
+    ) -> (Self, FiniteFunction<VecKind>) {
+        self.quotient = (quotient_left, quotient_right);
+        let q = self.quotient();
+        (self, q)
+    }
+
     /// Construct a [`Hypergraph`] by identifying nodes in the quotient map.
     /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from `self.quotient`.
     ///
@@ -401,6 +564,119 @@ pub(crate) fn concat<T: Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
 }
 
 impl<O: Clone, A: Clone> Hypergraph<O, A> {
+    pub fn remainder_with_injection(
+        &self,
+        excluded: &NodeEdgeMap,
+    ) -> (Hypergraph<O, A>, NodeEdgeMap) {
+        assert_eq!(
+            self.edges.len(),
+            self.adjacency.len(),
+            "malformed hypergraph: edges and adjacency lengths differ"
+        );
+        let mut in_image_nodes = vec![false; self.nodes.len()];
+        for &idx in excluded.nodes.table.iter() {
+            if idx >= self.nodes.len() {
+                panic!(
+                    "excluded node index out of range: got {}, max {}",
+                    idx,
+                    self.nodes.len()
+                );
+            }
+            in_image_nodes[idx] = true;
+        }
+
+        let mut in_image_edges = vec![false; self.edges.len()];
+        for &idx in excluded.edges.table.iter() {
+            if idx >= self.edges.len() {
+                panic!(
+                    "excluded edge index out of range: got {}, max {}",
+                    idx,
+                    self.edges.len()
+                );
+            }
+            in_image_edges[idx] = true;
+        }
+
+        let mut remainder = Hypergraph::empty();
+        let mut remainder_node_to_host = Vec::new();
+        let mut node_map: Vec<Option<usize>> = vec![None; self.nodes.len()];
+        for (idx, label) in self.nodes.iter().enumerate() {
+            if in_image_nodes[idx] {
+                continue;
+            }
+            let new_id = remainder.new_node(label.clone());
+            remainder_node_to_host.push(idx);
+            node_map[idx] = Some(new_id.0);
+        }
+
+        let mut remainder_edge_to_host = Vec::new();
+        for (edge_id, edge) in self.adjacency.iter().enumerate() {
+            if in_image_edges[edge_id] {
+                continue;
+            }
+
+            let mut sources = Vec::with_capacity(edge.sources.len());
+            for node in &edge.sources {
+                let new_id = match node_map[node.0] {
+                    Some(existing) => NodeId(existing),
+                    None => {
+                        let new_id = remainder.new_node(self.nodes[node.0].clone());
+                        remainder_node_to_host.push(node.0);
+                        new_id
+                    }
+                };
+                sources.push(new_id);
+            }
+
+            let mut targets = Vec::with_capacity(edge.targets.len());
+            for node in &edge.targets {
+                let new_id = match node_map[node.0] {
+                    Some(existing) => NodeId(existing),
+                    None => {
+                        let new_id = remainder.new_node(self.nodes[node.0].clone());
+                        remainder_node_to_host.push(node.0);
+                        new_id
+                    }
+                };
+                targets.push(new_id);
+            }
+
+            remainder.new_edge(self.edges[edge_id].clone(), Hyperedge { sources, targets });
+            remainder_edge_to_host.push(edge_id);
+        }
+
+        let remainder_in_host = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::new(
+                VecArray(remainder_node_to_host),
+                self.nodes.len(),
+            )
+            .expect("remainder node injection"),
+            edges: FiniteFunction::<VecKind>::new(
+                VecArray(remainder_edge_to_host),
+                self.edges.len(),
+            )
+            .expect("remainder edge injection"),
+        };
+
+        (remainder, remainder_in_host)
+    }
+
+    pub(crate) fn coproduct_with_injections(
+        &self,
+        other: &Hypergraph<O, A>,
+    ) -> (Hypergraph<O, A>, NodeEdgeMap, NodeEdgeMap) {
+        let coproduct = self.coproduct(other);
+        let left = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::identity(self.nodes.len()).inject0(other.nodes.len()),
+            edges: FiniteFunction::<VecKind>::identity(self.edges.len()).inject0(other.edges.len()),
+        };
+        let right = NodeEdgeMap {
+            nodes: FiniteFunction::<VecKind>::identity(other.nodes.len()).inject1(self.nodes.len()),
+            edges: FiniteFunction::<VecKind>::identity(other.edges.len()).inject1(self.edges.len()),
+        };
+        (coproduct, left, right)
+    }
+
     pub(crate) fn coproduct(&self, other: &Hypergraph<O, A>) -> Hypergraph<O, A> {
         let n = self.nodes.len();
 

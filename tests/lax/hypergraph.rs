@@ -1,4 +1,6 @@
-use open_hypergraphs::lax::{EdgeId, Hyperedge, Hypergraph, NodeId};
+use open_hypergraphs::array::vec::{VecArray, VecKind};
+use open_hypergraphs::finite_function::FiniteFunction;
+use open_hypergraphs::lax::{Coproduct as _, EdgeId, Hyperedge, Hypergraph, NodeEdgeMap, NodeId};
 
 #[test]
 fn test_delete_nodes_remap_and_quotient() {
@@ -198,4 +200,105 @@ fn test_delete_edge_panics_on_out_of_bounds() {
     }];
 
     h.delete_edge(&[EdgeId(1)]);
+}
+
+#[test]
+fn test_remainder_with_injection_splits_excluded_node_occurrences() {
+    let mut host = Hypergraph::empty();
+    let w = host.new_node(1);
+    host.new_edge(
+        10,
+        Hyperedge {
+            sources: vec![w],
+            targets: vec![w],
+        },
+    );
+    host.new_edge(
+        20,
+        Hyperedge {
+            sources: vec![w],
+            targets: vec![w],
+        },
+    );
+
+    let excluded = NodeEdgeMap {
+        nodes: FiniteFunction::<VecKind>::new(VecArray(vec![w.0]), host.nodes.len()).unwrap(),
+        edges: FiniteFunction::<VecKind>::initial(host.edges.len()),
+    };
+
+    let (remainder, remainder_in_host) = host.remainder_with_injection(&excluded);
+
+    assert_eq!(remainder.nodes.len(), 4);
+    assert_eq!(remainder.edges.len(), 2);
+    assert_eq!(remainder.adjacency.len(), 2);
+    assert_eq!(
+        remainder_in_host.nodes.table,
+        VecArray(vec![w.0, w.0, w.0, w.0])
+    );
+    assert_eq!(remainder.adjacency[0].sources.len(), 1);
+    assert_eq!(remainder.adjacency[0].targets.len(), 1);
+    assert_eq!(remainder.adjacency[1].sources.len(), 1);
+    assert_eq!(remainder.adjacency[1].targets.len(), 1);
+    let a0s = remainder.adjacency[0].sources[0];
+    let a0t = remainder.adjacency[0].targets[0];
+    let a1s = remainder.adjacency[1].sources[0];
+    let a1t = remainder.adjacency[1].targets[0];
+    assert_ne!(a0s, a0t);
+    assert_ne!(a1s, a1t);
+    assert_ne!(a0s, a1s);
+    assert_ne!(a0s, a1t);
+    assert_ne!(a0t, a1s);
+    assert_ne!(a0t, a1t);
+}
+
+#[test]
+fn test_remainder_with_injection_empty_excluded_is_identity() {
+    let mut host = Hypergraph::empty();
+    let w0 = host.new_node(1);
+    let w1 = host.new_node(2);
+    host.new_edge(
+        10,
+        Hyperedge {
+            sources: vec![w0],
+            targets: vec![w1],
+        },
+    );
+
+    let excluded = NodeEdgeMap {
+        nodes: FiniteFunction::<VecKind>::initial(host.nodes.len()),
+        edges: FiniteFunction::<VecKind>::initial(host.edges.len()),
+    };
+
+    let (remainder, remainder_in_host) = host.remainder_with_injection(&excluded);
+
+    assert_eq!(remainder, host);
+    assert_eq!(remainder_in_host.nodes.table, VecArray(vec![0, 1]));
+    assert_eq!(remainder_in_host.edges.table, VecArray(vec![0]));
+}
+
+#[test]
+fn test_remainder_with_injection_excluded_edge_drops_edge_only() {
+    let mut host = Hypergraph::empty();
+    let w0 = host.new_node(1);
+    let w1 = host.new_node(2);
+    host.new_edge(
+        10,
+        Hyperedge {
+            sources: vec![w0],
+            targets: vec![w1],
+        },
+    );
+
+    let excluded = NodeEdgeMap {
+        nodes: FiniteFunction::<VecKind>::initial(host.nodes.len()),
+        edges: FiniteFunction::<VecKind>::new(VecArray(vec![0]), host.edges.len()).unwrap(),
+    };
+
+    let (remainder, remainder_in_host) = host.remainder_with_injection(&excluded);
+
+    assert_eq!(remainder.nodes, host.nodes);
+    assert!(remainder.edges.is_empty());
+    assert!(remainder.adjacency.is_empty());
+    assert_eq!(remainder_in_host.nodes.table, VecArray(vec![0, 1]));
+    assert!(remainder_in_host.edges.table.is_empty());
 }
