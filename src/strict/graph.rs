@@ -258,7 +258,9 @@ where
 /// Given a FiniteFunction `X → L`, compute its converse,
 /// a relation `r : L → X*`, and return the result as an array of arrays,
 /// where `r_i` is the list of elements in `X` mapping to i.
-pub(crate) fn converse_iter<K: ArrayKind>(order: FiniteFunction<K>) -> impl Iterator<Item = K::Index>
+pub(crate) fn converse_iter<K: ArrayKind>(
+    order: FiniteFunction<K>,
+) -> impl Iterator<Item = K::Index>
 where
     K::Type<K::I>: NaturalArray<K>,
     K::I: Into<usize>,
