@@ -22,7 +22,7 @@ use num_traits::{One, Zero};
 /// NOTE: An indexed coproduct does not uniquely represent a 'multirelation', since *order* of the
 /// elements matters.
 /// The result of this function is only unique up to permutation of the sublists.
-pub fn converse<K: ArrayKind>(
+pub(crate) fn converse<K: ArrayKind>(
     r: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
@@ -48,7 +48,7 @@ where
 /// If `X` is the finite set of operations in `h`, then `operation_adjacency(h)` computes the
 /// indexed coproduct `adjacency : X → X*`, where the list `adjacency(x)` is all operations reachable in
 /// a single step from operation `x`.
-pub fn operation_adjacency<K: ArrayKind, O, A>(
+pub(crate) fn operation_adjacency<K: ArrayKind, O, A>(
     h: &Hypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
@@ -62,7 +62,7 @@ where
 /// If `W` is the finite set of nodes in `h`, then `node_adjacency(h)` computes the
 /// indexed coproduct `adjacency : W → W*`, where the list `adjacency(w)` is all nodes reachable in
 /// a single step from node `w`.
-pub fn node_adjacency<K: ArrayKind, O, A>(
+pub(crate) fn node_adjacency<K: ArrayKind, O, A>(
     h: &Hypergraph<K, O, A>,
 ) -> IndexedCoproduct<K, FiniteFunction<K>>
 where
@@ -74,7 +74,7 @@ where
 /// A kahn-ish algorithm for topological sorting of an adjacency relation, encoded as an
 /// [`IndexedCoproduct`] (see [`converse`] for details)
 ///
-pub fn kahn<K: ArrayKind>(
+pub(crate) fn kahn<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> (K::Index, K::Type<K::I>)
 where
@@ -155,7 +155,7 @@ where
 }
 
 /// Compute indegree of all nodes in a multigraph.
-pub fn indegree<K: ArrayKind>(
+pub(crate) fn indegree<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
 ) -> FiniteFunction<K>
 where
@@ -180,7 +180,7 @@ where
 /// # Returns
 ///
 /// A finite function `N → E+1` denoting indegree of each node in `N` relative to `f`.
-pub fn dense_relative_indegree<K: ArrayKind>(
+pub(crate) fn dense_relative_indegree<K: ArrayKind>(
     adjacency: &IndexedCoproduct<K, FiniteFunction<K>>,
     f: &FiniteFunction<K>,
 ) -> FiniteFunction<K>
@@ -211,7 +211,7 @@ where
 /// - `g : R → N`, the subset of (R)eachable nodes reachable from `f`
 /// - `i : R → E+1`, the *indegree* of nodes in `R`.
 ///
-pub fn sparse_relative_indegree<K: ArrayKind>(
+pub(crate) fn sparse_relative_indegree<K: ArrayKind>(
     a: &IndexedCoproduct<K, FiniteFunction<K>>,
     f: &FiniteFunction<K>,
 ) -> (FiniteFunction<K>, FiniteFunction<K>)
@@ -239,7 +239,7 @@ where
 /// - `predicate : K → 2`
 ///
 /// Return the subset of `values` for which `predicate(i) = 1`
-pub fn filter<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index {
+pub(crate) fn filter<K: ArrayKind>(values: &K::Index, predicate: &K::Index) -> K::Index {
     predicate.repeat(values.get_range(..))
 }
 
@@ -258,7 +258,7 @@ where
 /// Given a FiniteFunction `X → L`, compute its converse,
 /// a relation `r : L → X*`, and return the result as an array of arrays,
 /// where `r_i` is the list of elements in `X` mapping to i.
-pub fn converse_iter<K: ArrayKind>(order: FiniteFunction<K>) -> impl Iterator<Item = K::Index>
+pub(crate) fn converse_iter<K: ArrayKind>(order: FiniteFunction<K>) -> impl Iterator<Item = K::Index>
 where
     K::Type<K::I>: NaturalArray<K>,
     K::I: Into<usize>,
@@ -271,7 +271,7 @@ where
 // Array trait helpers
 
 // FiniteFunction helpers
-pub fn zero<K: ArrayKind>(f: &FiniteFunction<K>) -> K::Index
+pub(crate) fn zero<K: ArrayKind>(f: &FiniteFunction<K>) -> K::Index
 where
     K::Type<K::I>: NaturalArray<K>,
 {
