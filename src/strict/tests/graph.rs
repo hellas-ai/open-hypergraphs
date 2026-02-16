@@ -1,5 +1,5 @@
-use open_hypergraphs::lax::{Hyperedge, Hypergraph as LaxHypergraph, NodeId};
-use open_hypergraphs::strict::graph;
+use crate::lax::{Hyperedge, Hypergraph as LaxHypergraph, NodeId};
+use crate::strict::graph;
 
 #[test]
 fn test_node_adjacency_simple_example() {
