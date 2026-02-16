@@ -7,7 +7,7 @@ use crate::strict::hypergraph::{Hypergraph, InvalidHypergraph};
 
 use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     fn from(value: InvalidHypergraph<K>) -> Self {
@@ -298,5 +298,38 @@ where
     /// Returns true if there is no directed path from any node to itself.
     pub fn is_acyclic(&self) -> bool {
         self.h.is_acyclic()
+    }
+
+    /// Whether this open hypergraph is monogamous.
+    ///
+    /// An open hypergraph `m -f-> G <-g- n` is monogamous if `f` and `g` are monic and:
+    /// - for all nodes v, in-degree(v) is 0 if v in in(G), else 1
+    /// - for all nodes v, out-degree(v) is 0 if v in out(G), else 1
+    pub fn is_monogamous(&self) -> bool {
+        let node_count = self.h.w.len();
+
+        // Check injectivity of the source interface map (no node appears twice).
+        let in_counts = (self.s.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        if in_counts.max().map(|m| m > K::I::one()).unwrap_or(false) {
+            return false;
+        }
+
+        // Check injectivity of the target interface map (no node appears twice).
+        let out_counts = (self.t.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        if out_counts.max().map(|m| m > K::I::one()).unwrap_or(false) {
+            return false;
+        }
+
+        // Compute degrees of each node from hyperedges (multiplicity counted).
+        let in_degrees =
+            (self.h.t.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        let out_degrees =
+            (self.h.s.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        let ones = K::Index::fill(K::I::one(), node_count);
+
+        // Monogamy condition: for each node, degree is 0 iff on the interface, else 1.
+        // Equivalent to elementwise: degree + interface_count == 1.
+        (in_degrees + in_counts - ones.clone()).zero().len() == ones.len()
+            && (out_degrees + out_counts - ones).zero().len() == self.h.w.len()
     }
 }
