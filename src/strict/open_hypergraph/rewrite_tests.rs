@@ -42,32 +42,6 @@ fn make_hypergraph(
     Hypergraph::new(s, t, w, x).unwrap()
 }
 
-fn make_open_hypergraph(
-    sources: &[Vec<usize>],
-    targets: &[Vec<usize>],
-    w_labels: Vec<i32>,
-    x_labels: Vec<i32>,
-    s_map: &[usize],
-    t_map: &[usize],
-) -> OpenHypergraph<VecKind, i32, i32> {
-    let h = make_hypergraph(sources, targets, w_labels, x_labels);
-    let s = FiniteFunction::new(VecArray(s_map.to_vec()), h.w.len()).unwrap();
-    let t = FiniteFunction::new(VecArray(t_map.to_vec()), h.w.len()).unwrap();
-    OpenHypergraph::new(s, t, h).unwrap()
-}
-
-fn make_open_hypergraph_empty_boundary(
-    sources: &[Vec<usize>],
-    targets: &[Vec<usize>],
-    w_labels: Vec<i32>,
-    x_labels: Vec<i32>,
-) -> OpenHypergraph<VecKind, i32, i32> {
-    let h = make_hypergraph(sources, targets, w_labels, x_labels);
-    let s = FiniteFunction::initial(h.w.len());
-    let t = FiniteFunction::initial(h.w.len());
-    OpenHypergraph::new(s, t, h).unwrap()
-}
-
 #[derive(Clone)]
 struct NamedEdge<'a> {
     logical_name: &'a str,
