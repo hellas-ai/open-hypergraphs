@@ -216,6 +216,21 @@ impl<K: ArrayKind> FiniteFunction<K> {
     }
 }
 
+impl<K: ArrayKind> FiniteFunction<K>
+where
+    K::Type<K::I>: NaturalArray<K>,
+{
+    /// Check if this finite function is injective.
+    pub fn is_injective(&self) -> bool {
+        if self.source().is_zero() {
+            return true;
+        }
+
+        let counts = self.table.bincount(self.target.clone());
+        counts.max().map_or(true, |m| m <= K::I::one())
+    }
+}
+
 /// Compute the universal map for a coequalizer `q : B → Q` and arrow `f : B → T`, generalised to
 /// the case where `T` is an arbitrary set (i.e., `f` is an array of `T`)
 pub fn coequalizer_universal<K: ArrayKind, T>(
