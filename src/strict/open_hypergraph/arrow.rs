@@ -120,6 +120,21 @@ where
         let h = Hypergraph::discrete(w);
         Some(OpenHypergraph { s, t, h })
     }
+
+    pub fn is_monogamous(&self) -> bool
+    where
+        K::Type<bool>: Array<K, bool>,
+    {
+        // TODO: implement monogamy check
+        // Note: when implemented, monogamy should also imply boundary legs are injective.
+        debug_assert!(self.s.is_injective() && self.t.is_injective());
+        true
+    }
+
+    pub fn is_acyclic(&self) -> bool {
+        // TODO: implement acyclicity check
+        true
+    }
 }
 
 impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
