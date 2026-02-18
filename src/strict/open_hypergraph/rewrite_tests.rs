@@ -444,6 +444,155 @@ fn expected_example45_after_fs4() -> OpenHypergraph<VecKind, i32, i32> {
     )
 }
 
+fn fs1_associativity_rule_named() -> (
+    RewriteRule<VecKind, i32, i32>,
+    NamedOpenGraph,
+    NamedOpenGraph,
+) {
+    // FS1-style associativity orientation for μ:
+    // μ(μ(a,b), c) -> μ(a, μ(b,c))
+    let lhs = make_named_open_hypergraph(
+        [
+            w("a", OBJ),
+            w("b", OBJ),
+            w("c", OBJ),
+            w("m", OBJ),
+            w("out", OBJ),
+        ],
+        [
+            e("mu_left", ["a", "b"], ["m"], MU),
+            e("mu_top", ["m", "c"], ["out"], MU),
+        ],
+        [inp("a"), inp("b"), inp("c")],
+        [out("out")],
+    );
+    let rhs = make_named_open_hypergraph(
+        [
+            w("a", OBJ),
+            w("b", OBJ),
+            w("c", OBJ),
+            w("m", OBJ),
+            w("out", OBJ),
+        ],
+        [
+            e("mu_right", ["b", "c"], ["m"], MU),
+            e("mu_top", ["a", "m"], ["out"], MU),
+        ],
+        [inp("a"), inp("b"), inp("c")],
+        [out("out")],
+    );
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    (rule, lhs, rhs)
+}
+
+fn fs2_coassociativity_rule_named() -> (
+    RewriteRule<VecKind, i32, i32>,
+    NamedOpenGraph,
+    NamedOpenGraph,
+) {
+    // FS2-style coassociativity orientation for δ:
+    // (δ ⊗ id); δ -> (id ⊗ δ); δ  (dually, 1 -> 3 reassociation)
+    let lhs = make_named_open_hypergraph(
+        [
+            w("in", OBJ),
+            w("m", OBJ),
+            w("a", OBJ),
+            w("b", OBJ),
+            w("c", OBJ),
+        ],
+        [
+            e("delta_top", ["in"], ["m", "c"], DELTA),
+            e("delta_left", ["m"], ["a", "b"], DELTA),
+        ],
+        [inp("in")],
+        [out("a"), out("b"), out("c")],
+    );
+    let rhs = make_named_open_hypergraph(
+        [
+            w("in", OBJ),
+            w("m", OBJ),
+            w("a", OBJ),
+            w("b", OBJ),
+            w("c", OBJ),
+        ],
+        [
+            e("delta_top", ["in"], ["a", "m"], DELTA),
+            e("delta_right", ["m"], ["b", "c"], DELTA),
+        ],
+        [inp("in")],
+        [out("a"), out("b"), out("c")],
+    );
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    (rule, lhs, rhs)
+}
+
+fn ba_distributivity_rule_named() -> (
+    RewriteRule<VecKind, i32, i32>,
+    NamedOpenGraph,
+    NamedOpenGraph,
+) {
+    // BA interaction forward step: μ;δ expands to the 4-edge crossing shape.
+    let lhs = make_named_open_hypergraph(
+        [
+            w("a", OBJ),
+            w("b", OBJ),
+            w("m", OBJ),
+            w("x", OBJ),
+            w("y", OBJ),
+        ],
+        [
+            e("mu", ["a", "b"], ["m"], MU),
+            e("delta", ["m"], ["x", "y"], DELTA),
+        ],
+        [inp("a"), inp("b")],
+        [out("x"), out("y")],
+    );
+    let rhs = make_named_open_hypergraph(
+        [
+            w("in_l", OBJ),
+            w("in_r", OBJ),
+            w("l_mid", OBJ),
+            w("l_out", OBJ),
+            w("r_mid", OBJ),
+            w("r_out", OBJ),
+            w("out_l", OBJ),
+            w("out_r", OBJ),
+        ],
+        [
+            e("delta_l", ["in_l"], ["l_out", "l_mid"], DELTA),
+            e("delta_r", ["in_r"], ["r_out", "r_mid"], DELTA),
+            e("mu_l", ["l_mid", "r_mid"], ["out_l"], MU),
+            e("mu_r", ["l_out", "r_out"], ["out_r"], MU),
+        ],
+        [inp("in_l"), inp("in_r")],
+        [out("out_l"), out("out_r")],
+    );
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    (rule, lhs, rhs)
+}
+
+fn delete_single_edge_rule_named(
+    label: i32,
+) -> (
+    RewriteRule<VecKind, i32, i32>,
+    NamedOpenGraph,
+    NamedOpenGraph,
+) {
+    let lhs = make_named_open_hypergraph(
+        [w("a", OBJ), w("b", OBJ)],
+        [e("drop", ["a"], ["b"], label)],
+        [],
+        [],
+    );
+    let rhs_wires: [NamedWire<'static>; 0] = [];
+    let rhs_edges: [NamedEdge<'static>; 0] = [];
+    let rhs_inputs: [BoundaryPort<'static>; 0] = [];
+    let rhs_outputs: [BoundaryPort<'static>; 0] = [];
+    let rhs = make_named_open_hypergraph(rhs_wires, rhs_edges, rhs_inputs, rhs_outputs);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    (rule, lhs, rhs)
+}
+
 fn injective_maps(domain: usize, target: usize) -> Vec<Vec<usize>> {
     fn backtrack(
         domain: usize,
@@ -639,6 +788,98 @@ fn apply_rewrite_removes_matched_subgraph_with_empty_rhs() {
 
     let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
     assert!(isomorphic_with_boundary(&rhs.graph, &out));
+}
+
+#[test]
+fn apply_rewrite_fs1_reassociates_mu_tree() {
+    let (rule, lhs, rhs) = fs1_associativity_rule_named();
+    let host = lhs;
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &host,
+        &host,
+        &[
+            ("a", "a"),
+            ("b", "b"),
+            ("c", "c"),
+            ("m", "m"),
+            ("out", "out"),
+        ],
+        &[("mu_left", "mu_left"), ("mu_top", "mu_top")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&rhs.graph, &out));
+}
+
+#[test]
+fn apply_rewrite_fs2_reassociates_delta_tree() {
+    let (rule, lhs, rhs) = fs2_coassociativity_rule_named();
+    let host = lhs;
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &host,
+        &host,
+        &[("in", "in"), ("m", "m"), ("a", "a"), ("b", "b"), ("c", "c")],
+        &[("delta_top", "delta_top"), ("delta_left", "delta_left")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&rhs.graph, &out));
+}
+
+#[test]
+fn apply_rewrite_ba_distributivity_expands_to_expected_shape() {
+    let (rule, lhs, rhs) = ba_distributivity_rule_named();
+    let host = lhs;
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &host,
+        &host,
+        &[("a", "a"), ("b", "b"), ("m", "m"), ("x", "x"), ("y", "y")],
+        &[("mu", "mu"), ("delta", "delta")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&rhs.graph, &out));
+}
+
+#[test]
+fn apply_rewrite_delete_edge_in_context_keeps_rest() {
+    let (rule, lhs, _rhs_empty) = delete_single_edge_rule_named(40);
+
+    // Host has two edges; rule should delete only "drop_edge" and preserve
+    // "keep_edge" and the open boundary.
+    let host = make_named_open_hypergraph(
+        [w("in", OBJ), w("mid", OBJ), w("out", OBJ)],
+        [
+            e("keep_edge", ["in"], ["mid"], 30),
+            e("drop_edge", ["mid"], ["out"], 40),
+        ],
+        [inp("in")],
+        [out("out")],
+    );
+    let expected = make_open_hypergraph_named(
+        [w("in", OBJ), w("mid", OBJ), w("out", OBJ)],
+        [e("keep_edge", ["in"], ["mid"], 30)],
+        [inp("in")],
+        [out("out")],
+    );
+
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &lhs,
+        &host,
+        &[("a", "mid"), ("b", "out")],
+        &[("drop", "drop_edge")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&expected, &out));
 }
 
 #[test]
