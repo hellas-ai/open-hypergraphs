@@ -1,5 +1,8 @@
 use open_hypergraphs::array::vec::*;
+use open_hypergraphs::finite_function::FiniteFunction;
+use open_hypergraphs::indexed_coproduct::IndexedCoproduct;
 use open_hypergraphs::lax::{Hyperedge, Hypergraph as LaxHypergraph, NodeId};
+use open_hypergraphs::semifinite::SemifiniteFunction;
 use open_hypergraphs::strict::hypergraph::*;
 
 use super::strategy::{DiscreteSpan, Labels};
@@ -121,4 +124,28 @@ fn test_is_acyclic_false_cycle() {
 fn test_is_acyclic_false_self_loop() {
     let h = build_hypergraph(1, &[(vec![0], vec![0])]);
     assert!(!h.is_acyclic());
+}
+#[test]
+fn test_in_out_degree_counts_multiplicity() {
+    let sources = IndexedCoproduct::from_semifinite(
+        SemifiniteFunction(VecArray(vec![3, 1])),
+        FiniteFunction::new(VecArray(vec![0, 1, 1, 2]), 3).unwrap(),
+    )
+    .unwrap();
+    let targets = IndexedCoproduct::from_semifinite(
+        SemifiniteFunction(VecArray(vec![2, 2])),
+        FiniteFunction::new(VecArray(vec![2, 0, 1, 1]), 3).unwrap(),
+    )
+    .unwrap();
+    let w = SemifiniteFunction(VecArray(vec![1i8, 2i8, 3i8]));
+    let x = SemifiniteFunction(VecArray(vec![10u8, 20u8]));
+
+    let h: Hypergraph<VecKind, Obj, Arr> = Hypergraph::new(sources, targets, w, x).unwrap();
+
+    assert_eq!(h.in_degree(0), 1);
+    assert_eq!(h.out_degree(0), 1);
+    assert_eq!(h.in_degree(1), 2);
+    assert_eq!(h.out_degree(1), 2);
+    assert_eq!(h.in_degree(2), 1);
+    assert_eq!(h.out_degree(2), 1);
 }
