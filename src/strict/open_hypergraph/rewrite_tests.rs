@@ -476,6 +476,56 @@ fn g_const1<'a>(logical_name: &'a str, out_w: &'a str) -> NamedEdge<'a> {
     e(logical_name, [], [out_w], G_CONST1)
 }
 
+// Program-optimization DSL (test-only):
+// We model a tiny SSA-like program graph with assignments and arithmetic.
+const P_ASSIGN: i32 = 200;
+const P_ADD: i32 = 201;
+const P_CONST1: i32 = 202;
+const P_ADD_CONST1: i32 = 203;
+const P_DISCARD: i32 = 204;
+
+fn pw<'a>(logical_name: &'a str) -> NamedWire<'a> {
+    w(logical_name, OBJ)
+}
+
+fn p_assign<'a>(logical_name: &'a str, src: &'a str, dst: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [src], [dst], P_ASSIGN)
+}
+
+fn p_add<'a>(logical_name: &'a str, x: &'a str, y: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [x, y], [out_w], P_ADD)
+}
+
+fn p_const1<'a>(logical_name: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [], [out_w], P_CONST1)
+}
+
+fn p_add_const1<'a>(logical_name: &'a str, x: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [x], [out_w], P_ADD_CONST1)
+}
+
+fn p_discard<'a>(logical_name: &'a str, in_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [in_w], [], P_DISCARD)
+}
+
+fn program_rule_assign_then_discard() -> (
+    RewriteRule<VecKind, i32, i32>,
+    NamedOpenGraph,
+    NamedOpenGraph,
+) {
+    // Markov-style dead elimination:
+    // assign(u -> v); discard(v) -> discard(u)
+    let lhs = make_named_open_hypergraph(
+        [pw("u"), pw("v")],
+        [p_assign("assign", "u", "v"), p_discard("discard_v", "v")],
+        [inp("u")],
+        [],
+    );
+    let rhs = make_named_open_hypergraph([pw("u")], [p_discard("discard_u", "u")], [inp("u")], []);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    (rule, lhs, rhs)
+}
+
 struct CircuitRule {
     rule: RewriteRule<VecKind, i32, i32>,
     lhs: NamedOpenGraph,
@@ -1332,4 +1382,191 @@ fn circuit_apply_rewrite_multiple_rules_pipeline_matches_expected_stubs() {
     );
     let out3 = apply_rewrite(&r_dnot.rule, &host2_ma, &m2).unwrap();
     assert!(isomorphic_with_boundary(&expected3, &out3));
+}
+
+#[test]
+fn program_apply_rewrite_dead_code_elimination_in_context() {
+    // Dead code elimination rule (Markov-style):
+    //   assign(u -> v); discard(v) -> discard(u)
+    //
+    // Host program graph (context + dead assignment):
+    //   live: out = add(a, b)
+    //   dead: t1 = assign(d); discard(t1)
+    //
+    // Expected optimized graph:
+    //   keep live computation and replace assign+discard by discard(d).
+    let (rule, lhs, _rhs) = program_rule_assign_then_discard();
+
+    let host = make_named_open_hypergraph(
+        [pw("a"), pw("b"), pw("out"), pw("d"), pw("t1")],
+        [
+            p_add("live_add", "a", "b", "out"),
+            p_assign("assign", "d", "t1"),
+            p_discard("discard_v", "t1"),
+        ],
+        [inp("a"), inp("b")],
+        [out("out")],
+    );
+    let expected = make_open_hypergraph_named(
+        [pw("a"), pw("b"), pw("out"), pw("d")],
+        [
+            p_add("live_add", "a", "b", "out"),
+            p_discard("discard_u", "d"),
+        ],
+        [inp("a"), inp("b")],
+        [out("out")],
+    );
+
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &lhs,
+        &host,
+        &[("u", "d"), ("v", "t1")],
+        &[("assign", "assign"), ("discard_v", "discard_v")],
+        &host_ma,
+    );
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&expected, &out));
+}
+
+#[test]
+fn program_apply_rewrite_dead_code_elimination_multiple_steps() {
+    // Apply the same dead-elimination rule repeatedly through a dead chain:
+    //
+    // start:
+    //   t1 = assign(d)
+    //   t2 = assign(t1)
+    //   discard(t2)
+    //
+    // step 1 (on assign(t1->t2);discard(t2)):
+    //   t1 = assign(d)
+    //   discard(t1)
+    //
+    // step 2 (on assign(d->t1);discard(t1)):
+    //   discard(d)
+    //
+    // The live context `out = add(a,b)` is preserved across both steps.
+    let (rule, lhs, _rhs) = program_rule_assign_then_discard();
+
+    let host0 = make_named_open_hypergraph(
+        [pw("a"), pw("b"), pw("out"), pw("d"), pw("t1"), pw("t2")],
+        [
+            p_add("live_add", "a", "b", "out"),
+            p_assign("assign_1", "d", "t1"),
+            p_assign("assign", "t1", "t2"),
+            p_discard("discard_v", "t2"),
+        ],
+        [inp("a"), inp("b")],
+        [out("out")],
+    );
+    let expected1 = make_open_hypergraph_named(
+        [pw("a"), pw("b"), pw("out"), pw("d"), pw("t1")],
+        [
+            p_add("live_add", "a", "b", "out"),
+            p_assign("assign_1", "d", "t1"),
+            p_discard("discard_u", "t1"),
+        ],
+        [inp("a"), inp("b")],
+        [out("out")],
+    );
+
+    let host0_ma = MonogamousAcyclicHost::new(&host0.graph).unwrap();
+    let m0 = named_match_witness(
+        &lhs,
+        &host0,
+        &[("u", "t1"), ("v", "t2")],
+        &[("assign", "assign"), ("discard_v", "discard_v")],
+        &host0_ma,
+    );
+    let out1 = apply_rewrite(&rule, &host0_ma, &m0).unwrap();
+    assert!(isomorphic_with_boundary(&expected1, &out1));
+
+    let host1 = make_named_open_hypergraph(
+        [pw("a"), pw("b"), pw("out"), pw("d"), pw("t1")],
+        [
+            p_add("live_add", "a", "b", "out"),
+            p_assign("assign", "d", "t1"),
+            p_discard("discard_v", "t1"),
+        ],
+        [inp("a"), inp("b")],
+        [out("out")],
+    );
+    let expected2 = make_open_hypergraph_named(
+        [pw("a"), pw("b"), pw("out"), pw("d")],
+        [
+            p_add("live_add", "a", "b", "out"),
+            p_discard("discard_u", "d"),
+        ],
+        [inp("a"), inp("b")],
+        [out("out")],
+    );
+
+    let host1_ma = MonogamousAcyclicHost::new(&host1.graph).unwrap();
+    let m1 = named_match_witness(
+        &lhs,
+        &host1,
+        &[("u", "d"), ("v", "t1")],
+        &[("assign", "assign"), ("discard_v", "discard_v")],
+        &host1_ma,
+    );
+    let out2 = apply_rewrite(&rule, &host1_ma, &m1).unwrap();
+    assert!(isomorphic_with_boundary(&expected2, &out2));
+}
+
+#[test]
+fn program_apply_rewrite_constant_propagation_in_context() {
+    // Constant propagation rule:
+    //   c = const1();  y = add(c, x)
+    //   --------------------------------
+    //   y = add_const1(x)
+    //
+    // Host program graph (larger context):
+    //   c = const1()
+    //   y = add(c, x)
+    //   z = assign(y)        // downstream context must stay connected
+    //
+    // Expected optimized graph:
+    //   y = add_const1(x)
+    //   z = assign(y)
+    let lhs = make_named_open_hypergraph(
+        [pw("c"), pw("x"), pw("y")],
+        [p_const1("k1", "c"), p_add("add", "c", "x", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = make_named_open_hypergraph(
+        [pw("x"), pw("y")],
+        [p_add_const1("addc1", "x", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+
+    let host = make_named_open_hypergraph(
+        [pw("c"), pw("x"), pw("y"), pw("z")],
+        [
+            p_const1("k1", "c"),
+            p_add("add", "c", "x", "y"),
+            p_assign("use_y", "y", "z"),
+        ],
+        [inp("x")],
+        [out("z")],
+    );
+    let expected = make_open_hypergraph_named(
+        [pw("x"), pw("y"), pw("z")],
+        [p_add_const1("addc1", "x", "y"), p_assign("use_y", "y", "z")],
+        [inp("x")],
+        [out("z")],
+    );
+
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &lhs,
+        &host,
+        &[("c", "c"), ("x", "x"), ("y", "y")],
+        &[("k1", "k1"), ("add", "add")],
+        &host_ma,
+    );
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&expected, &out));
 }
