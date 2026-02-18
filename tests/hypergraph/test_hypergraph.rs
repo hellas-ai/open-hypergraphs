@@ -1,6 +1,7 @@
 use open_hypergraphs::array::vec::*;
 use open_hypergraphs::finite_function::FiniteFunction;
 use open_hypergraphs::indexed_coproduct::IndexedCoproduct;
+use open_hypergraphs::lax::{Hyperedge, Hypergraph as LaxHypergraph, NodeId};
 use open_hypergraphs::semifinite::SemifiniteFunction;
 use open_hypergraphs::strict::hypergraph::*;
 
@@ -89,6 +90,40 @@ fn test_empty() {
     let e: Hypergraph<VecKind, usize, usize> = Hypergraph::empty();
     assert_eq!(e.w.len(), 0);
     assert_eq!(e.x.len(), 0);
+}
+
+fn build_hypergraph(
+    node_count: usize,
+    edges: &[(Vec<usize>, Vec<usize>)],
+) -> Hypergraph<VecKind, Obj, Arr> {
+    let mut h = LaxHypergraph::empty();
+    h.nodes = vec![0; node_count];
+    for (sources, targets) in edges {
+        let edge = Hyperedge {
+            sources: sources.iter().map(|&i| NodeId(i)).collect(),
+            targets: targets.iter().map(|&i| NodeId(i)).collect(),
+        };
+        h.new_edge(0, edge);
+    }
+    h.to_hypergraph()
+}
+
+#[test]
+fn test_is_acyclic_true() {
+    let h = build_hypergraph(3, &[(vec![0], vec![1]), (vec![1], vec![2])]);
+    assert!(h.is_acyclic());
+}
+
+#[test]
+fn test_is_acyclic_false_cycle() {
+    let h = build_hypergraph(2, &[(vec![0], vec![1]), (vec![1], vec![0])]);
+    assert!(!h.is_acyclic());
+}
+
+#[test]
+fn test_is_acyclic_false_self_loop() {
+    let h = build_hypergraph(1, &[(vec![0], vec![0])]);
+    assert!(!h.is_acyclic());
 }
 
 #[test]

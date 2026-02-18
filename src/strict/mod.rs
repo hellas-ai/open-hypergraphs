@@ -8,6 +8,7 @@ pub mod open_hypergraph;
 
 pub mod eval;
 pub mod functor;
+pub mod graph;
 pub mod layer;
 
 pub use crate::array::*;
@@ -17,6 +18,9 @@ pub use crate::indexed_coproduct::IndexedCoproduct;
 pub use crate::semifinite::SemifiniteFunction;
 pub use hypergraph::Hypergraph;
 pub use open_hypergraph::*;
+
+#[cfg(test)]
+mod tests;
 
 pub mod vec {
     //! Type alises for strict Open Hypergraphs using the [`VecKind`] array backend.

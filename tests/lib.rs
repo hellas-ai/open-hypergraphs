@@ -13,5 +13,6 @@ pub mod hypergraph;
 pub mod open_hypergraph;
 
 pub mod eval;
+pub mod graph;
 pub mod lax;
 pub mod layer;
