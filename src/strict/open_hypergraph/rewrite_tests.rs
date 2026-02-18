@@ -444,6 +444,80 @@ fn expected_example45_after_fs4() -> OpenHypergraph<VecKind, i32, i32> {
     )
 }
 
+// Circuit DSL (test-only):
+// Keep this tiny and declarative so circuit rewrite tests stay readable.
+const G_AND: i32 = 100;
+const G_XOR: i32 = 101;
+const G_NOT: i32 = 102;
+const G_CONST0: i32 = 103;
+const G_CONST1: i32 = 104;
+
+fn cw<'a>(logical_name: &'a str) -> NamedWire<'a> {
+    w(logical_name, OBJ)
+}
+
+fn g_and<'a>(logical_name: &'a str, a: &'a str, b: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [a, b], [out_w], G_AND)
+}
+
+fn g_xor<'a>(logical_name: &'a str, a: &'a str, b: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [a, b], [out_w], G_XOR)
+}
+
+fn g_not<'a>(logical_name: &'a str, in_w: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [in_w], [out_w], G_NOT)
+}
+
+fn g_const0<'a>(logical_name: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [], [out_w], G_CONST0)
+}
+
+fn g_const1<'a>(logical_name: &'a str, out_w: &'a str) -> NamedEdge<'a> {
+    e(logical_name, [], [out_w], G_CONST1)
+}
+
+struct CircuitRule {
+    rule: RewriteRule<VecKind, i32, i32>,
+    lhs: NamedOpenGraph,
+    rhs: NamedOpenGraph,
+}
+
+fn circuit_rule_and_one() -> CircuitRule {
+    let lhs = make_named_open_hypergraph(
+        [cw("x"), cw("one"), cw("y")],
+        [g_const1("k1", "one"), g_and("and", "x", "one", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = make_named_open_hypergraph([cw("x")], [], [inp("x")], [out("x")]);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    CircuitRule { rule, lhs, rhs }
+}
+
+fn circuit_rule_xor_zero() -> CircuitRule {
+    let lhs = make_named_open_hypergraph(
+        [cw("x"), cw("zero"), cw("y")],
+        [g_const0("k0", "zero"), g_xor("xor", "x", "zero", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = make_named_open_hypergraph([cw("x")], [], [inp("x")], [out("x")]);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    CircuitRule { rule, lhs, rhs }
+}
+
+fn circuit_rule_double_not() -> CircuitRule {
+    let lhs = make_named_open_hypergraph(
+        [cw("x"), cw("m"), cw("y")],
+        [g_not("n1", "x", "m"), g_not("n2", "m", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = make_named_open_hypergraph([cw("x")], [], [inp("x")], [out("x")]);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+    CircuitRule { rule, lhs, rhs }
+}
+
 fn fs1_associativity_rule_named() -> (
     RewriteRule<VecKind, i32, i32>,
     NamedOpenGraph,
@@ -936,4 +1010,326 @@ fn frobenius_semi_algebra_example45_two_disjoint_matches_diverge() {
     assert!(isomorphic_with_boundary(&expected_h1, &h1));
     assert!(isomorphic_with_boundary(&expected_h2, &h2));
     assert!(!isomorphic_with_boundary(&h1, &h2));
+}
+
+#[test]
+fn circuit_apply_rewrite_and_one_simplifies_to_identity() {
+    // x AND 1 -> x
+    // Host circuit: x --AND(1)--> y
+    // Expected circuit: identity on x (input x, output x).
+    let r = circuit_rule_and_one();
+
+    let host = make_named_open_hypergraph(
+        [cw("x"), cw("one"), cw("y")],
+        [g_const1("k1", "one"), g_and("and", "x", "one", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &r.lhs,
+        &host,
+        &[("x", "x"), ("one", "one"), ("y", "y")],
+        &[("k1", "k1"), ("and", "and")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&r.rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&r.rhs.graph, &out));
+}
+
+#[test]
+fn circuit_apply_rewrite_xor_zero_simplifies_to_identity() {
+    // x XOR 0 -> x
+    // Host circuit: x --XOR(0)--> y
+    // Expected circuit: identity on x (input x, output x).
+    let r = circuit_rule_xor_zero();
+
+    let host = make_named_open_hypergraph(
+        [cw("x"), cw("zero"), cw("y")],
+        [g_const0("k0", "zero"), g_xor("xor", "x", "zero", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &r.lhs,
+        &host,
+        &[("x", "x"), ("zero", "zero"), ("y", "y")],
+        &[("k0", "k0"), ("xor", "xor")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&r.rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&r.rhs.graph, &out));
+}
+
+#[test]
+fn circuit_apply_rewrite_double_not_eliminates() {
+    // NOT(NOT(x)) -> x
+    // Host circuit: x -> NOT -> NOT -> y
+    // Expected circuit: identity on x (input x, output x).
+    let r = circuit_rule_double_not();
+
+    let host = make_named_open_hypergraph(
+        [cw("x"), cw("m"), cw("y")],
+        [g_not("n1", "x", "m"), g_not("n2", "m", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &r.lhs,
+        &host,
+        &[("x", "x"), ("m", "m"), ("y", "y")],
+        &[("n1", "n1"), ("n2", "n2")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&r.rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&r.rhs.graph, &out));
+}
+
+#[test]
+fn circuit_apply_rewrite_and_associativity_reassociates() {
+    // (a AND b) AND c -> a AND (b AND c)
+    // Host circuit: left-associated AND tree with three inputs.
+    // Expected circuit: right-associated AND tree with same 3-input/1-output behavior.
+    let lhs = make_named_open_hypergraph(
+        [cw("a"), cw("b"), cw("c"), cw("m"), cw("out")],
+        [g_and("and1", "a", "b", "m"), g_and("and2", "m", "c", "out")],
+        [inp("a"), inp("b"), inp("c")],
+        [out("out")],
+    );
+    let rhs = make_named_open_hypergraph(
+        [cw("a"), cw("b"), cw("c"), cw("m"), cw("out")],
+        [g_and("and1", "b", "c", "m"), g_and("and2", "a", "m", "out")],
+        [inp("a"), inp("b"), inp("c")],
+        [out("out")],
+    );
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+
+    let host = make_named_open_hypergraph(
+        [cw("a"), cw("b"), cw("c"), cw("m"), cw("out")],
+        [g_and("and1", "a", "b", "m"), g_and("and2", "m", "c", "out")],
+        [inp("a"), inp("b"), inp("c")],
+        [out("out")],
+    );
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &lhs,
+        &host,
+        &[
+            ("a", "a"),
+            ("b", "b"),
+            ("c", "c"),
+            ("m", "m"),
+            ("out", "out"),
+        ],
+        &[("and1", "and1"), ("and2", "and2")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&rhs.graph, &out));
+}
+
+#[test]
+fn circuit_apply_rewrite_and_one_in_context() {
+    // Rule: x AND 1 -> x
+    // Host circuit:
+    //   x --AND(1)--> y --NOT--> out
+    // Expected circuit:
+    //   x -----------NOT-------> out
+    // (the matched redex is internal; NOT context is preserved)
+    let lhs = make_named_open_hypergraph(
+        [cw("x"), cw("one"), cw("y")],
+        [g_const1("k1", "one"), g_and("and", "x", "one", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = make_named_open_hypergraph([cw("x")], [], [inp("x")], [out("x")]);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+
+    let host = make_named_open_hypergraph(
+        [cw("x"), cw("one"), cw("y"), cw("out")],
+        [
+            g_const1("k1", "one"),
+            g_and("and", "x", "one", "y"),
+            g_not("n", "y", "out"),
+        ],
+        [inp("x")],
+        [out("out")],
+    );
+    let expected = make_open_hypergraph_named(
+        [cw("x"), cw("out")],
+        [g_not("n", "x", "out")],
+        [inp("x")],
+        [out("out")],
+    );
+
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &lhs,
+        &host,
+        &[("x", "x"), ("one", "one"), ("y", "y")],
+        &[("k1", "k1"), ("and", "and")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&expected, &out));
+}
+
+#[test]
+fn circuit_apply_rewrite_xor_zero_in_context() {
+    // Rule: x XOR 0 -> x
+    // Host circuit:
+    //   x --XOR(0)--> y --AND(c)--> out
+    // Expected circuit:
+    //   x ------------AND(c)------> out
+    // (the matched redex is internal; downstream AND context is preserved)
+    let lhs = make_named_open_hypergraph(
+        [cw("x"), cw("zero"), cw("y")],
+        [g_const0("k0", "zero"), g_xor("xor", "x", "zero", "y")],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = make_named_open_hypergraph([cw("x")], [], [inp("x")], [out("x")]);
+    let rule = RewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+
+    let host = make_named_open_hypergraph(
+        [cw("x"), cw("zero"), cw("y"), cw("c"), cw("out")],
+        [
+            g_const0("k0", "zero"),
+            g_xor("xor", "x", "zero", "y"),
+            g_and("and", "y", "c", "out"),
+        ],
+        [inp("x"), inp("c")],
+        [out("out")],
+    );
+    let expected = make_open_hypergraph_named(
+        [cw("x"), cw("c"), cw("out")],
+        [g_and("and", "x", "c", "out")],
+        [inp("x"), inp("c")],
+        [out("out")],
+    );
+
+    let host_ma = MonogamousAcyclicHost::new(&host.graph).unwrap();
+    let m = named_match_witness(
+        &lhs,
+        &host,
+        &[("x", "x"), ("zero", "zero"), ("y", "y")],
+        &[("k0", "k0"), ("xor", "xor")],
+        &host_ma,
+    );
+
+    let out = apply_rewrite(&rule, &host_ma, &m).unwrap();
+    assert!(isomorphic_with_boundary(&expected, &out));
+}
+
+#[test]
+fn circuit_apply_rewrite_multiple_rules_pipeline_matches_expected_stubs() {
+    // Host circuit pipeline:
+    //   x --XOR(0)--> u --AND(1)--> v --NOT--> w --NOT--> out
+    //
+    // Apply rules in sequence:
+    //   (1) XOR-zero, (2) AND-one, (3) double-NOT
+    // and check against explicit expected stubs after each stage.
+    let r_xor0 = circuit_rule_xor_zero();
+    let r_and1 = circuit_rule_and_one();
+    let r_dnot = circuit_rule_double_not();
+
+    let host0 = make_named_open_hypergraph(
+        [
+            cw("x"),
+            cw("zero"),
+            cw("u"),
+            cw("one"),
+            cw("v"),
+            cw("w"),
+            cw("out"),
+        ],
+        [
+            g_const0("k0", "zero"),
+            g_xor("xor", "x", "zero", "u"),
+            g_const1("k1", "one"),
+            g_and("and", "u", "one", "v"),
+            g_not("n1", "v", "w"),
+            g_not("n2", "w", "out"),
+        ],
+        [inp("x")],
+        [out("out")],
+    );
+
+    let expected1 = make_open_hypergraph_named(
+        [cw("x"), cw("one"), cw("v"), cw("w"), cw("out")],
+        [
+            g_const1("k1", "one"),
+            g_and("and", "x", "one", "v"),
+            g_not("n1", "v", "w"),
+            g_not("n2", "w", "out"),
+        ],
+        [inp("x")],
+        [out("out")],
+    );
+
+    let host0_ma = MonogamousAcyclicHost::new(&host0.graph).unwrap();
+    let m0 = named_match_witness(
+        &r_xor0.lhs,
+        &host0,
+        &[("x", "x"), ("zero", "zero"), ("y", "u")],
+        &[("k0", "k0"), ("xor", "xor")],
+        &host0_ma,
+    );
+    let out1 = apply_rewrite(&r_xor0.rule, &host0_ma, &m0).unwrap();
+    assert!(isomorphic_with_boundary(&expected1, &out1));
+
+    let host1 = make_named_open_hypergraph(
+        [cw("x"), cw("one"), cw("v"), cw("w"), cw("out")],
+        [
+            g_const1("k1", "one"),
+            g_and("and", "x", "one", "v"),
+            g_not("n1", "v", "w"),
+            g_not("n2", "w", "out"),
+        ],
+        [inp("x")],
+        [out("out")],
+    );
+    let expected2 = make_open_hypergraph_named(
+        [cw("x"), cw("w"), cw("out")],
+        [g_not("n1", "x", "w"), g_not("n2", "w", "out")],
+        [inp("x")],
+        [out("out")],
+    );
+
+    let host1_ma = MonogamousAcyclicHost::new(&host1.graph).unwrap();
+    let m1 = named_match_witness(
+        &r_and1.lhs,
+        &host1,
+        &[("x", "x"), ("one", "one"), ("y", "v")],
+        &[("k1", "k1"), ("and", "and")],
+        &host1_ma,
+    );
+    let out2 = apply_rewrite(&r_and1.rule, &host1_ma, &m1).unwrap();
+    assert!(isomorphic_with_boundary(&expected2, &out2));
+
+    let host2 = make_named_open_hypergraph(
+        [cw("x"), cw("w"), cw("out")],
+        [g_not("n1", "x", "w"), g_not("n2", "w", "out")],
+        [inp("x")],
+        [out("out")],
+    );
+    let expected3 = make_open_hypergraph_named([cw("x")], [], [inp("x")], [out("x")]);
+
+    let host2_ma = MonogamousAcyclicHost::new(&host2.graph).unwrap();
+    let m2 = named_match_witness(
+        &r_dnot.lhs,
+        &host2,
+        &[("x", "x"), ("m", "w"), ("y", "out")],
+        &[("n1", "n1"), ("n2", "n2")],
+        &host2_ma,
+    );
+    let out3 = apply_rewrite(&r_dnot.rule, &host2_ma, &m2).unwrap();
+    assert!(isomorphic_with_boundary(&expected3, &out3));
 }
