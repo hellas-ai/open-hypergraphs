@@ -1,10 +1,10 @@
-use open_hypergraphs::array::vec::*;
-use open_hypergraphs::finite_function::*;
-use open_hypergraphs::indexed_coproduct::*;
-use open_hypergraphs::semifinite::*;
-use open_hypergraphs::strict::graph::{converse, indegree, operation_adjacency};
-use open_hypergraphs::strict::layer::layer;
-use open_hypergraphs::strict::open_hypergraph::*;
+use crate::array::vec::*;
+use crate::finite_function::*;
+use crate::indexed_coproduct::*;
+use crate::semifinite::*;
+use crate::strict::graph::{converse, indegree, operation_adjacency};
+use crate::strict::layer::layer;
+use crate::strict::open_hypergraph::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Arr {
