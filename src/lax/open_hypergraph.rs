@@ -84,6 +84,30 @@ impl<O, A> OpenHypergraph<O, A> {
         self.hypergraph.unify(v, w);
     }
 
+    /// Delete the specified edges from the hypergraph.
+    ///
+    /// Panics if any edge id is out of bounds.
+    pub fn delete_edges(&mut self, edge_ids: &[EdgeId]) {
+        self.hypergraph.delete_edges(edge_ids);
+    }
+
+    /// Delete the specified nodes from the hypergraph, and renumber the source/target interfaces.
+    ///
+    /// Panics if any node id is out of bounds.
+    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+        let new_index = self.hypergraph.delete_nodes_witness(node_ids);
+        self.sources = self
+            .sources
+            .iter()
+            .filter_map(|n| new_index[n.0].map(NodeId))
+            .collect();
+        self.targets = self
+            .targets
+            .iter()
+            .filter_map(|n| new_index[n.0].map(NodeId))
+            .collect();
+    }
+
     pub fn add_edge_source(&mut self, edge_id: EdgeId, w: O) -> NodeId {
         self.hypergraph.add_edge_source(edge_id, w)
     }

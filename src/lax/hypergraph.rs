@@ -221,7 +221,7 @@ impl<O, A> Hypergraph<O, A> {
     /// Delete the specified edges and their adjacency information.
     ///
     /// Panics if any edge id is out of bounds.
-    pub fn delete_edge(&mut self, edge_ids: &[EdgeId]) {
+    pub fn delete_edges(&mut self, edge_ids: &[EdgeId]) {
         let edge_count = self.edges.len();
         assert_eq!(
             edge_count,
@@ -271,12 +271,19 @@ impl<O, A> Hypergraph<O, A> {
         self.adjacency = adjacency;
     }
 
+    /// Renamed to `delete_edges` for consistency
+    #[deprecated(since = "0.2.10", note = "renamed delete_edges")]
+    pub fn delete_edge(&mut self, edge_ids: &[EdgeId]) {
+        self.delete_edges(edge_ids)
+    }
+
     /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
     ///
+    /// Returns the renumber map: `map[old] = Some(new)` for surviving nodes, `None` for deleted.
     /// Panics if any node id is out of bounds.
-    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+    pub fn delete_nodes_witness(&mut self, node_ids: &[NodeId]) -> Vec<Option<usize>> {
         if node_ids.is_empty() {
-            return;
+            return (0..self.nodes.len()).map(Some).collect();
         }
 
         let node_count = self.nodes.len();
@@ -297,7 +304,7 @@ impl<O, A> Hypergraph<O, A> {
         }
 
         if !any_removed {
-            return;
+            return (0..node_count).map(Some).collect();
         }
 
         let mut new_index = vec![None; node_count];
@@ -333,6 +340,15 @@ impl<O, A> Hypergraph<O, A> {
             }
         }
         self.quotient = (quotient_left, quotient_right);
+
+        new_index
+    }
+
+    /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
+    ///
+    /// Panics if any node id is out of bounds.
+    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+        self.delete_nodes_witness(node_ids);
     }
 }
 
