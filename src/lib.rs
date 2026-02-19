@@ -73,7 +73,6 @@
 //! pub enum NodeLabel { I8 };
 //! pub enum EdgeLabel { Sub, Neg };
 //!
-//! #[test]
 //! fn build() -> OpenHypergraph<NodeLabel, EdgeLabel> {
 //!     use NodeLabel::*;
 //!     use EdgeLabel::*;
@@ -100,6 +99,10 @@
 //!     // return the example
 //!     example
 //! }
+//!
+//! let f = build();
+//! assert_eq!(f.sources.len(), 2);
+//! assert_eq!(f.targets.len(), 2);
 //! ```
 //!
 //! The [`crate::lax::var::Var`] struct is a helper on top of the imperative interface which

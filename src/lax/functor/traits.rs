@@ -39,7 +39,7 @@ pub fn try_define_map_arrow<O1: Clone, A1, O2: Clone, A2: Clone>(
 
     // Below here is the same as 'spider_map_arrow' in strict functor impl
     // Steps 1: build spider maps with lax composition
-    spider_map_arrow(&f, &fw, fx)
+    spider_map_arrow(f, &fw, fx)
 }
 
 /// Like `map_arrow`, but also returns a relation mapping
@@ -62,7 +62,7 @@ pub fn map_arrow_witness<O1: Clone, A1, O2: Clone, A2: Clone>(
 
     // Below here is the same as 'spider_map_arrow' in strict functor impl
     // Steps 1: build spider maps with lax composition
-    let result = spider_map_arrow(&f, &fw, fx)?;
+    let result = spider_map_arrow(f, &fw, fx)?;
 
     // Step 2: identify the nodes of `i` within the composite.
     // Since:
@@ -127,7 +127,7 @@ fn spider_map_arrow<O1, A1, O2: Clone, A2: Clone>(
     let yt = OpenHypergraph::<O2, A2>::spider((&id_fn + &e_t)?, ft, fw_flat)?;
 
     // Compose laxly: sx ; (i ⊗ fx) ; yt
-    Some(sx.lax_compose(&i.tensor(&fx))?.lax_compose(&yt)?)
+    sx.lax_compose(&i.tensor(&fx))?.lax_compose(&yt)
 }
 
 /// Lax analogue of [`crate::strict::functor::map_half_spider`].
