@@ -353,18 +353,18 @@ impl<O, A> Hypergraph<O, A> {
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
-    /// Construct a [`Hypergraph`] by identifying nodes in the quotient map.
-    /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from `self.quotient`.
-    ///
-    /// NOTE: this operation is unchecked; you should verify quotiented nodes have the exact same
-    /// type first, or this operation is undefined.
-    pub fn quotient(&mut self) -> FiniteFunction<VecKind> {
+    /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from
+    /// `self.quotient`.
+    /// An [`Ok`] result means the hypergraph was quotiented.
+    /// An [`Err`] means the quotient map was invalid: some quotiented nodes had inequal values.
+    pub fn quotient(&mut self) -> Result<FiniteFunction<VecKind>, FiniteFunction<VecKind>> {
         use std::mem::take;
         let q = self.coequalizer();
 
-        self.nodes = coequalizer_universal(&q, &VecArray(take(&mut self.nodes)))
-            .unwrap()
-            .0;
+        self.nodes = match coequalizer_universal(&q, &VecArray(take(&mut self.nodes))) {
+            Some(nodes) => nodes.0,
+            None => return Err(q),
+        };
 
         // map hyperedges
         for e in &mut self.adjacency {
@@ -374,8 +374,7 @@ impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
 
         // clear the quotient map (we just used it)
         self.quotient = (vec![], vec![]); // empty
-
-        q // return the coequalizer used to quotient the hypergraph
+        Ok(q)
     }
 }
 
