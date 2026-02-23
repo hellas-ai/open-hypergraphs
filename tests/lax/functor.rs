@@ -30,13 +30,13 @@ impl<O: PartialEq + Clone, A: Clone + PartialEq> Functor<O, A, O, A> for LaxIden
         } else {
             f_strict = {
                 let mut c = f.clone();
-                c.quotient();
+                c.quotient().unwrap();
                 c
             };
             &f_strict
         };
         let (mut result, _witness) = map_arrow_witness(self, f).unwrap();
-        result.quotient();
+        result.quotient().unwrap();
         result
     }
 }
@@ -112,13 +112,13 @@ impl Functor<(), Arr, (), Arr> for ExpandDefinitions {
         } else {
             f_strict = {
                 let mut c = f.clone();
-                c.quotient();
+                c.quotient().unwrap();
                 c
             };
             &f_strict
         };
         let (mut result, _witness) = map_arrow_witness(self, f).unwrap();
-        result.quotient();
+        result.quotient().unwrap();
         result
     }
 }
@@ -138,7 +138,7 @@ fn test_sub_expand() {
     assert_eq!(witness.sources.table.0, vec![1, 1, 1]);
 
     // Quotient the result, mapping the witness through the coequalizer.
-    let q = result.quotient_witness();
+    let q = result.quotient().unwrap();
     let witness = witness.map_values(&q).unwrap();
 
     // Source/target types are preserved
