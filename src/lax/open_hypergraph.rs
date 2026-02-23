@@ -231,7 +231,7 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
     }
 
     /// Deprecated alias for [`Self::quotient`]
-    #[deprecated(since = "0.2.10", note = "use Hypergraph::quotient")]
+    #[deprecated(since = "0.2.10", note = "use OpenHypergraph::quotient")]
     pub fn quotient_witness(&mut self) -> Result<FiniteFunction, FiniteFunction> {
         self.quotient()
     }
