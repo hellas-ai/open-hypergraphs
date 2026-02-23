@@ -99,7 +99,7 @@ fn test_delete_edge_single() {
     ];
     h.quotient = (vec![NodeId(0)], vec![NodeId(2)]);
 
-    h.delete_edge(&[EdgeId(1)]);
+    h.delete_edges(&[EdgeId(1)]);
 
     assert_eq!(h.nodes, vec![10, 20, 30]);
     assert_eq!(h.edges, vec![1, 3]);
@@ -136,7 +136,7 @@ fn test_delete_edge_multiple_with_duplicates() {
         },
     ];
 
-    h.delete_edge(&[EdgeId(3), EdgeId(1), EdgeId(1)]);
+    h.delete_edges(&[EdgeId(3), EdgeId(1), EdgeId(1)]);
 
     assert_eq!(h.edges, vec![11, 33]);
     assert_eq!(h.adjacency.len(), 2);
@@ -162,7 +162,7 @@ fn test_delete_edge_all_edges_removed() {
         },
     ];
 
-    h.delete_edge(&[EdgeId(0), EdgeId(1)]);
+    h.delete_edges(&[EdgeId(0), EdgeId(1)]);
 
     assert!(h.edges.is_empty());
     assert!(h.adjacency.is_empty());
@@ -179,7 +179,7 @@ fn test_delete_edge_empty_input_no_change() {
         targets: vec![NodeId(0)],
     }];
 
-    h.delete_edge(&[]);
+    h.delete_edges(&[]);
 
     assert_eq!(h.edges, vec![99]);
     assert_eq!(h.adjacency.len(), 1);
@@ -197,5 +197,5 @@ fn test_delete_edge_panics_on_out_of_bounds() {
         targets: vec![NodeId(0)],
     }];
 
-    h.delete_edge(&[EdgeId(1)]);
+    h.delete_edges(&[EdgeId(1)]);
 }
