@@ -3,5 +3,8 @@
 mod acyclic;
 pub mod arrow;
 mod object;
+pub(crate) mod subobject;
+#[cfg(test)]
+mod subobject_tests;
 
 pub use object::*;
