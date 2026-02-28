@@ -48,6 +48,18 @@ fn test_validate_rejects_non_natural_x() {
 }
 
 #[test]
+fn test_validate_rejects_undefined_w_composition() {
+    let source = build_hypergraph(vec![0], &[]);
+    let target = build_hypergraph(vec![0], &[]);
+    // valid finite function, but codomain size (2) does not match h.w.len() (1),
+    // so w ; h.w is undefined and validate should return TypeMismatchW.
+    let w = ff(vec![0], 2);
+    let x = ff(vec![], 0);
+    let err = HypergraphArrow::new(source, target, w, x).unwrap_err();
+    assert!(matches!(err, InvalidHypergraphArrow::TypeMismatchW));
+}
+
+#[test]
 fn test_validate_accepts_incidence_natural_arrow() {
     let source = build_hypergraph(vec![0, 0], &[(0, vec![0], vec![1])]);
     let target = build_hypergraph(vec![0, 0], &[(0, vec![1], vec![1])]);

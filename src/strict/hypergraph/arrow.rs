@@ -40,6 +40,8 @@ where
 
 #[derive(Debug)]
 pub enum InvalidHypergraphArrow {
+    TypeMismatchW,
+    TypeMismatchX,
     NotNaturalW,
     NotNaturalX,
     NotNaturalS,
@@ -97,13 +99,17 @@ where
         // wire labels, operation labels, and operation types should be preserved under the natural
         // transformations w and x.
 
-        // Check naturality of w
-        if g.w != (&self.w >> &h.w).unwrap() {
+        // Check naturality on node labels:
+        // g.w = w ; h.w
+        let composed_w = (&self.w >> &h.w).ok_or(InvalidHypergraphArrow::TypeMismatchW)?;
+        if g.w != composed_w {
             return Err(InvalidHypergraphArrow::NotNaturalW);
         }
 
-        // Check naturality of x
-        if g.x != (&self.x >> &h.x).unwrap() {
+        // Check naturality on operation labels:
+        // g.x = x ; h.x
+        let composed_x = (&self.x >> &h.x).ok_or(InvalidHypergraphArrow::TypeMismatchX)?;
+        if g.x != composed_x {
             return Err(InvalidHypergraphArrow::NotNaturalX);
         }
 
