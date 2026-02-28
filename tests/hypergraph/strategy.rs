@@ -174,15 +174,12 @@ pub fn arb_inclusion<
     labels: Labels<O, A>,
     g: Hypergraph<VecKind, O, A>,
 ) -> BoxedStrategy<HypergraphArrow<VecKind, O, A>> {
-    // We have an arbitrary hypergraph g, and some arbitrary label arrays.
-    let h_labels = Labels {
-        w: g.w.clone() + labels.w,
-        x: g.x.clone() + labels.x,
-    };
-    arb_hypergraph(h_labels)
-        .prop_flat_map(move |h| {
-            let w = FiniteFunction::inj0(g.w.len(), h.w.len() - g.w.len());
-            let x = FiniteFunction::inj0(g.x.len(), h.x.len() - g.x.len());
+    // Build target as a coproduct g + k so inj0 is incidence-natural by construction.
+    arb_hypergraph(labels)
+        .prop_flat_map(move |k| {
+            let h = g.coproduct(&k);
+            let w = FiniteFunction::inj0(g.w.len(), k.w.len());
+            let x = FiniteFunction::inj0(g.x.len(), k.x.len());
 
             Just(HypergraphArrow::new(g.clone(), h, w, x).expect("valid HypergraphArrow"))
         })

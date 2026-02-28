@@ -125,7 +125,6 @@ fn test_is_acyclic_false_self_loop() {
     let h = build_hypergraph(1, &[(vec![0], vec![0])]);
     assert!(!h.is_acyclic());
 }
-
 #[test]
 fn test_in_out_degree_counts_multiplicity() {
     let sources = IndexedCoproduct::from_semifinite(
