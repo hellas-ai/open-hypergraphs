@@ -382,7 +382,9 @@ impl<O: Clone, A: Clone> Hypergraph<O, A> {
     pub fn to_hypergraph(&self) -> crate::strict::Hypergraph<VecKind, O, A> {
         make_hypergraph(self)
     }
+}
 
+impl<O, A> Hypergraph<O, A> {
     pub fn coequalizer(&self) -> FiniteFunction<VecKind> {
         // Compute the coequalizer (connected components) of the quotient graph
         let s: FiniteFunction<VecKind> = FiniteFunction {
