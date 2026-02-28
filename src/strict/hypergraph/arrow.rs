@@ -38,18 +38,6 @@ where
     candidates.gather(unvisited_ix.get_range(..))
 }
 
-fn all_in_mask<K: ArrayKind>(mask: &K::Index, values: &K::Index) -> bool
-where
-    K::Type<K::I>: NaturalArray<K>,
-{
-    if values.is_empty() {
-        return true;
-    }
-
-    let hits = mask.gather(values.get_range(..));
-    hits.sum() == values.len()
-}
-
 #[derive(Debug)]
 pub enum InvalidHypergraphArrow {
     NotNaturalW,
@@ -154,36 +142,13 @@ where
         self.w.is_injective() && self.x.is_injective()
     }
 
-    /// True when this arrow is injective on nodes and edges and has no dangling edges in the image.
-    pub fn is_subobject(&self) -> bool
-    where
-        K::Type<K::I>: NaturalArray<K>,
-    {
-        if !self.is_monomorphism() {
-            return false;
-        }
-
-        let g = &self.target;
-        // node_mask[i] = 1 iff node i is in the image
-        let mut node_mask = K::Index::fill(K::I::zero(), g.w.len());
-        node_mask.scatter_assign_constant(&self.w.table, K::I::one());
-
-        // restrict target incidence to selected edges
-        let s_in = g.s.map_indexes(&self.x).unwrap();
-        let t_in = g.t.map_indexes(&self.x).unwrap();
-        let s_vals = s_in.values.table;
-        let t_vals = t_in.values.table;
-
-        all_in_mask::<K>(&node_mask, &s_vals) && all_in_mask::<K>(&node_mask, &t_vals)
-    }
-
     /// Check convexity of a subgraph `H → G`.
     ///
     pub fn is_convex_subgraph(&self) -> bool
     where
         K::Type<K::I>: NaturalArray<K>,
     {
-        if !self.is_subobject() {
+        if !self.is_monomorphism() {
             return false;
         }
 
