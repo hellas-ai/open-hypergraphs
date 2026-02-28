@@ -54,6 +54,8 @@ where
 pub enum InvalidHypergraphArrow {
     NotNaturalW,
     NotNaturalX,
+    NotNaturalS,
+    NotNaturalT,
 }
 
 pub struct HypergraphArrow<K: ArrayKind, O, A> {
@@ -81,7 +83,10 @@ where
         target: Hypergraph<K, O, A>,
         w: FiniteFunction<K>,
         x: FiniteFunction<K>,
-    ) -> Result<Self, InvalidHypergraphArrow> {
+    ) -> Result<Self, InvalidHypergraphArrow>
+    where
+        K::Type<K::I>: NaturalArray<K>,
+    {
         HypergraphArrow {
             source,
             target,
@@ -92,7 +97,10 @@ where
     }
 
     /// Check validity of a HypergraphArrow.
-    pub fn validate(self) -> Result<Self, InvalidHypergraphArrow> {
+    pub fn validate(self) -> Result<Self, InvalidHypergraphArrow>
+    where
+        K::Type<K::I>: NaturalArray<K>,
+    {
         // for self : g → h
         let g = &self.source;
         let h = &self.target;
@@ -111,12 +119,31 @@ where
             return Err(InvalidHypergraphArrow::NotNaturalX);
         }
 
-        Ok(self)
+        // Check naturality of incidence (sources):
+        // g.s; w = h.s reindexed along x.
+        let s_lhs =
+            g.s.map_values(&self.w)
+                .ok_or(InvalidHypergraphArrow::NotNaturalS)?;
+        let s_rhs =
+            h.s.map_indexes(&self.x)
+                .ok_or(InvalidHypergraphArrow::NotNaturalS)?;
+        if s_lhs != s_rhs {
+            return Err(InvalidHypergraphArrow::NotNaturalS);
+        }
 
-        // TODO: add this check.
-        // Types of operations are also preserved under w and x.
-        //assert_eq!(g.s.values >> g.w, h.s.indexed_values(f.x) >> h.w);
-        //assert_eq!(g.t.values >> g.w, h.t.indexed_values(f.x) >> h.w);
+        // Check naturality of incidence (targets).
+        // g.t; w = h.t reindexed along x.
+        let t_lhs =
+            g.t.map_values(&self.w)
+                .ok_or(InvalidHypergraphArrow::NotNaturalT)?;
+        let t_rhs =
+            h.t.map_indexes(&self.x)
+                .ok_or(InvalidHypergraphArrow::NotNaturalT)?;
+        if t_lhs != t_rhs {
+            return Err(InvalidHypergraphArrow::NotNaturalT);
+        }
+
+        Ok(self)
     }
 
     /// True when this arrow is injective on both nodes and edges.
