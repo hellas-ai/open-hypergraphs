@@ -206,9 +206,9 @@ where
 
     // Operations reachable from those in the set f.
     let reached = adjacency.indexed_values(f).unwrap();
-    // target is +1 because all edges could point to the same operation, so its indegree will be
-    // adjacency.len().
-    let target = adjacency.len() + K::I::one();
+    // Counts in `table` can be as large as the number of reached incidences, which may exceed
+    // `adjacency.len()` when multiplicity is present.
+    let target = reached.table.len() + K::I::one();
     let table = (reached.table.as_ref() as &K::Type<K::I>).bincount(adjacency.len());
     FiniteFunction::new(table, target).unwrap()
 }
@@ -239,7 +239,9 @@ where
     // Indices may appear more than once.
     let g = a.indexed_values(f).unwrap();
     let (i, c) = g.table.sparse_bincount();
-    let target = a.len() + K::I::one();
+    // Counts in `c` can be as large as the number of reached incidences, which may exceed `a.len()`
+    // when multiplicity is present.
+    let target = g.table.len() + K::I::one();
 
     (
         FiniteFunction::new(i, a.len()).unwrap(),
