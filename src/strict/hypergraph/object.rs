@@ -4,6 +4,7 @@ use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
 use crate::operations::Operations;
 use crate::semifinite::*;
+use crate::strict::hypergraph::arrow::HypergraphArrow;
 
 use core::fmt::Debug;
 use core::ops::Add;
@@ -158,6 +159,48 @@ where
         let w = SemifiniteFunction(coequalizer_universal(q, &self.w.0)?);
         let x = self.x.clone();
         Some(Hypergraph { s, t, w, x })
+    }
+
+    // Compute the pushout of a span of wire maps into hypergraphs.
+    pub(crate) fn pushout_along_span(
+        left: &Hypergraph<K, O, A>,
+        right: &Hypergraph<K, O, A>,
+        f: &FiniteFunction<K>,
+        g: &FiniteFunction<K>,
+    ) -> Option<(
+        Hypergraph<K, O, A>,
+        HypergraphArrow<K, O, A>,
+        HypergraphArrow<K, O, A>,
+    )>
+    where
+        K::Type<K::I>: NaturalArray<K>,
+        K::Type<O>: Array<K, O> + PartialEq,
+        K::Type<A>: Array<K, A> + PartialEq,
+    {
+        if f.target() != left.w.len() || g.target() != right.w.len() {
+            return None;
+        }
+
+        // Lift span legs into the shared coproduct codomain left.w + right.w
+        // and coequalize to obtain the wire identifications.
+        let f_lift = f.inject0(right.w.len());
+        let g_lift = g.inject1(left.w.len());
+        let q = f_lift.coequalizer(&g_lift)?;
+        // Form the coproduct hypergraph and quotient its vertices by the coequalizer.
+        let coproduct = left + right;
+        let target = coproduct.coequalize_vertices(&q)?;
+
+        // Build the induced arrows from each side of the span into the pushout.
+        let w_left = FiniteFunction::inj0(left.w.len(), right.w.len()).compose(&q)?;
+        let w_right = FiniteFunction::inj1(left.w.len(), right.w.len()).compose(&q)?;
+        let x_left = FiniteFunction::inj0(left.x.len(), right.x.len());
+        let x_right = FiniteFunction::inj1(left.x.len(), right.x.len());
+
+        let left_arrow = HypergraphArrow::new(left.clone(), target.clone(), w_left, x_left).ok()?;
+        let right_arrow =
+            HypergraphArrow::new(right.clone(), target.clone(), w_right, x_right).ok()?;
+
+        Some((target, left_arrow, right_arrow))
     }
 }
 

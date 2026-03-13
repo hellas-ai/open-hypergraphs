@@ -229,6 +229,147 @@ where
         let counts = self.table.bincount(self.target.clone());
         counts.max().map_or(true, |m| m <= K::I::one())
     }
+
+    /// Check whether `self` and `other` have disjoint images in a common codomain.
+    ///
+    /// Domains may differ. Returns `true` exactly when
+    /// `image(self) ∩ image(other) = ∅`.
+    ///
+    /// Returns `false` when codomains differ.
+    pub fn has_disjoint_image(&self, other: &Self) -> bool {
+        if self.target != other.target {
+            return false;
+        }
+
+        let mut seen = K::Index::fill(K::I::zero(), self.target.clone());
+        if !self.table.is_empty() {
+            seen.scatter_assign_constant(&self.table, K::I::one());
+        }
+
+        let other_seen = seen.gather(other.table.get_range(..));
+        other_seen.max().is_none_or(|m| m < K::I::one())
+    }
+
+    /// Build the canonical injection of the complement of `image(self)` in the codomain.
+    ///
+    /// For `self : A -> B`, returns `k : (B \\ image(self)) -> B`.
+    /// The domain may be empty.
+    pub(crate) fn image_complement_injection(&self) -> Option<Self> {
+        let mut marker = K::Index::fill(K::I::zero(), self.target.clone());
+        if !self.table.is_empty() {
+            marker.scatter_assign_constant(&self.table, K::I::one());
+        }
+        let kept_ix = marker.zero();
+        FiniteFunction::new(kept_ix, self.target.clone())
+    }
+
+    /// Build the canonical injection of `image(self)` into the codomain.
+    ///
+    /// For `self : A -> B`, returns `i : image(self) -> B`.
+    pub(crate) fn canonical_image_injection(&self) -> Option<Self> {
+        let (unique, _) = self.table.sparse_bincount();
+        FiniteFunction::new(unique, self.target.clone())
+    }
+
+    /// Build the coproduct of parallel maps into a common codomain.
+    ///
+    /// For parallel maps `self, f_i : A_i -> B`, returns
+    /// `[self, f_1, ..., f_n] : A + A_1 + ... + A_n -> B`.
+    pub(crate) fn coproduct_many(&self, others: &[&Self]) -> Option<Self> {
+        let target = self.target.clone();
+        for m in others {
+            if m.target != target {
+                return None;
+            }
+        }
+
+        let mut tables = Vec::<&K::Index>::with_capacity(others.len() + 1);
+        tables.push(&self.table);
+        for m in others {
+            tables.push(&m.table);
+        }
+
+        Some(FiniteFunction {
+            table: K::Index::concatenate_many(&tables),
+            target,
+        })
+    }
+
+    /// Build a total inverse for an injective map by choosing a fill value outside its image.
+    ///
+    /// For `f : A -> B` injective, returns `f_inv : B -> A` such that:
+    /// - `f_inv ; f = id_A` on `image(f)` (left-inverse property),
+    /// - for `b` not in `image(f)`, `f_inv(b) = fill`.
+    ///
+    /// This is useful when callers only apply `f_inv` to values known to be in `image(f)`,
+    /// while still requiring a total finite function at the type level.
+    ///
+    /// Returns `None` when:
+    /// - `self` is not injective, or
+    /// - `fill` is out of bounds for `A`, or
+    /// - `A` is empty and `B` is non-empty (no total map `B -> A` exists).
+    pub(crate) fn inverse_with_fill(&self, fill: K::I) -> Option<Self> {
+        if !self.is_injective() {
+            return None;
+        }
+
+        if self.source().is_zero() {
+            if self.target().is_zero() {
+                return Some(FiniteFunction {
+                    table: K::Index::empty(),
+                    target: K::I::zero(),
+                });
+            }
+            return None;
+        }
+
+        if fill >= self.source() {
+            return None;
+        }
+
+        let mut inverse = K::Index::fill(fill, self.target());
+        let values = K::Index::arange(&K::I::zero(), &self.source());
+        inverse.scatter_assign(&self.table, values);
+        Some(FiniteFunction {
+            table: inverse,
+            target: self.source(),
+        })
+    }
+
+    /// Factor `self : A -> C` through an injective map `inj : B -> C`.
+    ///
+    /// Returns the unique `g : A -> B` such that `self = g ; inj`.
+    ///
+    pub(crate) fn factor_through_injective(&self, inj: &Self) -> Self {
+        assert_eq!(
+            self.target(),
+            inj.target(),
+            "factor_through_injective requires parallel maps"
+        );
+        assert!(
+            inj.is_injective(),
+            "factor_through_injective requires an injective map"
+        );
+
+        // Build a left-inverse table on `inj`'s image and reindex `self`.
+        let values: K::Type<K::I> = K::Index::arange(&K::I::zero(), &inj.source()).into();
+        let inverse: K::Type<K::I> = values.scatter(inj.table.get_range(..), inj.target());
+        let table: K::Index = inverse.gather(self.table.get_range(..)).into();
+        let factored = FiniteFunction {
+            table,
+            target: inj.source(),
+        };
+
+        let recomposed = factored
+            .compose(inj)
+            .expect("factor_through_injective: invalid codomain after factoring");
+        assert!(
+            recomposed == *self,
+            "factor_through_injective requires image(self) subset image(inj)"
+        );
+
+        factored
+    }
 }
 
 /// Compute the universal map for a coequalizer `q : B → Q` and arrow `f : B → T`, generalised to
@@ -415,5 +556,227 @@ where
             .field("table", &self.table)
             .field("target", &self.target)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FiniteFunction;
+    use crate::array::vec::{VecArray, VecKind};
+    use crate::category::Arrow;
+    use proptest::prelude::{Just, Strategy};
+    use proptest::{prop_assert, prop_assert_eq, proptest};
+
+    fn ff(table: Vec<usize>, target: usize) -> FiniteFunction<VecKind> {
+        FiniteFunction::new(VecArray(table), target).expect("valid finite function")
+    }
+
+    fn finite_function_strategy(
+        max_source: usize,
+        max_target: usize,
+    ) -> impl Strategy<Value = FiniteFunction<VecKind>> {
+        (0..=max_source, 0..=max_target).prop_flat_map(|(source, target)| {
+            let source = if target == 0 { 0 } else { source };
+            proptest::collection::vec(0..target, source).prop_map(move |table| ff(table, target))
+        })
+    }
+
+    fn injective_function_strategy(
+        max_source: usize,
+        max_target: usize,
+    ) -> impl Strategy<Value = FiniteFunction<VecKind>> {
+        (0..=max_target).prop_flat_map(move |target| {
+            (0..=core::cmp::min(max_source, target)).prop_flat_map(move |source| {
+                proptest::sample::subsequence((0..target).collect::<Vec<_>>(), source)
+                    .prop_map(move |table| ff(table, target))
+            })
+        })
+    }
+
+    fn parallel_maps_strategy(
+        max_maps: usize,
+        max_source: usize,
+        max_target: usize,
+    ) -> impl Strategy<Value = (FiniteFunction<VecKind>, Vec<FiniteFunction<VecKind>>)> {
+        (0..=max_target, 1usize..=max_maps).prop_flat_map(move |(target, n_maps)| {
+            if target == 0 {
+                let base = ff(vec![], 0);
+                let others = vec![ff(vec![], 0); n_maps - 1];
+                Just((base, others)).boxed()
+            } else {
+                proptest::collection::vec(
+                    proptest::collection::vec(0..target, 0..=max_source),
+                    n_maps,
+                )
+                .prop_map(move |tables| {
+                    let mut it = tables.into_iter();
+                    let base = ff(it.next().expect("at least one map"), target);
+                    let others = it.map(|t| ff(t, target)).collect();
+                    (base, others)
+                })
+                .boxed()
+            }
+        })
+    }
+
+    fn factorable_through_injective_strategy(
+        max_source: usize,
+        max_target: usize,
+    ) -> impl Strategy<
+        Value = (
+            FiniteFunction<VecKind>,
+            FiniteFunction<VecKind>,
+            FiniteFunction<VecKind>,
+        ),
+    > {
+        injective_function_strategy(max_source, max_target).prop_flat_map(move |inj| {
+            let b = inj.source();
+            if b == 0 {
+                let g = ff(vec![], 0);
+                let self_map = (&g >> &inj).expect("typed composition");
+                Just((self_map, inj, g)).boxed()
+            } else {
+                proptest::collection::vec(0..b, 0..=max_source)
+                    .prop_map(move |table| {
+                        let g = ff(table, b);
+                        let self_map = (&g >> &inj).expect("typed composition");
+                        (self_map, inj.clone(), g)
+                    })
+                    .boxed()
+            }
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn canonical_image_injection_characterizes_image(f in finite_function_strategy(8, 8)) {
+            let i = f.canonical_image_injection().expect("always valid");
+            prop_assert!(i.is_injective());
+            prop_assert_eq!(i.target(), f.target());
+
+            let mut used = vec![false; f.target()];
+            for &x in &f.table.0 {
+                used[x] = true;
+            }
+
+            let mut seen = vec![false; f.target()];
+            for &x in &i.table.0 {
+                prop_assert!(used[x]);
+                prop_assert!(!seen[x]);
+                seen[x] = true;
+            }
+            prop_assert_eq!(used.clone(), seen);
+            prop_assert_eq!(i.source(), used.iter().filter(|&&b| b).count());
+        }
+
+        #[test]
+        fn has_disjoint_image_matches_set_disjointness(
+            f in finite_function_strategy(8, 8),
+            g in finite_function_strategy(8, 8),
+        ) {
+            if f.target() != g.target() {
+                prop_assert!(!f.has_disjoint_image(&g));
+                return Ok(());
+            }
+
+            let mut seen_f = vec![false; f.target()];
+            for &x in &f.table.0 {
+                seen_f[x] = true;
+            }
+            let mut seen_g = vec![false; g.target()];
+            for &x in &g.table.0 {
+                seen_g[x] = true;
+            }
+
+            let expected = (0..f.target()).all(|i| !(seen_f[i] && seen_g[i]));
+            prop_assert_eq!(f.has_disjoint_image(&g), expected);
+        }
+
+        #[test]
+        fn image_complement_injection_is_exact_complement(f in finite_function_strategy(8, 8)) {
+            let k = f.image_complement_injection().expect("always valid");
+            prop_assert!(k.is_injective());
+            prop_assert_eq!(k.target(), f.target());
+
+            let mut used = vec![false; f.target()];
+            for &x in &f.table.0 {
+                used[x] = true;
+            }
+
+            let mut seen = vec![false; f.target()];
+            for &x in &k.table.0 {
+                prop_assert!(!used[x]);
+                prop_assert!(!seen[x]);
+                seen[x] = true;
+            }
+
+            for i in 0..f.target() {
+                prop_assert_eq!(seen[i], !used[i]);
+            }
+
+            // Set-theoretic disjointness of images: no value appears in both images.
+            for i in 0..f.target() {
+                prop_assert!(!(used[i] && seen[i]));
+            }
+        }
+
+        #[test]
+        fn coproduct_many_matches_iterated_coproduct((f0, others) in parallel_maps_strategy(4, 6, 8)) {
+            let refs: Vec<&FiniteFunction<VecKind>> = others.iter().collect();
+            let actual = f0.coproduct_many(&refs).expect("parallel maps");
+            let expected = others.iter().fold(f0.clone(), |acc, m| {
+                (&acc + m).expect("parallel maps")
+            });
+            prop_assert_eq!(actual, expected);
+        }
+
+        #[test]
+        fn inverse_with_fill_left_inverts_injective_maps(
+            f in injective_function_strategy(8, 8),
+            fill in 0usize..8,
+        ) {
+            if f.source() == 0 {
+                prop_assert_eq!(f.inverse_with_fill(fill), if f.target() == 0 { Some(ff(vec![], 0)) } else { None });
+            } else if fill < f.source() {
+                let inv = f.inverse_with_fill(fill).expect("valid inverse");
+                prop_assert_eq!(&f >> &inv, Some(FiniteFunction::<VecKind>::identity(f.source())));
+
+                let mut preimage = vec![None; f.target()];
+                for (i, &y) in f.table.0.iter().enumerate() {
+                    preimage[y] = Some(i);
+                }
+                for (y, &x) in inv.table.0.iter().enumerate() {
+                    match preimage[y] {
+                        Some(i) => prop_assert_eq!(x, i),
+                        None => prop_assert_eq!(x, fill),
+                    }
+                }
+            } else {
+                prop_assert_eq!(f.inverse_with_fill(fill), None);
+            }
+        }
+
+        #[test]
+        fn factor_through_injective_recovers_original_factor(
+            (self_map, inj, g) in factorable_through_injective_strategy(8, 8),
+        ) {
+            let factored = self_map.factor_through_injective(&inj);
+
+            prop_assert_eq!(factored.clone(), g);
+            prop_assert_eq!(&factored >> &inj, Some(self_map));
+        }
+    }
+
+    #[test]
+    fn coproduct_many_returns_none_on_target_mismatch() {
+        let f = ff(vec![0, 1], 3);
+        let g = ff(vec![0], 2);
+        assert!(f.coproduct_many(&[&g]).is_none());
+    }
+
+    #[test]
+    fn inverse_with_fill_rejects_non_injective_map() {
+        let f = ff(vec![0, 0], 2);
+        assert_eq!(f.inverse_with_fill(0), None);
     }
 }

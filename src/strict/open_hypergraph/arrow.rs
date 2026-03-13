@@ -308,28 +308,27 @@ where
     pub fn is_monogamous(&self) -> bool {
         let node_count = self.h.w.len();
 
-        // Check injectivity of the source interface map (no node appears twice).
-        let in_counts = (self.s.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
-        if in_counts.max().map(|m| m > K::I::one()).unwrap_or(false) {
+        // Check injectivity of boundary maps (no node appears twice).
+        if !self.s.is_injective() || !self.t.is_injective() {
             return false;
         }
 
-        // Check injectivity of the target interface map (no node appears twice).
+        let in_counts = (self.s.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
         let out_counts = (self.t.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
-        if out_counts.max().map(|m| m > K::I::one()).unwrap_or(false) {
-            return false;
-        }
 
         // Compute degrees of each node from hyperedges (multiplicity counted).
         let in_degrees =
             (self.h.t.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
         let out_degrees =
             (self.h.s.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
-        let ones = K::Index::fill(K::I::one(), node_count);
+        // Monogamy condition: for each node, degree + boundary_count == 1.
+        // Since interface maps are injective, boundary_count ∈ {0,1}.
+        let in_sum = in_degrees + in_counts;
+        let out_sum = out_degrees + out_counts;
+        let exactly_one_per_node = |xs: K::Index| {
+            xs.zero().is_empty() && xs.max().map_or(node_count.is_zero(), |m| m <= K::I::one())
+        };
 
-        // Monogamy condition: for each node, degree is 0 iff on the interface, else 1.
-        // Equivalent to elementwise: degree + interface_count == 1.
-        (in_degrees + in_counts - ones.clone()).zero().len() == ones.len()
-            && (out_degrees + out_counts - ones).zero().len() == self.h.w.len()
+        exactly_one_per_node(in_sum) && exactly_one_per_node(out_sum)
     }
 }

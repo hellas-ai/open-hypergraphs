@@ -78,6 +78,9 @@ pub trait Array<K: ArrayKind, T>: Clone {
     /// Concatenate two arrays
     fn concatenate(&self, other: &Self) -> Self;
 
+    /// Concatenate a slice of arrays into one array.
+    fn concatenate_many(arrays: &[&Self]) -> Self;
+
     /// `fill(x, n)` returns the array length n containing repeated element x.
     fn fill(x: T, n: K::I) -> Self;
 
