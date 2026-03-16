@@ -4,6 +4,7 @@ use crate::finite_function::{coequalizer_universal, FiniteFunction};
 use crate::indexed_coproduct::*;
 use crate::operations::Operations;
 use crate::semifinite::*;
+#[cfg(feature = "experimental")]
 use crate::strict::hypergraph::arrow::HypergraphArrow;
 
 use core::fmt::Debug;
@@ -162,6 +163,7 @@ where
     }
 
     // Compute the pushout of a span of wire maps into hypergraphs.
+    #[cfg(feature = "experimental")]
     pub(crate) fn pushout_along_span(
         left: &Hypergraph<K, O, A>,
         right: &Hypergraph<K, O, A>,

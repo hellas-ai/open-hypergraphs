@@ -254,6 +254,7 @@ where
     ///
     /// For `self : A -> B`, returns `k : (B \\ image(self)) -> B`.
     /// The domain may be empty.
+    #[cfg(any(feature = "experimental", test))]
     pub(crate) fn image_complement_injection(&self) -> Option<Self> {
         let mut marker = K::Index::fill(K::I::zero(), self.target.clone());
         if !self.table.is_empty() {
@@ -266,6 +267,7 @@ where
     /// Build the canonical injection of `image(self)` into the codomain.
     ///
     /// For `self : A -> B`, returns `i : image(self) -> B`.
+    #[cfg(any(feature = "experimental", test))]
     pub(crate) fn canonical_image_injection(&self) -> Option<Self> {
         let (unique, _) = self.table.sparse_bincount();
         FiniteFunction::new(unique, self.target.clone())
@@ -275,6 +277,7 @@ where
     ///
     /// For parallel maps `self, f_i : A_i -> B`, returns
     /// `[self, f_1, ..., f_n] : A + A_1 + ... + A_n -> B`.
+    #[cfg(any(feature = "experimental", test))]
     pub(crate) fn coproduct_many(&self, others: &[&Self]) -> Option<Self> {
         let target = self.target.clone();
         for m in others {
@@ -308,6 +311,7 @@ where
     /// - `self` is not injective, or
     /// - `fill` is out of bounds for `A`, or
     /// - `A` is empty and `B` is non-empty (no total map `B -> A` exists).
+    #[cfg(any(feature = "experimental", test))]
     pub(crate) fn inverse_with_fill(&self, fill: K::I) -> Option<Self> {
         if !self.is_injective() {
             return None;
@@ -340,6 +344,7 @@ where
     ///
     /// Returns the unique `g : A -> B` such that `self = g ; inj`.
     ///
+    #[cfg(any(feature = "experimental", test))]
     pub(crate) fn factor_through_injective(&self, inj: &Self) -> Self {
         assert_eq!(
             self.target(),
