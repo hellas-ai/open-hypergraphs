@@ -227,7 +227,7 @@ where
         }
 
         let counts = self.table.bincount(self.target.clone());
-        counts.max().map_or(true, |m| m <= K::I::one())
+        counts.max().is_none_or(|m| m <= K::I::one())
     }
 
     /// Check whether `self` and `other` have disjoint images in a common codomain.

@@ -230,7 +230,7 @@ where
 
     // If any selected node is reachable in layer 1, it's not convex.
     let reached_selected = visited1.gather(w.table.get_range(..));
-    !reached_selected.max().map_or(false, |m| m >= K::I::one())
+    !reached_selected.max().is_some_and(|m| m >= K::I::one())
 }
 
 impl<K: ArrayKind, O, A> HypergraphArrow<K, O, A>
