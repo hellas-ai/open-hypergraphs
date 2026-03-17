@@ -10,6 +10,7 @@ pub mod eval;
 pub mod functor;
 pub mod graph;
 pub mod layer;
+pub mod relation;
 
 pub use crate::array::*;
 pub use crate::category::*;

@@ -2,9 +2,10 @@ use crate::array::vec::*;
 use crate::finite_function::*;
 use crate::indexed_coproduct::*;
 use crate::semifinite::*;
-use crate::strict::graph::{converse, indegree, operation_adjacency};
+use crate::strict::graph::{indegree, operation_adjacency};
 use crate::strict::layer::layer;
 use crate::strict::open_hypergraph::*;
+use crate::strict::relation::converse;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Arr {
