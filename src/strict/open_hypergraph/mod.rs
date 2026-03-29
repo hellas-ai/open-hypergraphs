@@ -1,5 +1,6 @@
 //! The primary datastructure for representing cospans of hypergraphs
 mod arrow;
+pub mod matching;
 #[cfg(feature = "experimental")]
 mod rewrite;
 #[cfg(test)]
@@ -7,5 +8,6 @@ mod rewrite;
 mod rewrite_tests;
 
 pub use arrow::*;
+pub use matching::*;
 #[cfg(feature = "experimental")]
 pub use rewrite::*;

@@ -1,8 +1,10 @@
 use crate::array::*;
 use crate::category::Arrow;
 use crate::finite_function::FiniteFunction;
+use crate::strict::hypergraph::matching::MatchOptions;
 use crate::strict::hypergraph::arrow::is_convex_subgraph_morphism;
 use crate::strict::hypergraph::Hypergraph;
+use crate::strict::open_hypergraph::matching::{find_smc_matches, is_smc_open_match};
 use crate::strict::open_hypergraph::OpenHypergraph;
 use num_traits::Zero;
 
@@ -112,7 +114,7 @@ impl<'a, K: ArrayKind, O, A> SmcRewriteMatch<'a, K, O, A> {
         K::Type<O>: Array<K, O> + PartialEq,
         K::Type<A>: Array<K, A> + PartialEq,
     {
-        if !host.is_monogamous() || !host.is_acyclic() {
+        if !is_smc_open_match(&rule.lhs, host, &w) {
             return None;
         }
         if is_convex_subgraph_morphism(&rule.lhs.h, &host.h, &w, &x) {
@@ -137,6 +139,46 @@ impl<'a, K: ArrayKind, O, A> SmcRewriteMatch<'a, K, O, A> {
     pub fn host(&self) -> &OpenHypergraph<K, O, A> {
         self.host
     }
+}
+
+pub fn find_smc_rewrite_matches<'a, K: ArrayKind, O, A>(
+    rule: &'a SmcRewriteRule<K, O, A>,
+    host: &'a OpenHypergraph<K, O, A>,
+    options: &MatchOptions,
+) -> Vec<SmcRewriteMatch<'a, K, O, A>>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<bool>: Array<K, bool>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A> + PartialEq,
+    O: PartialEq,
+    A: PartialEq,
+    K::I: Into<usize> + core::convert::TryFrom<usize>,
+    for<'b> K::Slice<'b, K::I>: From<&'b [K::I]>,
+{
+    find_smc_matches(rule.lhs(), host, options)
+        .into_iter()
+        .filter_map(|m| SmcRewriteMatch::new(rule, host, m.w, m.x))
+        .collect()
+}
+
+pub fn find_first_smc_rewrite_match<'a, K: ArrayKind, O, A>(
+    rule: &'a SmcRewriteRule<K, O, A>,
+    host: &'a OpenHypergraph<K, O, A>,
+    mut options: MatchOptions,
+) -> Option<SmcRewriteMatch<'a, K, O, A>>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<bool>: Array<K, bool>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A> + PartialEq,
+    O: PartialEq,
+    A: PartialEq,
+    K::I: Into<usize> + core::convert::TryFrom<usize>,
+    for<'b> K::Slice<'b, K::I>: From<&'b [K::I]>,
+{
+    options.stop_after_first = true;
+    find_smc_rewrite_matches(rule, host, &options).into_iter().next()
 }
 
 impl<'a, K: ArrayKind, O, A> Clone for SmcRewriteMatch<'a, K, O, A>

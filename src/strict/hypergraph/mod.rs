@@ -2,6 +2,7 @@
 //! and arrows by [`arrow::HypergraphArrow`].
 mod acyclic;
 pub mod arrow;
+pub mod matching;
 mod object;
 
 pub use object::*;
