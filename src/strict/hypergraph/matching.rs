@@ -305,8 +305,14 @@ where
     let w_table = state.wire_candidates.singleton_assignment_table::<K>()?;
     let x_table = state.op_candidates.singleton_assignment_table::<K>()?;
 
-    let w = FiniteFunction::new(K::Index::from_slice(K::Slice::from(w_table.as_slice())), host.w.len())?;
-    let x = FiniteFunction::new(K::Index::from_slice(K::Slice::from(x_table.as_slice())), host.x.len())?;
+    let w = FiniteFunction::new(
+        K::Index::from_slice(K::Slice::from(w_table.as_slice())),
+        host.w.len(),
+    )?;
+    let x = FiniteFunction::new(
+        K::Index::from_slice(K::Slice::from(x_table.as_slice())),
+        host.x.len(),
+    )?;
 
     match validate_hypergraph_morphism(pattern, host, &w, &x) {
         Ok(()) => {}
@@ -590,14 +596,16 @@ where
 
     (0..pattern_op_count)
         .map(|pattern_op| {
-            let pattern_op_ix =
-                K::I::try_from(pattern_op).ok().expect("pattern op index conversion failed");
+            let pattern_op_ix = K::I::try_from(pattern_op)
+                .ok()
+                .expect("pattern op index conversion failed");
             let pattern_label = pattern.x.0.get(pattern_op_ix);
 
             (0..host_op_count)
                 .map(|host_op| {
-                    let host_op_ix =
-                        K::I::try_from(host_op).ok().expect("host op index conversion failed");
+                    let host_op_ix = K::I::try_from(host_op)
+                        .ok()
+                        .expect("host op index conversion failed");
                     let same_label = pattern_label == host.x.0.get(host_op_ix);
                     let same_arity = pattern_sources.edge(pattern_op).len()
                         == host_sources.edge(host_op).len()
@@ -639,8 +647,9 @@ where
         .iter()
         .zip(host_wires.iter())
         .all(|(&pattern_wire, &host_wire)| {
-            let pattern_ix =
-                K::I::try_from(pattern_wire).ok().expect("pattern endpoint conversion failed");
+            let pattern_ix = K::I::try_from(pattern_wire)
+                .ok()
+                .expect("pattern endpoint conversion failed");
             let host_ix = K::I::try_from(host_wire)
                 .ok()
                 .expect("host endpoint conversion failed");

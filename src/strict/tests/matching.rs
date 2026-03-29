@@ -58,7 +58,12 @@ fn strict_match_finds_expected_single_embedding() {
 
 #[test]
 fn strict_match_can_filter_nonconvex_embeddings() {
-    let pattern = make_hypergraph(&[vec![0], vec![1]], &[vec![1], vec![2]], vec![0, 0, 0], vec![1, 2]);
+    let pattern = make_hypergraph(
+        &[vec![0], vec![1]],
+        &[vec![1], vec![2]],
+        vec![0, 0, 0],
+        vec![1, 2],
+    );
     let host = make_hypergraph(
         &[vec![0], vec![1], vec![0]],
         &[vec![1], vec![2], vec![2]],
