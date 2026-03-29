@@ -151,7 +151,7 @@ mod imperative {
         state.targets = vec![b];
 
         // build the (strict) open hypergraph
-        state.quotient();
+        state.quotient().unwrap();
         state.to_strict()
     }
 }

@@ -84,6 +84,30 @@ impl<O, A> OpenHypergraph<O, A> {
         self.hypergraph.unify(v, w);
     }
 
+    /// Delete the specified edges from the hypergraph.
+    ///
+    /// Panics if any edge id is out of bounds.
+    pub fn delete_edges(&mut self, edge_ids: &[EdgeId]) {
+        self.hypergraph.delete_edges(edge_ids);
+    }
+
+    /// Delete the specified nodes from the hypergraph, and renumber the source/target interfaces.
+    ///
+    /// Panics if any node id is out of bounds.
+    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+        let new_index = self.hypergraph.delete_nodes_witness(node_ids);
+        self.sources = self
+            .sources
+            .iter()
+            .filter_map(|n| new_index[n.0].map(NodeId))
+            .collect();
+        self.targets = self
+            .targets
+            .iter()
+            .filter_map(|n| new_index[n.0].map(NodeId))
+            .collect();
+    }
+
     pub fn add_edge_source(&mut self, edge_id: EdgeId, w: O) -> NodeId {
         self.hypergraph.add_edge_source(edge_id, w)
     }
@@ -188,17 +212,11 @@ impl<O: Clone, A: Clone> OpenHypergraph<O, A> {
 }
 
 impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
-    /// Apply the quotient map to identify nodes in the internal [`Hypergraph`].
-    /// This deletes the internal quotient map, resulting in a *strict* [`OpenHypergraph`].
-    pub fn quotient(&mut self) {
-        self.quotient_witness();
-    }
-
-    /// Like [`Self::quotient`], but also returns the coequalizer [`crate::finite_function::FiniteFunction`]
-    /// mapping pre-quotient node indices to post-quotient node indices.
-    pub fn quotient_witness(&mut self) -> crate::finite_function::FiniteFunction<VecKind> {
+    /// Apply the quotient map to identify nodes in the internal [`Hypergraph`],
+    /// returning the computed coequalizer.
+    pub fn quotient(&mut self) -> Result<FiniteFunction, FiniteFunction> {
         // mutably quotient self.hypergraph, returning the coequalizer q
-        let q = self.hypergraph.quotient();
+        let q = self.hypergraph.quotient()?;
 
         // note: this is composition of finite functions `q >> self.sources`,
         // but we do it mutably in-place.
@@ -209,7 +227,13 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
             .iter_mut()
             .for_each(|x| *x = NodeId(q.table[x.0]));
 
-        q
+        Ok(q)
+    }
+
+    /// Deprecated alias for [`Self::quotient`]
+    #[deprecated(since = "0.2.10", note = "use OpenHypergraph::quotient")]
+    pub fn quotient_witness(&mut self) -> Result<FiniteFunction, FiniteFunction> {
+        self.quotient()
     }
 
     /// Convert this *lax* [`OpenHypergraph`] to a strict [`crate::strict::OpenHypergraph`] by
@@ -219,7 +243,7 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
         use crate::finite_function::FiniteFunction;
         use crate::strict::open_hypergraph::OpenHypergraph;
 
-        self.quotient();
+        self.quotient().unwrap();
 
         let target = self.hypergraph.nodes.len();
 

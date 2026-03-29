@@ -373,7 +373,7 @@ impl<O, A> Hypergraph<O, A> {
     /// Delete the specified edges and their adjacency information.
     ///
     /// Panics if any edge id is out of bounds.
-    pub fn delete_edge(&mut self, edge_ids: &[EdgeId]) {
+    pub fn delete_edges(&mut self, edge_ids: &[EdgeId]) {
         let edge_count = self.edges.len();
         assert_eq!(
             edge_count,
@@ -423,12 +423,19 @@ impl<O, A> Hypergraph<O, A> {
         self.adjacency = adjacency;
     }
 
+    /// Renamed to `delete_edges` for consistency
+    #[deprecated(since = "0.2.10", note = "renamed delete_edges")]
+    pub fn delete_edge(&mut self, edge_ids: &[EdgeId]) {
+        self.delete_edges(edge_ids)
+    }
+
     /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
     ///
+    /// Returns the renumber map: `map[old] = Some(new)` for surviving nodes, `None` for deleted.
     /// Panics if any node id is out of bounds.
-    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+    pub fn delete_nodes_witness(&mut self, node_ids: &[NodeId]) -> Vec<Option<usize>> {
         if node_ids.is_empty() {
-            return;
+            return (0..self.nodes.len()).map(Some).collect();
         }
 
         let node_count = self.nodes.len();
@@ -449,7 +456,7 @@ impl<O, A> Hypergraph<O, A> {
         }
 
         if !any_removed {
-            return;
+            return (0..node_count).map(Some).collect();
         }
 
         let mut new_index = vec![None; node_count];
@@ -485,6 +492,15 @@ impl<O, A> Hypergraph<O, A> {
             }
         }
         self.quotient = (quotient_left, quotient_right);
+
+        new_index
+    }
+
+    /// Delete the specified nodes, remapping remaining node indices in adjacency and quotient.
+    ///
+    /// Panics if any node id is out of bounds.
+    pub fn delete_nodes(&mut self, node_ids: &[NodeId]) {
+        self.delete_nodes_witness(node_ids);
     }
 }
 
@@ -494,24 +510,23 @@ impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
         mut self,
         quotient_left: Vec<NodeId>,
         quotient_right: Vec<NodeId>,
-    ) -> (Self, FiniteFunction<VecKind>) {
+    ) -> Result<(Self, FiniteFunction<VecKind>), FiniteFunction<VecKind>> {
         self.quotient = (quotient_left, quotient_right);
-        let q = self.quotient();
-        (self, q)
+        let q = self.quotient()?;
+        Ok((self, q))
     }
-
-    /// Construct a [`Hypergraph`] by identifying nodes in the quotient map.
-    /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from `self.quotient`.
-    ///
-    /// NOTE: this operation is unchecked; you should verify quotiented nodes have the exact same
-    /// type first, or this operation is undefined.
-    pub fn quotient(&mut self) -> FiniteFunction<VecKind> {
+    /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from
+    /// `self.quotient`.
+    /// An [`Ok`] result means the hypergraph was quotiented.
+    /// An [`Err`] means the quotient map was invalid: some quotiented nodes had inequal values.
+    pub fn quotient(&mut self) -> Result<FiniteFunction<VecKind>, FiniteFunction<VecKind>> {
         use std::mem::take;
         let q = self.coequalizer();
 
-        self.nodes = coequalizer_universal(&q, &VecArray(take(&mut self.nodes)))
-            .unwrap()
-            .0;
+        self.nodes = match coequalizer_universal(&q, &VecArray(take(&mut self.nodes))) {
+            Some(nodes) => nodes.0,
+            None => return Err(q),
+        };
 
         // map hyperedges
         for e in &mut self.adjacency {
@@ -521,8 +536,7 @@ impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
 
         // clear the quotient map (we just used it)
         self.quotient = (vec![], vec![]); // empty
-
-        q // return the coequalizer used to quotient the hypergraph
+        Ok(q)
     }
 }
 

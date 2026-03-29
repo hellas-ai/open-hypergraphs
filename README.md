@@ -28,6 +28,23 @@ This code is an implementation of the paper
 - Functors, including optic transformation for ahead-of-time differentiation of
   syntax
 
+# Experimental APIs
+
+Some APIs are marked experimental and are disabled by default.
+
+Enable experimental APIs with Cargo features:
+
+```toml
+[dependencies]
+open-hypergraphs = { version = "0.2.10", features = ["experimental"] }
+```
+
+or on the command line:
+
+```bash
+cargo test --features experimental
+```
+
 # Examples
 
 An example for defining a simple expression language ([polynomial

@@ -68,6 +68,23 @@ impl<T: Clone> Array<VecKind, T> for VecArray<T> {
         VecArray(result)
     }
 
+    fn concatenate_many(arrays: &[&Self]) -> Self {
+        if arrays.is_empty() {
+            return Self::empty();
+        }
+
+        let mut n = 0;
+        for arr in arrays {
+            n += arr.len();
+        }
+
+        let mut out = Vec::with_capacity(n);
+        for arr in arrays {
+            out.extend_from_slice(arr);
+        }
+        Self(out)
+    }
+
     fn fill(x: T, n: usize) -> Self {
         VecArray(vec![x; n])
     }

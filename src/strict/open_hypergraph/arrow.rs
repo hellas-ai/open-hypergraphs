@@ -7,7 +7,7 @@ use crate::strict::hypergraph::{Hypergraph, InvalidHypergraph};
 
 use core::fmt::Debug;
 use core::ops::{BitOr, Shr};
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 impl<K: ArrayKind> From<InvalidHypergraph<K>> for InvalidOpenHypergraph<K> {
     fn from(value: InvalidHypergraph<K>) -> Self {
@@ -287,5 +287,48 @@ where
             .field("t", &self.t)
             .field("h", &self.h)
             .finish()
+    }
+}
+
+impl<K: ArrayKind, O, A> OpenHypergraph<K, O, A>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<O>: Array<K, O>,
+{
+    /// Returns true if there is no directed path from any node to itself.
+    pub fn is_acyclic(&self) -> bool {
+        self.h.is_acyclic()
+    }
+
+    /// Whether this open hypergraph is monogamous.
+    ///
+    /// An open hypergraph `m -f-> G <-g- n` is monogamous if `f` and `g` are monic and:
+    /// - for all nodes v, in-degree(v) is 0 if v in in(G), else 1
+    /// - for all nodes v, out-degree(v) is 0 if v in out(G), else 1
+    pub fn is_monogamous(&self) -> bool {
+        let node_count = self.h.w.len();
+
+        // Check injectivity of boundary maps (no node appears twice).
+        if !self.s.is_injective() || !self.t.is_injective() {
+            return false;
+        }
+
+        let in_counts = (self.s.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        let out_counts = (self.t.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+
+        // Compute degrees of each node from hyperedges (multiplicity counted).
+        let in_degrees =
+            (self.h.t.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        let out_degrees =
+            (self.h.s.values.table.as_ref() as &K::Type<K::I>).bincount(node_count.clone());
+        // Monogamy condition: for each node, degree + boundary_count == 1.
+        // Since interface maps are injective, boundary_count ∈ {0,1}.
+        let in_sum = in_degrees + in_counts;
+        let out_sum = out_degrees + out_counts;
+        let exactly_one_per_node = |xs: K::Index| {
+            xs.zero().is_empty() && xs.max().map_or(node_count.is_zero(), |m| m <= K::I::one())
+        };
+
+        exactly_one_per_node(in_sum) && exactly_one_per_node(out_sum)
     }
 }

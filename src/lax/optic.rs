@@ -55,6 +55,7 @@ pub trait Optic<
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn to_strict_optic<
     T: Optic<O1, A1, O2, A2> + 'static,
     O1: Clone + PartialEq,
