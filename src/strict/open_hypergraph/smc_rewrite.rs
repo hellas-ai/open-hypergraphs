@@ -250,7 +250,8 @@ where
     let rhs = rule.rhs();
 
     // Compute where the LHS boundary lands in the host.
-    let lhs_inputs_in_host = (&lhs.s >> m.w()).expect("validated SMC match preserves lhs input boundary");
+    let lhs_inputs_in_host =
+        (&lhs.s >> m.w()).expect("validated SMC match preserves lhs input boundary");
     let lhs_outputs_in_host =
         (&lhs.t >> m.w()).expect("validated SMC match preserves lhs output boundary");
 
@@ -340,7 +341,8 @@ where
 
     // Intuitively, the context is host with a hole where we can plug in lhs
     // Hence, inputs are host inputs and lhs outputs, similarly for outputs
-    let ctx_inputs = (&host_inputs + &lhs_outputs).expect("context input coproduct shares codomain");
+    let ctx_inputs =
+        (&host_inputs + &lhs_outputs).expect("context input coproduct shares codomain");
     let ctx_outputs =
         (&host_outputs + &lhs_inputs).expect("context output coproduct shares codomain");
     let context = OpenHypergraph::new(ctx_inputs, ctx_outputs, remainder).unwrap_or_else(|_| {
