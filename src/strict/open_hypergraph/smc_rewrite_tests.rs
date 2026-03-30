@@ -6,7 +6,7 @@ use crate::semifinite::SemifiniteFunction;
 use crate::strict::hypergraph::Hypergraph;
 use crate::strict::open_hypergraph::{
     apply_smc_rewrite, FrobeniusRewriteMatch, FrobeniusRewriteRule, OpenHypergraph,
-    SmcRewriteMatch, SmcRewriteRule,
+    SmcRewriteMatch, SmcRewriteMatchError, SmcRewriteRule, SmcRewriteRuleError,
 };
 use std::collections::HashMap;
 
@@ -1573,6 +1573,37 @@ fn smc_rule_rejects_overlapping_boundary_ports() {
     let lhs = make_open_hypergraph_named([w("u", OBJ)], [], [inp("u")], [out("u")]);
     let rhs = make_open_hypergraph_named([w("u", OBJ)], [], [inp("u")], [out("u")]);
     assert!(SmcRewriteRule::new(lhs, rhs).is_none());
+}
+
+#[test]
+fn smc_rule_reports_boundary_overlap_reason() {
+    let lhs = make_open_hypergraph_named([w("u", OBJ)], [], [inp("u")], [out("u")]);
+    let rhs = make_open_hypergraph_named([w("u", OBJ)], [], [inp("u")], [out("u")]);
+    let err = SmcRewriteRule::try_new(lhs, rhs).unwrap_err();
+    assert_eq!(err, SmcRewriteRuleError::LhsBoundaryLegsNotDisjoint);
+}
+
+#[test]
+fn smc_match_reports_non_monogamous_host_reason() {
+    let lhs = make_named_open_hypergraph(
+        [w("x", OBJ), w("y", OBJ)],
+        [e("f", ["x"], ["y"], MU)],
+        [inp("x")],
+        [out("y")],
+    );
+    let rhs = lhs.graph.clone();
+    let rule = SmcRewriteRule::new(lhs.graph.clone(), rhs).unwrap();
+
+    let host = make_open_hypergraph_named(
+        [w("x", OBJ), w("y", OBJ)],
+        [e("f0", ["x"], ["y"], MU)],
+        [inp("x"), inp("x")],
+        [out("y")],
+    );
+    let w = make_map(&[0, 1], host.h.w.len());
+    let x = make_map(&[0], host.h.x.len());
+    let err = SmcRewriteMatch::try_new(&rule, &host, w, x).unwrap_err();
+    assert_eq!(err, SmcRewriteMatchError::HostNotMonogamous);
 }
 
 #[test]

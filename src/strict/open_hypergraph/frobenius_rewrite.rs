@@ -7,6 +7,23 @@ use crate::strict::hypergraph::arrow::validate_hypergraph_morphism;
 use crate::strict::hypergraph::Hypergraph;
 use crate::strict::open_hypergraph::OpenHypergraph;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrobeniusRewriteRuleError {
+    BoundaryMismatch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrobeniusRewriteMatchError {
+    InvalidHypergraphMorphism,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrobeniusRewriteApplyError {
+    IdentificationConditionFailed,
+    DanglingConditionFailed,
+    NoValidPushoutComplement,
+}
+
 /// A rewrite rule for strict open hypergraphs under rewriting modulo
 /// Frobenius structure.
 pub struct FrobeniusRewriteRule<O, A> {
@@ -23,10 +40,17 @@ where
         lhs: OpenHypergraph<VecKind, O, A>,
         rhs: OpenHypergraph<VecKind, O, A>,
     ) -> Option<Self> {
+        Self::try_new(lhs, rhs).ok()
+    }
+
+    pub fn try_new(
+        lhs: OpenHypergraph<VecKind, O, A>,
+        rhs: OpenHypergraph<VecKind, O, A>,
+    ) -> Result<Self, FrobeniusRewriteRuleError> {
         if lhs.source() == rhs.source() && lhs.target() == rhs.target() {
-            Some(Self { lhs, rhs })
+            Ok(Self { lhs, rhs })
         } else {
-            None
+            Err(FrobeniusRewriteRuleError::BoundaryMismatch)
         }
     }
 
@@ -80,8 +104,18 @@ where
         w: FiniteFunction<VecKind>,
         x: FiniteFunction<VecKind>,
     ) -> Option<Self> {
-        validate_hypergraph_morphism(&rule.lhs.h, &host.h, &w, &x).ok()?;
-        Some(Self { rule, host, w, x })
+        Self::try_new(rule, host, w, x).ok()
+    }
+
+    pub fn try_new(
+        rule: &'a FrobeniusRewriteRule<O, A>,
+        host: &'a OpenHypergraph<VecKind, O, A>,
+        w: FiniteFunction<VecKind>,
+        x: FiniteFunction<VecKind>,
+    ) -> Result<Self, FrobeniusRewriteMatchError> {
+        validate_hypergraph_morphism(&rule.lhs.h, &host.h, &w, &x)
+            .map_err(|_| FrobeniusRewriteMatchError::InvalidHypergraphMorphism)?;
+        Ok(Self { rule, host, w, x })
     }
 
     pub fn rule(&self) -> &FrobeniusRewriteRule<O, A> {
@@ -139,12 +173,25 @@ where
     O: Clone + PartialEq,
     A: Clone + PartialEq,
 {
+    try_apply_frobenius_rewrite(m).unwrap_or_default()
+}
+
+pub fn try_apply_frobenius_rewrite<'a, O, A>(
+    m: &FrobeniusRewriteMatch<'a, O, A>,
+) -> Result<Vec<OpenHypergraph<VecKind, O, A>>, FrobeniusRewriteApplyError>
+where
+    O: Clone + PartialEq,
+    A: Clone + PartialEq,
+{
     let rule = m.rule();
     let host = m.host();
     let lhs = rule.lhs();
 
-    if !identification_condition(lhs, m.w()) || !dangling_condition(lhs, host, m.w(), m.x()) {
-        return Vec::new();
+    if !identification_condition(lhs, m.w()) {
+        return Err(FrobeniusRewriteApplyError::IdentificationConditionFailed);
+    }
+    if !dangling_condition(lhs, host, m.w(), m.x()) {
+        return Err(FrobeniusRewriteApplyError::DanglingConditionFailed);
     }
 
     // As in the hypergraph DPO construction, first build the exploded context,
@@ -154,9 +201,14 @@ where
     let partitions_per_fiber: Vec<Vec<Partition<usize>>> =
         fiber_inputs.iter().map(enumerate_partitions).collect();
     if partitions_per_fiber.is_empty() {
-        return pushout_result(rule, &exploded, &partitions_per_fiber, &[])
+        let results = pushout_result(rule, &exploded, &partitions_per_fiber, &[])
             .into_iter()
-            .collect();
+            .collect::<Vec<_>>();
+        return if results.is_empty() {
+            Err(FrobeniusRewriteApplyError::NoValidPushoutComplement)
+        } else {
+            Ok(results)
+        };
     }
 
     let mut selection = Vec::with_capacity(partitions_per_fiber.len());
@@ -169,7 +221,11 @@ where
         &mut selection,
         &mut results,
     );
-    results
+    if results.is_empty() {
+        Err(FrobeniusRewriteApplyError::NoValidPushoutComplement)
+    } else {
+        Ok(results)
+    }
 }
 
 fn walk_partitions<O, A>(

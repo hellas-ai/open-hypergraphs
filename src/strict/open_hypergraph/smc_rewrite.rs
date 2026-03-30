@@ -6,6 +6,32 @@ use crate::strict::hypergraph::Hypergraph;
 use crate::strict::open_hypergraph::OpenHypergraph;
 use num_traits::Zero;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SmcRewriteRuleError {
+    BoundaryMismatch,
+    BoundaryLegsNotInjective,
+    LhsBoundaryLegsNotDisjoint,
+    LhsNotMonogamousAcyclic,
+    RhsNotMonogamousAcyclic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SmcRewriteMatchError {
+    HostNotMonogamous,
+    HostNotAcyclic,
+    NotConvexSubgraphMorphism,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SmcRewriteApplyError {
+    BoundaryMapFailed,
+    EdgeComplementFailed,
+    WireComplementFailed,
+    ContextInvalid,
+    ContextNotMonogamous,
+    PushoutFailed,
+}
+
 /// A rewrite rule for strict open hypergraphs under rewriting with
 /// symmetric monoidal structure (SMC).
 ///
@@ -23,18 +49,37 @@ where
 {
     /// Create a new rewrite rule if the boundaries of `lhs` and `rhs` match.
     pub fn new(lhs: OpenHypergraph<K, O, A>, rhs: OpenHypergraph<K, O, A>) -> Option<Self> {
-        if Self::validate(&lhs, &rhs) {
-            Some(Self { lhs, rhs })
-        } else {
-            None
-        }
+        Self::try_new(lhs, rhs).ok()
     }
 
-    pub fn validate(lhs: &OpenHypergraph<K, O, A>, rhs: &OpenHypergraph<K, O, A>) -> bool {
-        Self::boundaries_match(lhs, rhs)
-            && Self::boundary_legs_injective(lhs, rhs)
-            && Self::lhs_boundary_legs_disjoint(lhs)
-            && Self::sides_monogamous_acyclic(lhs, rhs)
+    pub fn try_new(
+        lhs: OpenHypergraph<K, O, A>,
+        rhs: OpenHypergraph<K, O, A>,
+    ) -> Result<Self, SmcRewriteRuleError> {
+        Self::validate(&lhs, &rhs)?;
+        Ok(Self { lhs, rhs })
+    }
+
+    pub fn validate(
+        lhs: &OpenHypergraph<K, O, A>,
+        rhs: &OpenHypergraph<K, O, A>,
+    ) -> Result<(), SmcRewriteRuleError> {
+        if !Self::boundaries_match(lhs, rhs) {
+            return Err(SmcRewriteRuleError::BoundaryMismatch);
+        }
+        if !Self::boundary_legs_injective(lhs, rhs) {
+            return Err(SmcRewriteRuleError::BoundaryLegsNotInjective);
+        }
+        if !Self::lhs_boundary_legs_disjoint(lhs) {
+            return Err(SmcRewriteRuleError::LhsBoundaryLegsNotDisjoint);
+        }
+        if !(lhs.is_monogamous() && lhs.is_acyclic()) {
+            return Err(SmcRewriteRuleError::LhsNotMonogamousAcyclic);
+        }
+        if !(rhs.is_monogamous() && rhs.is_acyclic()) {
+            return Err(SmcRewriteRuleError::RhsNotMonogamousAcyclic);
+        }
+        Ok(())
     }
 
     pub fn boundaries_match(lhs: &OpenHypergraph<K, O, A>, rhs: &OpenHypergraph<K, O, A>) -> bool {
@@ -112,14 +157,31 @@ impl<'a, K: ArrayKind, O, A> SmcRewriteMatch<'a, K, O, A> {
         K::Type<O>: Array<K, O> + PartialEq,
         K::Type<A>: Array<K, A> + PartialEq,
     {
-        if !host.is_monogamous() || !host.is_acyclic() {
-            return None;
+        Self::try_new(rule, host, w, x).ok()
+    }
+
+    pub fn try_new(
+        rule: &'a SmcRewriteRule<K, O, A>,
+        host: &'a OpenHypergraph<K, O, A>,
+        w: FiniteFunction<K>,
+        x: FiniteFunction<K>,
+    ) -> Result<Self, SmcRewriteMatchError>
+    where
+        K::Type<K::I>: NaturalArray<K>,
+        K::Type<bool>: Array<K, bool>,
+        K::Type<O>: Array<K, O> + PartialEq,
+        K::Type<A>: Array<K, A> + PartialEq,
+    {
+        if !host.is_monogamous() {
+            return Err(SmcRewriteMatchError::HostNotMonogamous);
         }
-        if is_convex_subgraph_morphism(&rule.lhs.h, &host.h, &w, &x) {
-            Some(Self { rule, host, w, x })
-        } else {
-            None
+        if !host.is_acyclic() {
+            return Err(SmcRewriteMatchError::HostNotAcyclic);
         }
+        if !is_convex_subgraph_morphism(&rule.lhs.h, &host.h, &w, &x) {
+            return Err(SmcRewriteMatchError::NotConvexSubgraphMorphism);
+        }
+        Ok(Self { rule, host, w, x })
     }
 
     pub fn w(&self) -> &FiniteFunction<K> {
@@ -183,18 +245,43 @@ where
     O: PartialEq,
     for<'b> K::Slice<'b, K::I>: From<&'b [K::I]>,
 {
+    try_apply_smc_rewrite(m).ok()
+}
+
+pub fn try_apply_smc_rewrite<'a, K: ArrayKind, O, A>(
+    m: &SmcRewriteMatch<'a, K, O, A>,
+) -> Result<OpenHypergraph<K, O, A>, SmcRewriteApplyError>
+where
+    K::Type<K::I>: NaturalArray<K>,
+    K::Type<bool>: Array<K, bool>,
+    K::Type<O>: Array<K, O> + PartialEq,
+    K::Type<A>: Array<K, A> + PartialEq,
+    O: PartialEq,
+    for<'b> K::Slice<'b, K::I>: From<&'b [K::I]>,
+{
     let rule = m.rule();
     let host = m.host();
     let lhs = rule.lhs();
     let rhs = rule.rhs();
 
     // Compute where the LHS boundary lands in the host.
-    let lhs_inputs_in_host = (&lhs.s >> m.w())?;
-    let lhs_outputs_in_host = (&lhs.t >> m.w())?;
+    let lhs_inputs_in_host = (&lhs.s >> m.w()).ok_or(SmcRewriteApplyError::BoundaryMapFailed)?;
+    let lhs_outputs_in_host = (&lhs.t >> m.w()).ok_or(SmcRewriteApplyError::BoundaryMapFailed)?;
 
-    let kept_x_inj = m.x().image_complement_injection()?;
-    let s_kept = host.h.s.map_indexes(&kept_x_inj)?;
-    let t_kept = host.h.t.map_indexes(&kept_x_inj)?;
+    let kept_x_inj = m
+        .x()
+        .image_complement_injection()
+        .ok_or(SmcRewriteApplyError::EdgeComplementFailed)?;
+    let s_kept = host
+        .h
+        .s
+        .map_indexes(&kept_x_inj)
+        .ok_or(SmcRewriteApplyError::EdgeComplementFailed)?;
+    let t_kept = host
+        .h
+        .t
+        .map_indexes(&kept_x_inj)
+        .ok_or(SmcRewriteApplyError::EdgeComplementFailed)?;
 
     // Build the kept-wire injection in two steps:
     // 1) Start from the complement of matched wires in the host.
@@ -205,7 +292,8 @@ where
     // Finally, canonicalize to an injection image -> host.w.
     let kept_w_inj = m
         .w()
-        .image_complement_injection()?
+        .image_complement_injection()
+        .ok_or(SmcRewriteApplyError::WireComplementFailed)?
         .coproduct_many(&[
             &host.s,
             &host.t,
@@ -213,21 +301,35 @@ where
             &lhs_outputs_in_host,
             &s_kept.values,
             &t_kept.values,
-        ])?
-        .canonical_image_injection()?;
+        ])
+        .ok_or(SmcRewriteApplyError::WireComplementFailed)?
+        .canonical_image_injection()
+        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
 
     // Total inverse with explicit fill outside image(kept_w_inj).
     // The fill value is never observed here because filtered incidence values
     // lie in image(kept_w_inj) by construction.
-    let kept_w_inv = kept_w_inj.inverse_with_fill(K::I::zero())?;
+    let kept_w_inv = kept_w_inj
+        .inverse_with_fill(K::I::zero())
+        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
 
     // Rebuild incidence by reindexing directly along the kept-edge injection,
     // then remap values through inverse-on-image of kept_w_inj.
-    let new_s = host.h.s.map_indexes(&kept_x_inj)?.map_values(&kept_w_inv)?;
-    let new_t = host.h.t.map_indexes(&kept_x_inj)?.map_values(&kept_w_inv)?;
+    let new_s = host
+        .h
+        .s
+        .map_indexes(&kept_x_inj)
+        .and_then(|s| s.map_values(&kept_w_inv))
+        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+    let new_t = host
+        .h
+        .t
+        .map_indexes(&kept_x_inj)
+        .and_then(|t| t.map_values(&kept_w_inv))
+        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
 
-    let new_w = (&kept_w_inj >> &host.h.w)?;
-    let new_x = (&kept_x_inj >> &host.h.x)?;
+    let new_w = (&kept_w_inj >> &host.h.w).ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+    let new_x = (&kept_x_inj >> &host.h.x).ok_or(SmcRewriteApplyError::WireComplementFailed)?;
 
     let remainder = Hypergraph {
         s: new_s,
@@ -252,11 +354,12 @@ where
 
     // Intuitively, the context is host with a hole where we can plug in lhs
     // Hence, inputs are host inputs and lhs outputs, similarly for outputs
-    let ctx_inputs = (&host_inputs + &lhs_outputs)?;
-    let ctx_outputs = (&host_outputs + &lhs_inputs)?;
-    let context = OpenHypergraph::new(ctx_inputs, ctx_outputs, remainder).ok()?;
+    let ctx_inputs = (&host_inputs + &lhs_outputs).ok_or(SmcRewriteApplyError::ContextInvalid)?;
+    let ctx_outputs = (&host_outputs + &lhs_inputs).ok_or(SmcRewriteApplyError::ContextInvalid)?;
+    let context = OpenHypergraph::new(ctx_inputs, ctx_outputs, remainder)
+        .map_err(|_| SmcRewriteApplyError::ContextInvalid)?;
     if !context.is_monogamous() {
-        return None;
+        return Err(SmcRewriteApplyError::ContextNotMonogamous);
     }
 
     pushout_rewrite(
@@ -267,6 +370,7 @@ where
         &lhs_inputs,
         &lhs_outputs,
     )
+    .ok_or(SmcRewriteApplyError::PushoutFailed)
 }
 
 impl<K: ArrayKind, O, A> SmcRewriteRule<K, O, A> {

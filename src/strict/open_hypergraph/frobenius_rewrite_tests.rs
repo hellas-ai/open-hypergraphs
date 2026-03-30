@@ -1,5 +1,8 @@
 use crate::category::Arrow;
-use crate::strict::open_hypergraph::{apply_frobenius_rewrite, FrobeniusRewriteRule};
+use crate::strict::open_hypergraph::{
+    apply_frobenius_rewrite, try_apply_frobenius_rewrite, FrobeniusRewriteApplyError,
+    FrobeniusRewriteRule,
+};
 
 use super::smc_rewrite_tests::{
     e, inp, isomorphic_with_boundary, make_named_open_hypergraph, named_frobenius_match_witness,
@@ -96,4 +99,17 @@ fn frobenius_rewrite_rejects_match_on_host_boundary_for_non_boundary_redex_wire(
     let m = named_frobenius_match_witness(&rule, &lhs, &host, &[("m", "w")], &[], &host.graph);
 
     assert!(apply_frobenius_rewrite(&m).is_empty());
+}
+
+#[test]
+fn frobenius_rewrite_reports_dangling_reason() {
+    let lhs = make_named_open_hypergraph([w("m", OBJ)], [], [], []);
+    let rhs = make_named_open_hypergraph([], [], [], []);
+    let rule = FrobeniusRewriteRule::new(lhs.graph.clone(), rhs.graph.clone()).unwrap();
+
+    let host = make_named_open_hypergraph([w("w", OBJ)], [], [inp("w")], [out("w")]);
+    let m = named_frobenius_match_witness(&rule, &lhs, &host, &[("m", "w")], &[], &host.graph);
+
+    let err = try_apply_frobenius_rewrite(&m).unwrap_err();
+    assert_eq!(err, FrobeniusRewriteApplyError::DanglingConditionFailed);
 }
