@@ -2,6 +2,7 @@
 //! and arrows by [`arrow::HypergraphArrow`].
 mod acyclic;
 pub mod arrow;
+#[cfg(any(feature = "experimental", test))]
 pub mod matching;
 mod object;
 

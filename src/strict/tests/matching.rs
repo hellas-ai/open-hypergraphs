@@ -78,9 +78,50 @@ fn strict_match_can_filter_nonconvex_embeddings() {
         &pattern,
         &host,
         &MatchOptions {
+            mono: true,
             require_convex: true,
             stop_after_first: false,
         },
     );
     assert!(convex_only.is_empty());
+}
+
+#[test]
+fn strict_match_requires_mono_by_default_for_wire_maps() {
+    let pattern = make_hypergraph(&[], &[], vec![0, 0], vec![]);
+    let host = make_hypergraph(&[], &[], vec![0], vec![]);
+
+    let default_matches = find_subgraph_matches(&pattern, &host, &MatchOptions::default());
+    assert!(default_matches.is_empty());
+
+    let relaxed_matches = find_subgraph_matches(
+        &pattern,
+        &host,
+        &MatchOptions {
+            mono: false,
+            ..MatchOptions::default()
+        },
+    );
+    assert_eq!(relaxed_matches.len(), 1);
+    assert_eq!(relaxed_matches[0].w.table.0, vec![0, 0]);
+    assert!(relaxed_matches[0].x.table.0.is_empty());
+}
+
+#[test]
+fn strict_match_keeps_operation_maps_mono_when_wire_maps_are_relaxed() {
+    let pattern = make_hypergraph(&[vec![0], vec![0]], &[vec![0], vec![0]], vec![0], vec![7, 7]);
+    let host = make_hypergraph(&[vec![0]], &[vec![0]], vec![0], vec![7]);
+
+    let default_matches = find_subgraph_matches(&pattern, &host, &MatchOptions::default());
+    assert!(default_matches.is_empty());
+
+    let relaxed_matches = find_subgraph_matches(
+        &pattern,
+        &host,
+        &MatchOptions {
+            mono: false,
+            ..MatchOptions::default()
+        },
+    );
+    assert!(relaxed_matches.is_empty());
 }

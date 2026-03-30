@@ -10,10 +10,21 @@ use core::convert::TryFrom;
 type EdgeId = usize;
 type NodeId = usize;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct MatchOptions {
+    pub mono: bool,
     pub require_convex: bool,
     pub stop_after_first: bool,
+}
+
+impl Default for MatchOptions {
+    fn default() -> Self {
+        Self {
+            mono: true,
+            require_convex: false,
+            stop_after_first: false,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -181,7 +192,7 @@ where
     let host_wire_count: usize = host.w.len().into();
     let host_op_count: usize = host.x.len().into();
 
-    if pattern_wire_count > host_wire_count || pattern_op_count > host_op_count {
+    if (options.mono && pattern_wire_count > host_wire_count) || pattern_op_count > host_op_count {
         return Vec::new();
     }
 
@@ -191,7 +202,7 @@ where
     let host_targets = incidence_lists(&host.t);
 
     let initial = SearchState {
-        wire_candidates: CandidateMap::new(initial_wire_candidates(pattern, host)),
+        wire_candidates: CandidateMap::new(initial_wire_candidates(pattern, host, options)),
         op_candidates: CandidateMap::new(initial_op_candidates(
             pattern,
             host,
@@ -247,6 +258,7 @@ fn search<K: ArrayKind, O, A>(
         pattern_targets,
         host_sources,
         host_targets,
+        options,
         &mut state,
     ) {
         return;
@@ -326,7 +338,7 @@ where
         ) => return None,
     }
 
-    if !w.is_injective() || !x.is_injective() {
+    if !x.is_injective() || (options.mono && !w.is_injective()) {
         return None;
     }
 
@@ -360,6 +372,7 @@ fn refine_domains(
     pattern_targets: &OrderedIncidence,
     host_sources: &OrderedIncidence,
     host_targets: &OrderedIncidence,
+    options: &MatchOptions,
     state: &mut SearchState,
 ) -> bool {
     loop {
@@ -370,10 +383,14 @@ fn refine_domains(
         }
 
         let mut changed = false;
-        // Once a pattern item has a unique host candidate, injectivity forces
-        // that host item to disappear from every other non-singleton row.
-        changed |= state.wire_candidates.enforce_injective_singletons();
+        // Edge matches remain injective even when wire matches are allowed to
+        // fold, so singleton edge columns are always removed elsewhere.
         changed |= state.op_candidates.enforce_injective_singletons();
+        if options.mono {
+            // When wire matches are monic, singleton wire columns can also be
+            // removed from every other non-singleton row.
+            changed |= state.wire_candidates.enforce_injective_singletons();
+        }
 
         if state.wire_candidates.has_empty_row() || state.op_candidates.has_empty_row() {
             return false;
@@ -542,6 +559,7 @@ where
 fn initial_wire_candidates<K: ArrayKind, O, A>(
     pattern: &Hypergraph<K, O, A>,
     host: &Hypergraph<K, O, A>,
+    options: &MatchOptions,
 ) -> Vec<Vec<bool>>
 where
     K::Type<K::I>: NaturalArray<K>,
@@ -567,8 +585,9 @@ where
                         .ok()
                         .expect("host wire index conversion failed");
                     pattern_label == host.w.0.get(host_wire_ix.clone())
-                        && pattern_in_degree <= host.in_degree(host_wire_ix.clone())
-                        && pattern_out_degree <= host.out_degree(host_wire_ix)
+                        && (!options.mono
+                            || (pattern_in_degree <= host.in_degree(host_wire_ix.clone())
+                                && pattern_out_degree <= host.out_degree(host_wire_ix)))
                 })
                 .collect()
         })
