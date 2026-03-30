@@ -78,7 +78,7 @@ fn strict_match_can_filter_nonconvex_embeddings() {
         &pattern,
         &host,
         &MatchOptions {
-            mono: true,
+            non_mono_wires: Vec::new(),
             require_convex: true,
             stop_after_first: false,
         },
@@ -98,13 +98,29 @@ fn strict_match_requires_mono_by_default_for_wire_maps() {
         &pattern,
         &host,
         &MatchOptions {
-            mono: false,
+            non_mono_wires: vec![0, 1],
             ..MatchOptions::default()
         },
     );
     assert_eq!(relaxed_matches.len(), 1);
     assert_eq!(relaxed_matches[0].w.table.0, vec![0, 0]);
     assert!(relaxed_matches[0].x.table.0.is_empty());
+}
+
+#[test]
+fn strict_match_only_relaxes_listed_wires() {
+    let pattern = make_hypergraph(&[], &[], vec![0, 0], vec![]);
+    let host = make_hypergraph(&[], &[], vec![0], vec![]);
+
+    let relaxed_matches = find_subgraph_matches(
+        &pattern,
+        &host,
+        &MatchOptions {
+            non_mono_wires: vec![0],
+            ..MatchOptions::default()
+        },
+    );
+    assert!(relaxed_matches.is_empty());
 }
 
 #[test]
@@ -124,7 +140,7 @@ fn strict_match_keeps_operation_maps_mono_when_wire_maps_are_relaxed() {
         &pattern,
         &host,
         &MatchOptions {
-            mono: false,
+            non_mono_wires: vec![0],
             ..MatchOptions::default()
         },
     );

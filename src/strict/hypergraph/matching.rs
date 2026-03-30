@@ -12,7 +12,7 @@ type NodeId = usize;
 
 #[derive(Clone, Debug)]
 pub struct MatchOptions {
-    pub mono: bool,
+    pub non_mono_wires: Vec<usize>,
     pub require_convex: bool,
     pub stop_after_first: bool,
 }
@@ -20,10 +20,38 @@ pub struct MatchOptions {
 impl Default for MatchOptions {
     fn default() -> Self {
         Self {
-            mono: true,
+            non_mono_wires: Vec::new(),
             require_convex: false,
             stop_after_first: false,
         }
+    }
+}
+
+#[derive(Clone)]
+struct WireInjectivity {
+    allow_non_mono: Vec<bool>,
+}
+
+impl WireInjectivity {
+    fn from_options(pattern_wire_count: usize, options: &MatchOptions) -> Self {
+        let mut allow_non_mono = vec![false; pattern_wire_count];
+        for &wire in &options.non_mono_wires {
+            if wire < pattern_wire_count {
+                allow_non_mono[wire] = true;
+            }
+        }
+        Self { allow_non_mono }
+    }
+
+    fn requires_injective_image(&self, pattern_wire: usize) -> bool {
+        !self.allow_non_mono[pattern_wire]
+    }
+
+    fn injective_wire_count(&self) -> usize {
+        self.allow_non_mono
+            .iter()
+            .filter(|allowed| !**allowed)
+            .count()
     }
 }
 
@@ -140,11 +168,15 @@ impl CandidateMap {
         best
     }
 
-    fn enforce_injective_singletons(&mut self) -> bool {
+    fn enforce_injective_singletons(&mut self, singleton_rows_are_injective: &[bool]) -> bool {
         let singleton_columns: Vec<_> = self
             .by_pattern
             .iter()
-            .filter_map(|row| {
+            .enumerate()
+            .filter_map(|(pattern_id, row)| {
+                if !singleton_rows_are_injective[pattern_id] {
+                    return None;
+                }
                 let allowed = allowed_indices(row);
                 if allowed.len() == 1 {
                     Some(allowed[0])
@@ -191,8 +223,10 @@ where
     let pattern_op_count: usize = pattern.x.len().into();
     let host_wire_count: usize = host.w.len().into();
     let host_op_count: usize = host.x.len().into();
+    let wire_injectivity = WireInjectivity::from_options(pattern_wire_count, options);
 
-    if (options.mono && pattern_wire_count > host_wire_count) || pattern_op_count > host_op_count {
+    if wire_injectivity.injective_wire_count() > host_wire_count || pattern_op_count > host_op_count
+    {
         return Vec::new();
     }
 
@@ -202,7 +236,11 @@ where
     let host_targets = incidence_lists(&host.t);
 
     let initial = SearchState {
-        wire_candidates: CandidateMap::new(initial_wire_candidates(pattern, host, options)),
+        wire_candidates: CandidateMap::new(initial_wire_candidates(
+            pattern,
+            host,
+            &wire_injectivity,
+        )),
         op_candidates: CandidateMap::new(initial_op_candidates(
             pattern,
             host,
@@ -221,6 +259,7 @@ where
         &pattern_targets,
         &host_sources,
         &host_targets,
+        &wire_injectivity,
         options,
         initial,
         &mut matches,
@@ -243,6 +282,7 @@ fn search<K: ArrayKind, O, A>(
     pattern_targets: &OrderedIncidence,
     host_sources: &OrderedIncidence,
     host_targets: &OrderedIncidence,
+    wire_injectivity: &WireInjectivity,
     options: &MatchOptions,
     mut state: SearchState,
     matches: &mut Vec<HypergraphMatch<K>>,
@@ -258,13 +298,14 @@ fn search<K: ArrayKind, O, A>(
         pattern_targets,
         host_sources,
         host_targets,
+        wire_injectivity,
         options,
         &mut state,
     ) {
         return;
     }
 
-    if let Some(m) = build_match(pattern, host, options, &state) {
+    if let Some(m) = build_match(pattern, host, wire_injectivity, options, &state) {
         matches.push(m);
         return;
     }
@@ -294,6 +335,7 @@ fn search<K: ArrayKind, O, A>(
             pattern_targets,
             host_sources,
             host_targets,
+            wire_injectivity,
             options,
             next,
             matches,
@@ -304,6 +346,7 @@ fn search<K: ArrayKind, O, A>(
 fn build_match<K: ArrayKind, O, A>(
     pattern: &Hypergraph<K, O, A>,
     host: &Hypergraph<K, O, A>,
+    wire_injectivity: &WireInjectivity,
     options: &MatchOptions,
     state: &SearchState,
 ) -> Option<HypergraphMatch<K>>
@@ -338,7 +381,7 @@ where
         ) => return None,
     }
 
-    if !x.is_injective() || (options.mono && !w.is_injective()) {
+    if !x.is_injective() || !wires_are_injective_where_required::<K>(&w, wire_injectivity) {
         return None;
     }
 
@@ -372,7 +415,8 @@ fn refine_domains(
     pattern_targets: &OrderedIncidence,
     host_sources: &OrderedIncidence,
     host_targets: &OrderedIncidence,
-    options: &MatchOptions,
+    wire_injectivity: &WireInjectivity,
+    _options: &MatchOptions,
     state: &mut SearchState,
 ) -> bool {
     loop {
@@ -385,12 +429,17 @@ fn refine_domains(
         let mut changed = false;
         // Edge matches remain injective even when wire matches are allowed to
         // fold, so singleton edge columns are always removed elsewhere.
-        changed |= state.op_candidates.enforce_injective_singletons();
-        if options.mono {
-            // When wire matches are monic, singleton wire columns can also be
-            // removed from every other non-singleton row.
-            changed |= state.wire_candidates.enforce_injective_singletons();
-        }
+        let op_rows_are_injective = vec![true; state.op_candidates.pattern_count()];
+        changed |= state
+            .op_candidates
+            .enforce_injective_singletons(&op_rows_are_injective);
+
+        let wire_rows_are_injective: Vec<_> = (0..state.wire_candidates.pattern_count())
+            .map(|pattern_wire| wire_injectivity.requires_injective_image(pattern_wire))
+            .collect();
+        changed |= state
+            .wire_candidates
+            .enforce_injective_singletons(&wire_rows_are_injective);
 
         if state.wire_candidates.has_empty_row() || state.op_candidates.has_empty_row() {
             return false;
@@ -559,7 +608,7 @@ where
 fn initial_wire_candidates<K: ArrayKind, O, A>(
     pattern: &Hypergraph<K, O, A>,
     host: &Hypergraph<K, O, A>,
-    options: &MatchOptions,
+    wire_injectivity: &WireInjectivity,
 ) -> Vec<Vec<bool>>
 where
     K::Type<K::I>: NaturalArray<K>,
@@ -585,13 +634,44 @@ where
                         .ok()
                         .expect("host wire index conversion failed");
                     pattern_label == host.w.0.get(host_wire_ix.clone())
-                        && (!options.mono
+                        && (!wire_injectivity.requires_injective_image(pattern_wire)
                             || (pattern_in_degree <= host.in_degree(host_wire_ix.clone())
                                 && pattern_out_degree <= host.out_degree(host_wire_ix)))
                 })
                 .collect()
         })
         .collect()
+}
+
+fn wires_are_injective_where_required<K: ArrayKind>(
+    w: &FiniteFunction<K>,
+    wire_injectivity: &WireInjectivity,
+) -> bool
+where
+    K::I: Into<usize> + TryFrom<usize>,
+{
+    let mut image_counts = std::collections::HashMap::<usize, usize>::new();
+    for pattern_wire in 0..wire_injectivity.allow_non_mono.len() {
+        let pattern_wire_ix = K::I::try_from(pattern_wire)
+            .ok()
+            .expect("pattern wire index conversion failed");
+        let host_wire: usize = w.table.get(pattern_wire_ix).into();
+        *image_counts.entry(host_wire).or_insert(0) += 1;
+    }
+
+    for pattern_wire in 0..wire_injectivity.allow_non_mono.len() {
+        if !wire_injectivity.requires_injective_image(pattern_wire) {
+            continue;
+        }
+        let pattern_wire_ix = K::I::try_from(pattern_wire)
+            .ok()
+            .expect("pattern wire index conversion failed");
+        let host_wire: usize = w.table.get(pattern_wire_ix).into();
+        if image_counts.get(&host_wire).copied().unwrap_or(0) > 1 {
+            return false;
+        }
+    }
+    true
 }
 
 fn initial_op_candidates<K: ArrayKind, O, A>(

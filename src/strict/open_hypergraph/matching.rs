@@ -27,6 +27,27 @@ impl<K: ArrayKind> OpenHypergraphMatch<K> {
     }
 }
 
+fn options_with_interface_wires_relaxed<K: ArrayKind, O, A>(
+    pattern: &OpenHypergraph<K, O, A>,
+    options: &MatchOptions,
+) -> MatchOptions
+where
+    K::I: Into<usize> + core::convert::TryFrom<usize>,
+{
+    let mut derived = options.clone();
+    for boundary in [&pattern.s, &pattern.t] {
+        let boundary_len: usize = boundary.table.len().into();
+        for boundary_ix in 0..boundary_len {
+            let boundary_ix = K::I::try_from(boundary_ix)
+                .ok()
+                .expect("boundary index conversion failed");
+            let wire_ix: usize = boundary.table.get(boundary_ix).into();
+            derived.non_mono_wires.push(wire_ix);
+        }
+    }
+    derived
+}
+
 pub(crate) fn smc_boundary_images<K: ArrayKind, O, A>(
     pattern: &OpenHypergraph<K, O, A>,
     w: &FiniteFunction<K>,
@@ -71,7 +92,8 @@ where
     K::I: Into<usize> + core::convert::TryFrom<usize>,
     for<'a> K::Slice<'a, K::I>: From<&'a [K::I]>,
 {
-    find_hypergraph_subgraph_matches(&pattern.h, &host.h, options)
+    let derived_options = options_with_interface_wires_relaxed(pattern, options);
+    find_hypergraph_subgraph_matches(&pattern.h, &host.h, &derived_options)
         .into_iter()
         .map(|HypergraphMatch { w, x }| OpenHypergraphMatch { w, x })
         .collect()
