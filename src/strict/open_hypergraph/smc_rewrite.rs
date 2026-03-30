@@ -24,10 +24,6 @@ pub enum SmcRewriteMatchError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SmcRewriteApplyError {
-    BoundaryMapFailed,
-    EdgeComplementFailed,
-    WireComplementFailed,
-    ContextInvalid,
     ContextNotMonogamous,
     PushoutFailed,
 }
@@ -231,24 +227,13 @@ where
     }
 }
 
-/// Apply a rewrite rule to `host` using a match `m : L -> host` where `L` is the apex of `lhs`.
+/// Apply a rewrite rule to `host` using a validated SMC match `m : L -> host`
+/// where `L` is the left-hand side of the rule.
 ///
-/// Returns `None` if the rewrite is invalid.
+/// Returned errors correspond to genuine failures to apply the rewrite after
+/// the local match has been validated. Failures of the intermediate
+/// finite-function constructions are treated as invariant violations and panic.
 pub fn apply_smc_rewrite<'a, K: ArrayKind, O, A>(
-    m: &SmcRewriteMatch<'a, K, O, A>,
-) -> Option<OpenHypergraph<K, O, A>>
-where
-    K::Type<K::I>: NaturalArray<K>,
-    K::Type<bool>: Array<K, bool>,
-    K::Type<O>: Array<K, O> + PartialEq,
-    K::Type<A>: Array<K, A> + PartialEq,
-    O: PartialEq,
-    for<'b> K::Slice<'b, K::I>: From<&'b [K::I]>,
-{
-    try_apply_smc_rewrite(m).ok()
-}
-
-pub fn try_apply_smc_rewrite<'a, K: ArrayKind, O, A>(
     m: &SmcRewriteMatch<'a, K, O, A>,
 ) -> Result<OpenHypergraph<K, O, A>, SmcRewriteApplyError>
 where
@@ -265,23 +250,24 @@ where
     let rhs = rule.rhs();
 
     // Compute where the LHS boundary lands in the host.
-    let lhs_inputs_in_host = (&lhs.s >> m.w()).ok_or(SmcRewriteApplyError::BoundaryMapFailed)?;
-    let lhs_outputs_in_host = (&lhs.t >> m.w()).ok_or(SmcRewriteApplyError::BoundaryMapFailed)?;
+    let lhs_inputs_in_host = (&lhs.s >> m.w()).expect("validated SMC match preserves lhs input boundary");
+    let lhs_outputs_in_host =
+        (&lhs.t >> m.w()).expect("validated SMC match preserves lhs output boundary");
 
     let kept_x_inj = m
         .x()
         .image_complement_injection()
-        .ok_or(SmcRewriteApplyError::EdgeComplementFailed)?;
+        .expect("finite-function image complements exist");
     let s_kept = host
         .h
         .s
         .map_indexes(&kept_x_inj)
-        .ok_or(SmcRewriteApplyError::EdgeComplementFailed)?;
+        .expect("kept edge injection reindexes source incidence");
     let t_kept = host
         .h
         .t
         .map_indexes(&kept_x_inj)
-        .ok_or(SmcRewriteApplyError::EdgeComplementFailed)?;
+        .expect("kept edge injection reindexes target incidence");
 
     // Build the kept-wire injection in two steps:
     // 1) Start from the complement of matched wires in the host.
@@ -293,7 +279,7 @@ where
     let kept_w_inj = m
         .w()
         .image_complement_injection()
-        .ok_or(SmcRewriteApplyError::WireComplementFailed)?
+        .expect("finite-function image complements exist")
         .coproduct_many(&[
             &host.s,
             &host.t,
@@ -302,16 +288,16 @@ where
             &s_kept.values,
             &t_kept.values,
         ])
-        .ok_or(SmcRewriteApplyError::WireComplementFailed)?
+        .expect("all kept-wire maps share the same host codomain")
         .canonical_image_injection()
-        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+        .expect("canonical image injection exists");
 
     // Total inverse with explicit fill outside image(kept_w_inj).
     // The fill value is never observed here because filtered incidence values
     // lie in image(kept_w_inj) by construction.
     let kept_w_inv = kept_w_inj
         .inverse_with_fill(K::I::zero())
-        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+        .expect("canonical image injections are injective");
 
     // Rebuild incidence by reindexing directly along the kept-edge injection,
     // then remap values through inverse-on-image of kept_w_inj.
@@ -320,16 +306,16 @@ where
         .s
         .map_indexes(&kept_x_inj)
         .and_then(|s| s.map_values(&kept_w_inv))
-        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+        .expect("kept sources lie in the kept-wire image");
     let new_t = host
         .h
         .t
         .map_indexes(&kept_x_inj)
         .and_then(|t| t.map_values(&kept_w_inv))
-        .ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+        .expect("kept targets lie in the kept-wire image");
 
-    let new_w = (&kept_w_inj >> &host.h.w).ok_or(SmcRewriteApplyError::WireComplementFailed)?;
-    let new_x = (&kept_x_inj >> &host.h.x).ok_or(SmcRewriteApplyError::WireComplementFailed)?;
+    let new_w = (&kept_w_inj >> &host.h.w).expect("kept wire injection composes with host labels");
+    let new_x = (&kept_x_inj >> &host.h.x).expect("kept edge injection composes with host labels");
 
     let remainder = Hypergraph {
         s: new_s,
@@ -354,10 +340,12 @@ where
 
     // Intuitively, the context is host with a hole where we can plug in lhs
     // Hence, inputs are host inputs and lhs outputs, similarly for outputs
-    let ctx_inputs = (&host_inputs + &lhs_outputs).ok_or(SmcRewriteApplyError::ContextInvalid)?;
-    let ctx_outputs = (&host_outputs + &lhs_inputs).ok_or(SmcRewriteApplyError::ContextInvalid)?;
-    let context = OpenHypergraph::new(ctx_inputs, ctx_outputs, remainder)
-        .map_err(|_| SmcRewriteApplyError::ContextInvalid)?;
+    let ctx_inputs = (&host_inputs + &lhs_outputs).expect("context input coproduct shares codomain");
+    let ctx_outputs =
+        (&host_outputs + &lhs_inputs).expect("context output coproduct shares codomain");
+    let context = OpenHypergraph::new(ctx_inputs, ctx_outputs, remainder).unwrap_or_else(|_| {
+        panic!("SMC context reconstructed from a valid match should be a valid open hypergraph")
+    });
     if !context.is_monogamous() {
         return Err(SmcRewriteApplyError::ContextNotMonogamous);
     }
