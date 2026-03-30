@@ -5,13 +5,14 @@ use crate::indexed_coproduct::IndexedCoproduct;
 use crate::semifinite::SemifiniteFunction;
 use crate::strict::hypergraph::Hypergraph;
 use crate::strict::open_hypergraph::{
-    apply_smc_rewrite, OpenHypergraph, SmcRewriteMatch, SmcRewriteRule,
+    apply_smc_rewrite, FrobeniusRewriteMatch, FrobeniusRewriteRule, OpenHypergraph,
+    SmcRewriteMatch, SmcRewriteRule,
 };
 use std::collections::HashMap;
 
-const OBJ: i32 = 0;
-const MU: i32 = 1;
-const DELTA: i32 = 2;
+pub(super) const OBJ: i32 = 0;
+pub(super) const MU: i32 = 1;
+pub(super) const DELTA: i32 = 2;
 
 fn make_indexed_coproduct(
     segments: &[Vec<usize>],
@@ -43,7 +44,7 @@ fn make_hypergraph(
 }
 
 #[derive(Clone)]
-struct NamedEdge<'a> {
+pub(super) struct NamedEdge<'a> {
     logical_name: &'a str,
     sources: Vec<&'a str>,
     targets: Vec<&'a str>,
@@ -51,32 +52,32 @@ struct NamedEdge<'a> {
 }
 
 #[derive(Clone, Copy)]
-struct NamedWire<'a> {
+pub(super) struct NamedWire<'a> {
     logical_name: &'a str,
     label: i32,
 }
 
 #[derive(Clone, Copy)]
-struct BoundaryPort<'a> {
+pub(super) struct BoundaryPort<'a> {
     logical_name: &'a str,
 }
 
-fn w<'a>(logical_name: &'a str, label: i32) -> NamedWire<'a> {
+pub(super) fn w<'a>(logical_name: &'a str, label: i32) -> NamedWire<'a> {
     NamedWire {
         logical_name,
         label,
     }
 }
 
-fn inp<'a>(logical_name: &'a str) -> BoundaryPort<'a> {
+pub(super) fn inp<'a>(logical_name: &'a str) -> BoundaryPort<'a> {
     BoundaryPort { logical_name }
 }
 
-fn out<'a>(logical_name: &'a str) -> BoundaryPort<'a> {
+pub(super) fn out<'a>(logical_name: &'a str) -> BoundaryPort<'a> {
     BoundaryPort { logical_name }
 }
 
-fn e<'a, const S: usize, const T: usize>(
+pub(super) fn e<'a, const S: usize, const T: usize>(
     logical_name: &'a str,
     sources: [&'a str; S],
     targets: [&'a str; T],
@@ -169,13 +170,13 @@ fn make_map(indices: &[usize], target: usize) -> FiniteFunction<VecKind> {
     FiniteFunction::new(VecArray(indices.to_vec()), target).unwrap()
 }
 
-struct NamedOpenGraph {
-    graph: OpenHypergraph<VecKind, i32, i32>,
+pub(super) struct NamedOpenGraph {
+    pub(super) graph: OpenHypergraph<VecKind, i32, i32>,
     wire_ix: HashMap<String, usize>,
     edge_ix: HashMap<String, usize>,
 }
 
-fn make_named_open_hypergraph<'a, W, E, I, O>(
+pub(super) fn make_named_open_hypergraph<'a, W, E, I, O>(
     wires: W,
     edges: E,
     inputs: I,
@@ -266,6 +267,53 @@ fn named_match_witness<'a>(
     let w = make_map(&w_table, host.graph.h.w.len());
     let x = make_map(&x_table, host.graph.h.x.len());
     SmcRewriteMatch::new(rule, host_graph, w, x).unwrap()
+}
+
+pub(super) fn named_frobenius_match_witness<'a>(
+    rule: &'a FrobeniusRewriteRule<i32, i32>,
+    lhs: &NamedOpenGraph,
+    host: &NamedOpenGraph,
+    wire_pairs: &[(&str, &str)],
+    edge_pairs: &[(&str, &str)],
+    host_graph: &'a OpenHypergraph<VecKind, i32, i32>,
+) -> FrobeniusRewriteMatch<'a, i32, i32> {
+    let mut w_table = vec![usize::MAX; lhs.graph.h.w.len()];
+    for (lhs_name, host_name) in wire_pairs {
+        let l = *lhs
+            .wire_ix
+            .get(*lhs_name)
+            .unwrap_or_else(|| panic!("unknown lhs wire name `{lhs_name}`"));
+        let h = *host
+            .wire_ix
+            .get(*host_name)
+            .unwrap_or_else(|| panic!("unknown host wire name `{host_name}`"));
+        w_table[l] = h;
+    }
+    assert!(
+        w_table.iter().all(|ix| *ix != usize::MAX),
+        "wire_pairs must provide a total map from lhs wires to host wires",
+    );
+
+    let mut x_table = vec![usize::MAX; lhs.graph.h.x.len()];
+    for (lhs_name, host_name) in edge_pairs {
+        let l = *lhs
+            .edge_ix
+            .get(*lhs_name)
+            .unwrap_or_else(|| panic!("unknown lhs edge name `{lhs_name}`"));
+        let h = *host
+            .edge_ix
+            .get(*host_name)
+            .unwrap_or_else(|| panic!("unknown host edge name `{host_name}`"));
+        x_table[l] = h;
+    }
+    assert!(
+        x_table.iter().all(|ix| *ix != usize::MAX),
+        "edge_pairs must provide a total map from lhs edges to host edges",
+    );
+
+    let w = make_map(&w_table, host.graph.h.w.len());
+    let x = make_map(&x_table, host.graph.h.x.len());
+    FrobeniusRewriteMatch::new(rule, host_graph, w, x).unwrap()
 }
 
 struct FrobeniusSemiAlgebraRules {
@@ -718,7 +766,7 @@ fn injective_maps(domain: usize, target: usize) -> Vec<Vec<usize>> {
     out
 }
 
-fn isomorphic_with_boundary(
+pub(super) fn isomorphic_with_boundary(
     expected: &OpenHypergraph<VecKind, i32, i32>,
     actual: &OpenHypergraph<VecKind, i32, i32>,
 ) -> bool {

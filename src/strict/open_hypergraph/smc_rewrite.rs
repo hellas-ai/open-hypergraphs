@@ -302,7 +302,8 @@ where
     let g = (&rhs.s + &rhs.t)?;
 
     // Pushout the span to glue RHS into the hole.
-    let (h, left_arrow, _right_arrow) = Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
+    let (h, left_arrow, _right_arrow) =
+        Hypergraph::pushout_along_span(&context.h, &rhs.h, &f, &g)?;
 
     // Reindex the host-side boundary fragments through the left arrow into the pushout.
     let s = host_inputs.compose(&left_arrow.w)?;
