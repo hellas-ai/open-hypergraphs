@@ -4,7 +4,7 @@ use crate::strict::open_hypergraph::{
     FrobeniusRewriteRule,
 };
 
-use super::smc_rewrite_tests::{
+use super::test_utils::{
     e, inp, isomorphic_with_boundary, make_named_open_hypergraph, named_frobenius_match_witness,
     out, w, DELTA, MU, OBJ,
 };

@@ -10,6 +10,9 @@ mod smc_rewrite;
 #[cfg(test)]
 #[cfg(feature = "experimental")]
 mod smc_rewrite_tests;
+#[cfg(test)]
+#[cfg(feature = "experimental")]
+mod test_utils;
 
 pub use arrow::*;
 #[cfg(feature = "experimental")]
