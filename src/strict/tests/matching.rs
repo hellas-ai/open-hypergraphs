@@ -109,7 +109,12 @@ fn strict_match_requires_mono_by_default_for_wire_maps() {
 
 #[test]
 fn strict_match_keeps_operation_maps_mono_when_wire_maps_are_relaxed() {
-    let pattern = make_hypergraph(&[vec![0], vec![0]], &[vec![0], vec![0]], vec![0], vec![7, 7]);
+    let pattern = make_hypergraph(
+        &[vec![0], vec![0]],
+        &[vec![0], vec![0]],
+        vec![0],
+        vec![7, 7],
+    );
     let host = make_hypergraph(&[vec![0]], &[vec![0]], vec![0], vec![7]);
 
     let default_matches = find_subgraph_matches(&pattern, &host, &MatchOptions::default());
