@@ -76,10 +76,12 @@ pub mod functor;
 pub mod hypergraph;
 pub mod mut_category;
 pub mod open_hypergraph;
+pub mod spider;
 
 pub use crate::category::*;
 pub use hypergraph::*;
 pub use open_hypergraph::*;
+pub use spider::*;
 
 pub mod optic;
 pub mod var;
