@@ -82,18 +82,23 @@ fn spider_arities_count_all_occurrences() {
         vec![
             WithSpider::Operation("op"),
             WithSpider::Spider {
-                sources: 0,
-                targets: 4,
+                sources: 2,
+                targets: 3,
             },
             WithSpider::Spider {
-                sources: 4,
-                targets: 0,
+                sources: 2,
+                targets: 1,
             },
         ]
     );
 
     assert_eq!(spiderized.sources.len(), 2);
     assert_ne!(spiderized.sources[0], spiderized.sources[1]);
+
+    let left_spider = &spiderized.hypergraph.adjacency[1];
+    let right_spider = &spiderized.hypergraph.adjacency[2];
+    assert_eq!(left_spider.sources, spiderized.sources);
+    assert_eq!(right_spider.targets, spiderized.targets);
 }
 
 #[test]

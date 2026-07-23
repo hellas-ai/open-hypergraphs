@@ -23,10 +23,11 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
     ///
     /// For every original node, the construction inserts two spiders:
     ///
-    /// - `0 -> 1 + m`, where `m` is the number of occurrences as an operation
-    ///   source or global target;
-    /// - `1 + n -> 0`, where `n` is the number of occurrences as an operation
-    ///   target or global source.
+    /// - `p -> 1 + m` on the left, where `p` is the number of global source
+    ///   occurrences and `m` is the number of operation-source occurrences;
+    /// - `1 + n -> q` on the right, where `n` is the number of
+    ///   operation-target occurrences and `q` is the number of global target
+    ///   occurrences.
     ///
     /// The extra leg connects the two spiders. Every other occurrence gets a
     /// distinct node, making every node occur exactly once as a source and
@@ -62,10 +63,12 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
             .map(|label| result.new_node(label))
             .collect();
 
-        let mut splitter_targets: Vec<Vec<NodeId>> =
+        let mut left_sources = vec![Vec::new(); central.len()];
+        let mut left_targets: Vec<Vec<NodeId>> =
             central.iter().copied().map(|node| vec![node]).collect();
-        let mut merger_sources: Vec<Vec<NodeId>> =
+        let mut right_sources: Vec<Vec<NodeId>> =
             central.iter().copied().map(|node| vec![node]).collect();
+        let mut right_targets = vec![Vec::new(); central.len()];
 
         for (operation, adjacency) in hypergraph.edges.into_iter().zip(hypergraph.adjacency) {
             let operation_sources = adjacency
@@ -73,7 +76,7 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
                 .into_iter()
                 .map(|node| {
                     let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                    splitter_targets[node.0].push(occurrence);
+                    left_targets[node.0].push(occurrence);
                     occurrence
                 })
                 .collect();
@@ -83,7 +86,7 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
                 .into_iter()
                 .map(|node| {
                     let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                    merger_sources[node.0].push(occurrence);
+                    right_sources[node.0].push(occurrence);
                     occurrence
                 })
                 .collect();
@@ -101,7 +104,7 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
             .into_iter()
             .map(|node| {
                 let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                merger_sources[node.0].push(occurrence);
+                left_sources[node.0].push(occurrence);
                 occurrence
             })
             .collect();
@@ -110,33 +113,36 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
             .into_iter()
             .map(|node| {
                 let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                splitter_targets[node.0].push(occurrence);
+                right_targets[node.0].push(occurrence);
                 occurrence
             })
             .collect();
 
-        for (splitter, merger) in splitter_targets.into_iter().zip(merger_sources) {
-            let splitter_outputs = splitter.len();
+        for (((left_sources, left_targets), right_sources), right_targets) in left_sources
+            .into_iter()
+            .zip(left_targets)
+            .zip(right_sources)
+            .zip(right_targets)
+        {
             result.new_edge(
                 WithSpider::Spider {
-                    sources: 0,
-                    targets: splitter_outputs,
+                    sources: left_sources.len(),
+                    targets: left_targets.len(),
                 },
                 Hyperedge {
-                    sources: vec![],
-                    targets: splitter,
+                    sources: left_sources,
+                    targets: left_targets,
                 },
             );
 
-            let merger_inputs = merger.len();
             result.new_edge(
                 WithSpider::Spider {
-                    sources: merger_inputs,
-                    targets: 0,
+                    sources: right_sources.len(),
+                    targets: right_targets.len(),
                 },
                 Hyperedge {
-                    sources: merger,
-                    targets: vec![],
+                    sources: right_sources,
+                    targets: right_targets,
                 },
             );
         }
