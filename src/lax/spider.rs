@@ -37,8 +37,45 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
     /// means that the quotient attempted to identify nodes with different
     /// labels; the returned finite function is the quotient witness, as for
     /// [`OpenHypergraph::quotient`].
-    pub fn spiderize(mut self) -> Result<OpenHypergraph<O, WithSpider<A>>, FiniteFunction> {
-        self.quotient()?;
+    pub fn spiderize(self) -> Result<OpenHypergraph<O, WithSpider<A>>, FiniteFunction> {
+        let nodes: Vec<NodeId> = (0..self.hypergraph.nodes.len()).map(NodeId).collect();
+        self.spiderize_nodes(&nodes)
+    }
+
+    /// Replace the chosen nodes' implicit wiring with explicit spider
+    /// operations.
+    ///
+    /// Each selected node is replaced by the same pair of spiders used by
+    /// [`Self::spiderize`]. Unselected nodes retain their implicit wiring.
+    /// Consequently, unlike [`Self::spiderize`], this operation does not by
+    /// itself guarantee that the result is acyclic or monogamous.
+    ///
+    /// `nodes` contains IDs from the input hypergraph. Pending identifications
+    /// are applied first, and IDs in `nodes` are mapped through the resulting
+    /// quotient. Selecting any representative therefore selects its complete
+    /// equivalence class. Duplicate selections are ignored.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a selected node ID is out of bounds.
+    pub fn spiderize_nodes(
+        mut self,
+        nodes: &[NodeId],
+    ) -> Result<OpenHypergraph<O, WithSpider<A>>, FiniteFunction> {
+        let input_node_count = self.hypergraph.nodes.len();
+        for node in nodes {
+            assert!(
+                node.0 < input_node_count,
+                "node id {:?} is out of bounds",
+                node
+            );
+        }
+
+        let quotient = self.quotient()?;
+        let mut selected = vec![false; quotient.target];
+        for node in nodes {
+            selected[quotient.table[node.0]] = true;
+        }
 
         let OpenHypergraph {
             sources,
@@ -75,9 +112,13 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
                 .sources
                 .into_iter()
                 .map(|node| {
-                    let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                    left_targets[node.0].push(occurrence);
-                    occurrence
+                    if selected[node.0] {
+                        let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
+                        left_targets[node.0].push(occurrence);
+                        occurrence
+                    } else {
+                        central[node.0]
+                    }
                 })
                 .collect();
 
@@ -85,9 +126,13 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
                 .targets
                 .into_iter()
                 .map(|node| {
-                    let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                    right_sources[node.0].push(occurrence);
-                    occurrence
+                    if selected[node.0] {
+                        let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
+                        right_sources[node.0].push(occurrence);
+                        occurrence
+                    } else {
+                        central[node.0]
+                    }
                 })
                 .collect();
 
@@ -103,27 +148,40 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
         result.sources = sources
             .into_iter()
             .map(|node| {
-                let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                left_sources[node.0].push(occurrence);
-                occurrence
+                if selected[node.0] {
+                    let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
+                    left_sources[node.0].push(occurrence);
+                    occurrence
+                } else {
+                    central[node.0]
+                }
             })
             .collect();
 
         result.targets = targets
             .into_iter()
             .map(|node| {
-                let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                right_targets[node.0].push(occurrence);
-                occurrence
+                if selected[node.0] {
+                    let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
+                    right_targets[node.0].push(occurrence);
+                    occurrence
+                } else {
+                    central[node.0]
+                }
             })
             .collect();
 
-        for (((left_sources, left_targets), right_sources), right_targets) in left_sources
+        for (node, (((left_sources, left_targets), right_sources), right_targets)) in left_sources
             .into_iter()
             .zip(left_targets)
             .zip(right_sources)
             .zip(right_targets)
+            .enumerate()
         {
+            if !selected[node] {
+                continue;
+            }
+
             result.new_edge(
                 WithSpider::Spider {
                     sources: left_sources.len(),

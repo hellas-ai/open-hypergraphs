@@ -139,6 +139,42 @@ fn spiderize_rejects_inconsistent_quotients() {
     assert!(f.spiderize().is_err());
 }
 
+#[test]
+fn spiderize_nodes_only_replaces_selected_nodes() {
+    let mut f = OpenHypergraph::empty();
+    let x = f.new_node(());
+    let y = f.new_node(());
+    f.new_edge("forward", ([x], [y]));
+    f.new_edge("backward", ([y], [x]));
+
+    let original = f.clone();
+    let spiderized = f.spiderize_nodes(&[x]).unwrap();
+
+    assert_eq!(
+        spiderized
+            .hypergraph
+            .edges
+            .iter()
+            .filter(|edge| matches!(edge, WithSpider::Spider { .. }))
+            .count(),
+        2
+    );
+    assert!(spiderized.clone().to_strict().is_acyclic());
+    assert_eq!(forget_spiders(spiderized), original);
+}
+
+#[test]
+fn spiderize_nodes_maps_selections_through_quotient() {
+    let mut f = OpenHypergraph::<(), ()>::empty();
+    let x = f.new_node(());
+    let y = f.new_node(());
+    f.unify(x, y);
+
+    let spiderized = f.spiderize_nodes(&[y, y]).unwrap();
+
+    assert_eq!(spiderized.hypergraph.edges.len(), 2);
+}
+
 proptest! {
     #[test]
     fn spiderize_is_acyclic_monogamous_and_forgetful(
@@ -158,5 +194,20 @@ proptest! {
             input_operation_count + 2 * input_node_count
         );
         assert_eq!(forget_spiders(spiderized), input);
+    }
+
+    #[test]
+    fn spiderize_delegates_to_spiderize_nodes(
+        strict_input in arb_open_hypergraph()
+    ) {
+        let input: OpenHypergraph<Obj, Arr> =
+            OpenHypergraph::from_strict(strict_input);
+        let nodes: Vec<NodeId> =
+            (0..input.hypergraph.nodes.len()).map(NodeId).collect();
+
+        assert_eq!(
+            input.clone().spiderize().unwrap(),
+            input.spiderize_nodes(&nodes).unwrap()
+        );
     }
 }
