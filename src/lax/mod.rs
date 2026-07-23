@@ -72,14 +72,18 @@
 //! connected nodes, e.g., x0 and y0. this allows both *checking* (of e.g. equality) and
 //! *inference*: inequal types might be *unified* into a single type.
 pub mod category;
+pub mod cycle;
 pub mod functor;
 pub mod hypergraph;
 pub mod mut_category;
 pub mod open_hypergraph;
+pub mod spider;
 
 pub use crate::category::*;
+pub use cycle::*;
 pub use hypergraph::*;
 pub use open_hypergraph::*;
+pub use spider::*;
 
 pub mod optic;
 pub mod var;
