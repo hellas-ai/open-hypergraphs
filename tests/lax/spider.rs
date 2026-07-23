@@ -29,10 +29,7 @@ fn forget_spiders<O: Clone + PartialEq, A: Clone>(
                 result.hypergraph.edges.push(operation);
                 result.hypergraph.adjacency.push(adjacency);
             }
-            WithSpider::Spider { sources, targets } => {
-                assert_eq!(sources, adjacency.sources.len());
-                assert_eq!(targets, adjacency.targets.len());
-
+            WithSpider::Spider => {
                 let mut incident = adjacency.sources.into_iter().chain(adjacency.targets);
                 if let Some(first) = incident.next() {
                     for node in incident {
@@ -81,14 +78,8 @@ fn spider_arities_count_all_occurrences() {
         spiderized.hypergraph.edges,
         vec![
             WithSpider::Operation("op"),
-            WithSpider::Spider {
-                sources: 2,
-                targets: 3,
-            },
-            WithSpider::Spider {
-                sources: 2,
-                targets: 1,
-            },
+            WithSpider::Spider,
+            WithSpider::Spider,
         ]
     );
 
@@ -97,6 +88,14 @@ fn spider_arities_count_all_occurrences() {
 
     let left_spider = &spiderized.hypergraph.adjacency[1];
     let right_spider = &spiderized.hypergraph.adjacency[2];
+    assert_eq!(
+        (left_spider.sources.len(), left_spider.targets.len()),
+        (2, 3)
+    );
+    assert_eq!(
+        (right_spider.sources.len(), right_spider.targets.len()),
+        (2, 1)
+    );
     assert_eq!(left_spider.sources, spiderized.sources);
     assert_eq!(right_spider.targets, spiderized.targets);
 }
@@ -155,7 +154,7 @@ fn spiderize_nodes_only_replaces_selected_nodes() {
             .hypergraph
             .edges
             .iter()
-            .filter(|edge| matches!(edge, WithSpider::Spider { .. }))
+            .filter(|edge| matches!(edge, WithSpider::Spider))
             .count(),
         2
     );

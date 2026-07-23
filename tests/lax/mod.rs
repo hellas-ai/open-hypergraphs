@@ -1,3 +1,4 @@
+pub mod cycle;
 pub mod eval;
 pub mod functor;
 pub mod hypergraph;

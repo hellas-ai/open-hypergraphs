@@ -5,13 +5,12 @@ use crate::strict::vec::FiniteFunction;
 
 /// An operation from `A`, or an explicitly represented spider.
 ///
-/// A spider records its number of sources and targets. Its incident nodes still
-/// carry the object labels, just like those of an ordinary operation.
+/// A spider's arity is determined by its corresponding [`Hyperedge`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WithSpider<A> {
     Operation(A),
-    Spider { sources: usize, targets: usize },
+    Spider,
 }
 
 impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
@@ -71,140 +70,132 @@ impl<O: Clone + PartialEq, A: Clone> OpenHypergraph<O, A> {
             );
         }
 
-        let quotient = self.quotient()?;
-        let mut selected = vec![false; quotient.target];
-        for node in nodes {
-            selected[quotient.table[node.0]] = true;
-        }
-
-        let OpenHypergraph {
-            sources,
-            targets,
-            hypergraph,
-        } = self;
+        // Quotient the input if necessary and remap the selected node IDs.
+        let remapped_nodes;
+        let nodes = if self.hypergraph.is_strict() {
+            nodes
+        } else {
+            let quotient = self.quotient()?;
+            remapped_nodes = nodes
+                .iter()
+                .map(|node| NodeId(quotient.table[node.0]))
+                .collect::<Vec<_>>();
+            remapped_nodes.as_slice()
+        };
 
         assert_eq!(
-            hypergraph.edges.len(),
-            hypergraph.adjacency.len(),
+            self.hypergraph.edges.len(),
+            self.hypergraph.adjacency.len(),
             "malformed hypergraph: edges and adjacency lengths differ"
         );
 
-        let mut result = OpenHypergraph::empty();
+        // Split selected-node occurrences and record the spiders that reconnect them.
+        let spiders = rewrite_occurrences(
+            nodes,
+            &mut self.hypergraph.nodes,
+            &mut self.hypergraph.adjacency,
+            &mut self.sources,
+            &mut self.targets,
+        );
 
-        // Keeping these first and in the original order makes forgetting the
-        // spiders recover the original node ordering after quotienting.
-        let central: Vec<NodeId> = hypergraph
-            .nodes
-            .iter()
-            .cloned()
-            .map(|label| result.new_node(label))
-            .collect();
+        // Reuse the input graph, wrapping its existing operation labels.
+        let mut result = self.map_edges(WithSpider::Operation);
 
-        let mut left_sources = vec![Vec::new(); central.len()];
-        let mut left_targets: Vec<Vec<NodeId>> =
-            central.iter().copied().map(|node| vec![node]).collect();
-        let mut right_sources: Vec<Vec<NodeId>> =
-            central.iter().copied().map(|node| vec![node]).collect();
-        let mut right_targets = vec![Vec::new(); central.len()];
-
-        for (operation, adjacency) in hypergraph.edges.into_iter().zip(hypergraph.adjacency) {
-            let operation_sources = adjacency
-                .sources
-                .into_iter()
-                .map(|node| {
-                    if selected[node.0] {
-                        let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                        left_targets[node.0].push(occurrence);
-                        occurrence
-                    } else {
-                        central[node.0]
-                    }
-                })
-                .collect();
-
-            let operation_targets = adjacency
-                .targets
-                .into_iter()
-                .map(|node| {
-                    if selected[node.0] {
-                        let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                        right_sources[node.0].push(occurrence);
-                        occurrence
-                    } else {
-                        central[node.0]
-                    }
-                })
-                .collect();
-
-            result.new_edge(
-                WithSpider::Operation(operation),
-                Hyperedge {
-                    sources: operation_sources,
-                    targets: operation_targets,
-                },
-            );
-        }
-
-        result.sources = sources
-            .into_iter()
-            .map(|node| {
-                if selected[node.0] {
-                    let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                    left_sources[node.0].push(occurrence);
-                    occurrence
-                } else {
-                    central[node.0]
-                }
-            })
-            .collect();
-
-        result.targets = targets
-            .into_iter()
-            .map(|node| {
-                if selected[node.0] {
-                    let occurrence = result.new_node(hypergraph.nodes[node.0].clone());
-                    right_targets[node.0].push(occurrence);
-                    occurrence
-                } else {
-                    central[node.0]
-                }
-            })
-            .collect();
-
-        for (node, (((left_sources, left_targets), right_sources), right_targets)) in left_sources
-            .into_iter()
-            .zip(left_targets)
-            .zip(right_sources)
-            .zip(right_targets)
-            .enumerate()
-        {
-            if !selected[node] {
-                continue;
-            }
-
-            result.new_edge(
-                WithSpider::Spider {
-                    sources: left_sources.len(),
-                    targets: left_targets.len(),
-                },
-                Hyperedge {
-                    sources: left_sources,
-                    targets: left_targets,
-                },
-            );
-
-            result.new_edge(
-                WithSpider::Spider {
-                    sources: right_sources.len(),
-                    targets: right_targets.len(),
-                },
-                Hyperedge {
-                    sources: right_sources,
-                    targets: right_targets,
-                },
-            );
+        // Append the two explicit operations for each selected node.
+        for (left_spider, right_spider) in spiders {
+            result.new_edge(WithSpider::Spider, left_spider);
+            result.new_edge(WithSpider::Spider, right_spider);
         }
 
         Ok(result)
     }
+}
+
+/// Append a fresh occurrence of `node`, carrying the same label.
+fn new_occurrence<O: Clone>(nodes: &mut Vec<O>, node: NodeId) -> NodeId {
+    let occurrence = NodeId(nodes.len());
+    nodes.push(nodes[node.0].clone());
+    occurrence
+}
+
+/// Replace selected node occurrences and build their spider interfaces.
+///
+/// For every selected node, the returned vector contains a pair consisting of:
+///
+/// - a left spider whose sources are global-source occurrences and whose
+///   targets are the original node followed by operation-source occurrences;
+/// - a right spider whose sources are the original node followed by
+///   operation-target occurrences and whose targets are global-target
+///   occurrences.
+///
+/// Each selected occurrence is replaced in-place with a fresh node carrying
+/// the original label. Unselected occurrences remain unchanged.
+fn rewrite_occurrences<O: Clone>(
+    selected: &[NodeId],
+    nodes: &mut Vec<O>,
+    adjacency: &mut [Hyperedge],
+    sources: &mut [NodeId],
+    targets: &mut [NodeId],
+) -> Vec<(Hyperedge, Hyperedge)> {
+    let node_count = nodes.len();
+
+    // Index spiders by original node while rewriting, but only create selected pairs.
+    let mut spiders: Vec<Option<(Hyperedge, Hyperedge)>> = (0..node_count).map(|_| None).collect();
+    for &node in selected {
+        spiders[node.0].get_or_insert_with(|| {
+            (
+                Hyperedge {
+                    sources: vec![],
+                    targets: vec![node],
+                },
+                Hyperedge {
+                    sources: vec![node],
+                    targets: vec![],
+                },
+            )
+        });
+    }
+
+    // Operation sources leave the left spider; operation targets enter the
+    // right spider.
+    for adjacency in adjacency {
+        for node in &mut adjacency.sources {
+            let original = *node;
+            if let Some((left_spider, _)) = spiders[original.0].as_mut() {
+                let occurrence = new_occurrence(nodes, original);
+                left_spider.targets.push(occurrence);
+                *node = occurrence;
+            }
+        }
+
+        for node in &mut adjacency.targets {
+            let original = *node;
+            if let Some((_, right_spider)) = spiders[original.0].as_mut() {
+                let occurrence = new_occurrence(nodes, original);
+                right_spider.sources.push(occurrence);
+                *node = occurrence;
+            }
+        }
+    }
+
+    // Global sources enter the left spider; global targets leave the right.
+    for node in sources {
+        let original = *node;
+        if let Some((left_spider, _)) = spiders[original.0].as_mut() {
+            let occurrence = new_occurrence(nodes, original);
+            left_spider.sources.push(occurrence);
+            *node = occurrence;
+        }
+    }
+
+    for node in targets {
+        let original = *node;
+        if let Some((_, right_spider)) = spiders[original.0].as_mut() {
+            let occurrence = new_occurrence(nodes, original);
+            right_spider.targets.push(occurrence);
+            *node = occurrence;
+        }
+    }
+
+    spiders.into_iter().flatten().collect()
 }
