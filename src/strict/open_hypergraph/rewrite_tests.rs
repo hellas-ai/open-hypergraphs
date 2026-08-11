@@ -3,9 +3,10 @@ use crate::category::Arrow;
 use crate::finite_function::FiniteFunction;
 use crate::indexed_coproduct::IndexedCoproduct;
 use crate::semifinite::SemifiniteFunction;
+use crate::strict::hypergraph::matching::MatchOptions;
 use crate::strict::hypergraph::Hypergraph;
 use crate::strict::open_hypergraph::{
-    apply_smc_rewrite, OpenHypergraph, SmcRewriteMatch, SmcRewriteRule,
+    apply_smc_rewrite, find_smc_rewrite_matches, OpenHypergraph, SmcRewriteMatch, SmcRewriteRule,
 };
 use std::collections::HashMap;
 
@@ -1552,4 +1553,22 @@ fn smc_match_preserves_boundary_disjointness_for_valid_rule() {
     let lhs_inputs_in_host = (&r.lhs.graph.s >> m.w()).unwrap();
     let lhs_outputs_in_host = (&r.lhs.graph.t >> m.w()).unwrap();
     assert!(lhs_inputs_in_host.has_disjoint_image(&lhs_outputs_in_host));
+}
+
+#[test]
+fn smc_rewrite_match_search_finds_named_delete_match() {
+    let (rule, _lhs, _rhs) = delete_single_edge_rule_named(20);
+    let host = make_named_open_hypergraph(
+        [w("a", OBJ), w("b", OBJ), w("c", OBJ)],
+        [e("drop", ["a"], ["b"], 20), e("keep", ["b"], ["c"], 21)],
+        [inp("a")],
+        [out("c")],
+    );
+
+    let matches = find_smc_rewrite_matches(&rule, &host.graph, &MatchOptions::default());
+    assert_eq!(matches.len(), 1);
+
+    let m = &matches[0];
+    assert_eq!(m.x().table.0, vec![0]);
+    assert_eq!(m.w().table.0, vec![host.wire_ix["a"], host.wire_ix["b"]]);
 }
