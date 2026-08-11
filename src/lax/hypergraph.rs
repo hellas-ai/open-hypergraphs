@@ -353,6 +353,16 @@ impl<O, A> Hypergraph<O, A> {
 }
 
 impl<O: Clone + PartialEq, A: Clone> Hypergraph<O, A> {
+    /// Return a quotiented copy along with the coequalizer used.
+    pub fn quotiented_with(
+        mut self,
+        quotient_left: Vec<NodeId>,
+        quotient_right: Vec<NodeId>,
+    ) -> Result<(Self, FiniteFunction<VecKind>), FiniteFunction<VecKind>> {
+        self.quotient = (quotient_left, quotient_right);
+        let q = self.quotient()?;
+        Ok((self, q))
+    }
     /// Mutably quotient this [`Hypergraph`], returning the coequalizer calculated from
     /// `self.quotient`.
     /// An [`Ok`] result means the hypergraph was quotiented.

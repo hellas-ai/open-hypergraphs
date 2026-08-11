@@ -1,11 +1,21 @@
 //! The primary datastructure for representing cospans of hypergraphs
 mod arrow;
 #[cfg(feature = "experimental")]
-mod rewrite;
+mod frobenius_rewrite;
 #[cfg(test)]
 #[cfg(feature = "experimental")]
-mod rewrite_tests;
+mod frobenius_rewrite_tests;
+#[cfg(feature = "experimental")]
+mod smc_rewrite;
+#[cfg(test)]
+#[cfg(feature = "experimental")]
+mod smc_rewrite_tests;
+#[cfg(test)]
+#[cfg(feature = "experimental")]
+mod test_utils;
 
 pub use arrow::*;
 #[cfg(feature = "experimental")]
-pub use rewrite::*;
+pub use frobenius_rewrite::*;
+#[cfg(feature = "experimental")]
+pub use smc_rewrite::*;

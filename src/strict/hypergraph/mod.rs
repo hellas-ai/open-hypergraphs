@@ -4,4 +4,5 @@ mod acyclic;
 pub mod arrow;
 mod object;
 
+pub use arrow::*;
 pub use object::*;
